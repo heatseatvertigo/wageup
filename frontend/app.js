@@ -1,4 +1,6 @@
 const storageKey = "wageup-state-v1";
+const apiBaseUrl = window.WAGEUP_API_URL || "http://localhost:8000/api";
+let apiAvailable = true;
 
 const defaultState = {
   products: [
@@ -96,31 +98,41 @@ document.querySelectorAll("[data-view]").forEach((button) => {
   });
 });
 
-document.querySelector("#transactionForm").addEventListener("submit", (event) => {
+document.querySelector("#transactionForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
-  state.transactions.unshift({
-    id: uid(),
+  const payload = {
     description: form.get("description").trim(),
     type: form.get("type"),
     amount: Number(form.get("amount"))
-  });
+  };
+
+  const transaction = apiAvailable
+    ? await createTransaction(payload)
+    : { id: uid(), ...payload };
+
+  state.transactions.unshift(transaction);
   event.currentTarget.reset();
   persist();
   render();
 });
 
-document.querySelector("#productForm").addEventListener("submit", (event) => {
+document.querySelector("#productForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
-  state.products.unshift({
-    id: uid(),
+  const payload = {
     name: form.get("name").trim(),
     category: form.get("category").trim(),
     cost: Number(form.get("cost")),
     price: Number(form.get("price")),
     stock: Number(form.get("stock"))
-  });
+  };
+
+  const product = apiAvailable
+    ? await createProduct(payload)
+    : { id: uid(), ...payload };
+
+  state.products.unshift(product);
   event.currentTarget.reset();
   persist();
   render();
@@ -159,6 +171,7 @@ document.querySelector("#campaignForm").addEventListener("submit", async (event)
 window.addEventListener("resize", () => drawChart());
 
 render();
+initializeApp();
 
 setDemoView("overview");
 
@@ -238,7 +251,11 @@ function renderTransactions() {
   });
 
   rows.querySelectorAll("[data-delete-transaction]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
+      if (apiAvailable) {
+        await deleteTransaction(button.dataset.deleteTransaction);
+      }
+
       state.transactions = state.transactions.filter((item) => item.id !== button.dataset.deleteTransaction);
       persist();
       render();
@@ -384,7 +401,7 @@ function imagePrompt(goal, productName) {
 
 async function askMarketingAi({ product, goal, channel, prompt, margin }) {
   try {
-    const response = await fetch("/api/marketing/chat/", {
+    const response = await fetch(`${apiBaseUrl}/marketing/chat/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -440,7 +457,78 @@ function loadState() {
 }
 
 function persist() {
+  if (apiAvailable) return;
   localStorage.setItem(storageKey, JSON.stringify(state));
+}
+
+async function initializeApp() {
+  try {
+    const remoteState = await loadRemoteState();
+    state = remoteState;
+    apiAvailable = true;
+    render();
+  } catch {
+    apiAvailable = false;
+    state = loadState();
+    render();
+  }
+}
+
+async function loadRemoteState() {
+  const [products, transactions] = await Promise.all([
+    apiRequest("/products/"),
+    apiRequest("/transactions/")
+  ]);
+
+  return { products, transactions };
+}
+
+async function createProduct(payload) {
+  try {
+    return await apiRequest("/products/", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+  } catch {
+    apiAvailable = false;
+    persist();
+    return { id: uid(), ...payload };
+  }
+}
+
+async function createTransaction(payload) {
+  try {
+    return await apiRequest("/transactions/", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+  } catch {
+    apiAvailable = false;
+    persist();
+    return { id: uid(), ...payload };
+  }
+}
+
+async function deleteTransaction(id) {
+  try {
+    await apiRequest(`/transactions/${id}/`, { method: "DELETE" });
+  } catch {
+    apiAvailable = false;
+  }
+}
+
+async function apiRequest(path, options = {}) {
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    ...options
+  });
+
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status}`);
+  }
+
+  if (response.status === 204) return null;
+  return response.json();
 }
 
 function escapeHtml(value) {
