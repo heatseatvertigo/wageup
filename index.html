@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wage Up | Plataforma para microempreendedores</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,0,0&family=Questrial&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="site-shell">
+      <header class="topbar" aria-label="Navegação principal">
+        <a class="brand" href="#inicio" aria-label="Wage Up início">
+          <span>Wage Up</span>
+        </a>
+        <nav class="main-nav" aria-label="Seções">
+          <a href="#produto">Produtos</a>
+          <a href="#plataforma">Plataforma</a>
+          <a href="#marketing">Marketing</a>
+          <a href="#financeiro">Financeiro</a>
+          <a href="#pix">PIX</a>
+        </nav>
+        <button class="ghost-button" data-open-app>Entrar</button>
+      </header>
+
+      <main>
+        <section class="hero" id="inicio">
+          <div class="hero-copy">
+            <p class="eyebrow">Gestão simples para microempreendedores</p>
+            <h1>Wage Up</h1>
+            <p class="hero-subtitle">A plataforma para MEIs venderem melhor, organizarem produtos, acompanharem o dinheiro e criarem conteúdos com IA.</p>
+            <div class="hero-actions">
+              <button class="primary-button" data-open-app>Começar agora</button>
+              <a class="secondary-button" href="#plataforma">Ver plataforma</a>
+            </div>
+          </div>
+
+          <div class="floating-stage" aria-label="Recursos principais">
+            <span style="--x: 8%; --y: 18%; --d: 0s">Fluxo de caixa</span>
+            <span style="--x: 58%; --y: 12%; --d: 1.2s">Produtos</span>
+            <span style="--x: 24%; --y: 48%; --d: 2s">PIX</span>
+            <span style="--x: 68%; --y: 52%; --d: .6s">Relatórios</span>
+            <div class="hero-panel">
+              <div>
+                <strong>R$ 8.430</strong>
+                <small>receita do mês</small>
+              </div>
+              <div>
+                <strong>42</strong>
+                <small>produtos ativos</small>
+              </div>
+              <div>
+                <strong>+18%</strong>
+                <small>crescimento</small>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="product-demo" aria-label="Demonstração do produto">
+          <div class="demo-window">
+            <div class="window-controls"><span></span><span></span><span></span></div>
+            <div class="demo-layout">
+              <aside class="demo-sidebar">
+                <strong>Wage Up</strong>
+                <button class="active" data-demo-view="overview">Resumo</button>
+                <button data-demo-view="products">Produtos</button>
+                <button data-demo-view="finance">Financeiro</button>
+                <button data-demo-view="marketing">Marketing</button>
+              </aside>
+              <div class="demo-main">
+                <div class="demo-toolbar">
+                  <div>
+                    <small>Hoje</small>
+                    <strong id="demoTitle">Visão do negócio</strong>
+                  </div>
+                  <button id="demoAction">Gerar relatório</button>
+                </div>
+                <div class="demo-cards">
+                  <article><span id="demoMetricOneLabel">Receita</span><strong id="demoMetricOne">R$ 8.430</strong></article>
+                  <article><span id="demoMetricTwoLabel">Lucro</span><strong id="demoMetricTwo">R$ 3.120</strong></article>
+                  <article><span id="demoMetricThreeLabel">Estoque baixo</span><strong id="demoMetricThree">4 itens</strong></article>
+                </div>
+                <div class="demo-workspace">
+                  <div class="demo-chart" id="demoChart"><span style="height: 62%"></span><span style="height: 38%"></span><span style="height: 82%"></span><span style="height: 54%"></span><span style="height: 72%"></span></div>
+                  <div class="demo-chat">
+                    <p id="demoPrompt">Crie um post para vender o Kit Festa.</p>
+                    <strong id="demoResponse">Post sugerido com imagem, legenda e CTA prontos.</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="module-page" id="produto">
+          <div class="section-heading">
+            <p class="eyebrow">Produtos</p>
+            <h2>Cadastro, preço e margem em uma tela só.</h2>
+            <span>Organize o catálogo sem planilha. Cada item pode carregar custo, preço, estoque e margem estimada.</span>
+          </div>
+          <div class="module-layout">
+            <article class="module-copy">
+              <h3>Exemplo prático</h3>
+              <p>Um MEI que vende doces cadastra Brownie Premium com custo de R$ 4,50 e preço de R$ 12,00. A Wage Up mostra a margem, sinaliza estoque baixo e usa esse produto como base para campanhas.</p>
+              <ul>
+                <li>Cadastro rápido de produtos e categorias.</li>
+                <li>Cálculo de margem por unidade.</li>
+                <li>Alertas para reposição de estoque.</li>
+              </ul>
+            </article>
+            <article class="dynamic-card product-visual">
+              <span>Brownie Premium</span>
+              <strong>R$ 12,00</strong>
+              <div><b>Custo</b><em>R$ 4,50</em></div>
+              <div><b>Margem</b><em>62%</em></div>
+              <div><b>Estoque</b><em>28 un.</em></div>
+            </article>
+          </div>
+        </section>
+
+      
+
+        <section class="module-page split" id="marketing">
+          <div class="section-heading">
+            <p class="eyebrow">Marketing</p>
+            <h2>Conteúdo com IA conectado ao seu catálogo.</h2>
+            <span>A IA usa seus produtos, margem e objetivo de venda para sugerir posts, legendas, ideias de imagem e mensagens para WhatsApp.</span>
+          </div>
+          <div class="module-layout">
+            <div class="ai-preview">
+              <p><b>Você</b> Quero divulgar o Kit Festa para o fim de semana.</p>
+              <p><b>Wage Up IA</b> Sugestão: foto do kit em mesa clara, chamada curta, preço visível e CTA para PIX.</p>
+              <div class="generated-image">Imagem gerada</div>
+            </div>
+            <div class="marketing-strip">
+              <span>Post para Instagram</span>
+              <span>Legenda promocional</span>
+              <span>Story de oferta</span>
+              <span>Mensagem para WhatsApp</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="module-page" id="financeiro">
+          <div class="section-heading">
+            <p class="eyebrow">Financeiro</p>
+            <h2>Gráficos e relatórios para decidir melhor.</h2>
+            <span>Registre entradas e saídas para entender lucro, despesas recorrentes e evolução do negócio.</span>
+          </div>
+          <div class="metric-row">
+            <div><strong>Receita</strong><span>Entradas por período, produto e canal.</span></div>
+            <div><strong>Despesas</strong><span>Custos fixos, variáveis e compras.</span></div>
+            <div><strong>Lucro</strong><span>Resultado estimado com leitura simples.</span></div>
+          </div>
+        </section>
+
+        <section class="module-page" id="pix">
+          <div class="section-heading">
+            <p class="eyebrow">PIX</p>
+            <h2>Receba mais rápido e concilie sem confusão.</h2>
+            <span>A visão de PIX conecta recebimentos ao financeiro para reduzir trabalho manual e facilitar o fechamento do mês.</span>
+          </div>
+          <div class="pix-board">
+            <article><span>PIX recebido</span><strong>R$ 149,90</strong><small>Kit Festa Pequeno</small></article>
+            <article><span>Status</span><strong>Conciliado</strong><small>Entrada registrada automaticamente</small></article>
+            <article><span>Próximo passo</span><strong>Emitir recibo</strong><small>Documento simples para o cliente</small></article>
+          </div>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <div class="footer-links">
+          <nav>
+            <a href="#inicio">Início</a>
+            <a href="#produto">Produtos</a>
+            <a href="#plataforma">Plataforma</a>
+            <a href="#financeiro">Financeiro</a>
+          </nav>
+          <nav>
+            <a href="#marketing">Marketing com IA</a>
+            <a href="#pix">PIX</a>
+            <a href="#plataforma">Dashboard</a>
+            <a href="#produto">Catálogo</a>
+          </nav>
+          <nav>
+            <a href="#marketing">Gerador de posts</a>
+            <a href="#financeiro">Relatórios</a>
+            <a href="#pix">Conciliação PIX</a>
+            <a href="#inicio">Acessar plataforma</a>
+          </nav>
+          <div class="trust-badges">
+            <span>Dados organizados</span>
+            <span>Controle financeiro</span>
+            <span>Marketing</span>
+            <small>2026 © Wage Up. Plataforma em desenvolvimento para microempreendedores.</small>
+          </div>
+        </div>
+        <strong class="footer-wordmark">Wage Up</strong>
+      </footer>
+    </div>
+
+    <section class="app-shell is-hidden" id="app" aria-label="Aplicativo Wage Up">
+      <aside class="sidebar">
+        <div class="account-chip">
+          <span>C</span>
+          <div>
+            <strong>Conta</strong>
+            <small>MEI ativo</small>
+          </div>
+        </div>
+        <nav class="side-nav" aria-label="Módulos da plataforma">
+          <button class="active" data-view="overview"><span class="material-symbols-rounded">home</span>Conta</button>
+          <button data-view="finance"><span class="material-symbols-rounded">payments</span>Financeiro</button>
+          <button data-view="products"><span class="material-symbols-rounded">inventory_2</span>Produtos</button>
+          <button data-view="app-marketing"><span class="material-symbols-rounded">auto_awesome</span>Marketing</button>
+        </nav>
+        <div class="side-footer">
+          <button data-view="help"><span class="material-symbols-rounded">help</span>Ajuda</button>
+          <button data-close-app><span class="material-symbols-rounded">logout</span>Sair</button>
+        </div>
+      </aside>
+
+      <main class="dashboard">
+        <header class="dashboard-header">
+          <button class="menu-button" aria-label="Abrir menu">☰</button>
+          <div>
+            <p class="eyebrow">Wage Up</p>
+            <h2 id="view-title">Bem-vindo de volta.</h2>
+          </div>
+          <button class="ghost-button" data-close-app>Landing</button>
+        </header>
+
+        <section class="view active" id="overview">
+          <div class="summary-grid">
+            <article><span>Receita</span><strong id="total-revenue">R$ 0</strong></article>
+            <article><span>Despesas</span><strong id="total-expenses">R$ 0</strong></article>
+            <article><span>Lucro estimado</span><strong id="total-profit">R$ 0</strong></article>
+            <article><span>Produtos</span><strong id="total-products">0</strong></article>
+          </div>
+          <div class="work-panel">
+            <div class="panel-heading">
+              <h3>Resumo do negócio</h3>
+              <span>Atualizado em tempo real</span>
+            </div>
+            <div class="overview-layout">
+              <canvas id="overviewChart" width="600" height="260" aria-label="Gráfico financeiro"></canvas>
+              <div class="insight-list" id="insights"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="finance">
+          <div class="work-panel">
+            <div class="panel-heading">
+              <h3>Movimentações</h3>
+              <span>Entradas e saídas</span>
+            </div>
+            <form class="inline-form" id="transactionForm">
+              <input name="description" placeholder="Descrição" required />
+              <select name="type" required>
+                <option value="income">Entrada</option>
+                <option value="expense">Saída</option>
+              </select>
+              <input name="amount" type="number" min="1" step="0.01" placeholder="Valor" required />
+              <button class="primary-button" type="submit">Adicionar</button>
+            </form>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Descrição</th><th>Tipo</th><th>Valor</th><th></th></tr>
+                </thead>
+                <tbody id="transactionRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="products">
+          <div class="work-panel">
+            <div class="panel-heading">
+              <h3>Produtos</h3>
+              <span>Cadastro e margem</span>
+            </div>
+            <form class="inline-form product-form" id="productForm">
+              <input name="name" placeholder="Produto" required />
+              <input name="category" placeholder="Categoria" required />
+              <input name="cost" type="number" min="0" step="0.01" placeholder="Custo" required />
+              <input name="price" type="number" min="0" step="0.01" placeholder="Preço" required />
+              <input name="stock" type="number" min="0" step="1" placeholder="Estoque" required />
+              <button class="primary-button" type="submit">Cadastrar</button>
+            </form>
+            <div class="product-grid" id="productGrid"></div>
+          </div>
+        </section>
+
+        <section class="view" id="app-marketing">
+          <div class="work-panel">
+            <div class="panel-heading">
+              <h3>Marketing com IA</h3>
+              <span>Chat para posts, imagens e campanhas</span>
+            </div>
+            <div class="marketing-chat-layout">
+              <div class="chat-panel">
+                <div class="chat-thread" id="campaignOutput">
+                  <article class="assistant-message">Escolha um produto e descreva o que você quer vender. Quando o backend Django estiver ativo, este chat chamará a IA pelo endpoint da plataforma.</article>
+                </div>
+                <form class="campaign-builder" id="campaignForm">
+                  <select name="product" id="campaignProduct" aria-label="Produto"></select>
+                  <select name="goal" aria-label="Objetivo">
+                    <option value="promocao">Promoção</option>
+                    <option value="lancamento">Lançamento</option>
+                    <option value="relacionamento">Relacionamento</option>
+                  </select>
+                  <select name="channel" aria-label="Canal">
+                    <option>Instagram</option>
+                    <option>WhatsApp</option>
+                    <option>TikTok</option>
+                  </select>
+                  <input name="prompt" placeholder="Ex.: vender mais no fim de semana" />
+                  <button class="primary-button" type="submit">Enviar</button>
+                </form>
+              </div>
+              <aside class="image-lab">
+                <span>Prévia da imagem</span>
+                <div id="imagePreview">Kit Festa<br>fim de semana</div>
+                <small>Na versão com API, esta área recebe a imagem gerada por IA.</small>
+              </aside>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="help">
+          <div class="work-panel">
+            <div class="panel-heading">
+              <h3>Ajuda</h3>
+              <span>Próximos passos</span>
+            </div>
+            <div class="help-grid">
+              <article><strong>Produtos</strong><p>Cadastre seu catálogo inicial e acompanhe margem por item.</p></article>
+              <article><strong>Financeiro</strong><p>Registre entradas e saídas para alimentar gráficos e relatórios.</p></article>
+              <article><strong>Marketing</strong><p>Use seus produtos como base para campanhas simples e rápidas.</p></article>
+            </div>
+          </div>
+        </section>
+      </main>
+    </section>
+
+    <script src="app.js"></script>
+  </body>
+</html>
