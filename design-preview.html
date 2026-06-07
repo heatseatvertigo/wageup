@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Wage Up — Exploração de identidade visual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Fraunces:opst,wght@9..144,400..600&family=Newsreader:ital,opsz,wght@0,6..72,400..600&family=Space+Mono:wght@400;700&family=Archivo:wght@400..900&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Archivo, sans-serif; }
+  section { padding: 5rem 4rem; }
+  .label { font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.6; margin-bottom: 2rem; font-weight: 700; }
+
+  /* ============ OPÇÃO 1: INK & LIME ============ */
+  .opt1 {
+    background: #0B0D0C;
+    color: #F5F7F4;
+    font-family: 'Bricolage Grotesque', sans-serif;
+  }
+  .opt1 .label { color: #C8FF4D; }
+  .opt1 h1 {
+    font-size: clamp(3rem, 7vw, 5.5rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 0.98;
+    max-width: 14ch;
+  }
+  .opt1 .accent { color: #C8FF4D; }
+  .opt1 p.sub {
+    margin-top: 1.5rem;
+    max-width: 38ch;
+    font-size: 1.15rem;
+    color: rgba(245,247,244,0.62);
+    line-height: 1.6;
+  }
+  .opt1 .row { display: flex; gap: 1.5rem; margin-top: 3rem; flex-wrap: wrap; }
+  .opt1 .btn { background: #C8FF4D; color: #0B0D0C; border: none; padding: 1rem 1.8rem; border-radius: 8px; font-weight: 800; font-size: 0.95rem; }
+  .opt1 .btn.ghost { background: transparent; color: #F5F7F4; border: 1px solid rgba(245,247,244,0.25); }
+  .opt1 .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 4rem; max-width: 50rem; }
+  .opt1 .card { border: 1px solid rgba(245,247,244,0.12); border-radius: 12px; padding: 1.5rem; background: rgba(245,247,244,0.03); }
+  .opt1 .card span { font-size: 0.8rem; color: rgba(245,247,244,0.5); }
+  .opt1 .card strong { display: block; font-family: 'Space Mono', monospace; font-size: 1.8rem; margin-top: 0.4rem; color: #C8FF4D; }
+
+  /* ============ OPÇÃO 2: PAPER & INK ============ */
+  .opt2 {
+    background: #F7F5F0;
+    color: #14171A;
+    font-family: Archivo, sans-serif;
+  }
+  .opt2 .label { color: #1F5F4F; }
+  .opt2 h1 {
+    font-family: 'Newsreader', serif;
+    font-size: clamp(3rem, 6.5vw, 5rem);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    line-height: 1.04;
+    max-width: 15ch;
+    font-style: italic;
+  }
+  .opt2 .accent { color: #1F5F4F; font-style: normal; }
+  .opt2 p.sub {
+    margin-top: 1.5rem;
+    max-width: 40ch;
+    font-size: 1.1rem;
+    color: #5B6361;
+    line-height: 1.65;
+  }
+  .opt2 .row { display: flex; gap: 1.5rem; margin-top: 3rem; flex-wrap: wrap; }
+  .opt2 .btn { background: #1F5F4F; color: #F7F5F0; border: none; padding: 1rem 1.8rem; border-radius: 4px; font-weight: 600; font-size: 0.95rem; }
+  .opt2 .btn.ghost { background: transparent; color: #14171A; border: 1px solid rgba(20,23,26,0.18); }
+  .opt2 .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 4rem; max-width: 50rem; }
+  .opt2 .card { border: 1px solid rgba(20,23,26,0.1); border-radius: 6px; padding: 1.5rem; background: #FFFFFF; box-shadow: 0 1px 2px rgba(20,23,26,0.04); }
+  .opt2 .card span { font-size: 0.8rem; color: #8B928F; }
+  .opt2 .card strong { display: block; font-family: 'Newsreader', serif; font-size: 1.9rem; margin-top: 0.4rem; color: #1F5F4F; }
+
+  /* ============ OPÇÃO 3: BOLD MONO ============ */
+  .opt3 {
+    background: #FFFFFF;
+    color: #111111;
+    font-family: 'Space Mono', monospace;
+  }
+  .opt3 .label { color: #FF5A1F; font-family: 'Space Mono', monospace; }
+  .opt3 h1 {
+    font-family: Archivo, sans-serif;
+    font-size: clamp(2.6rem, 6vw, 4.6rem);
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1.0;
+    text-transform: uppercase;
+    max-width: 16ch;
+  }
+  .opt3 .accent { color: #FF5A1F; }
+  .opt3 p.sub {
+    margin-top: 1.5rem;
+    max-width: 40ch;
+    font-size: 1rem;
+    color: #555;
+    line-height: 1.7;
+  }
+  .opt3 .row { display: flex; gap: 1.5rem; margin-top: 3rem; flex-wrap: wrap; }
+  .opt3 .btn { background: #111111; color: #FFFFFF; border: none; padding: 1rem 1.8rem; border-radius: 0; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .opt3 .btn.ghost { background: transparent; color: #111111; border: 1px solid #111111; }
+  .opt3 .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-top: 4rem; max-width: 50rem; border: 1px solid #111; }
+  .opt3 .card { border-right: 1px solid #111; padding: 1.5rem; }
+  .opt3 .card:last-child { border-right: none; }
+  .opt3 .card span { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.08em; }
+  .opt3 .card strong { display: block; font-family: Archivo, sans-serif; font-weight: 800; font-size: 1.8rem; margin-top: 0.4rem; color: #FF5A1F; }
+
+  .divider { text-align: center; padding: 1rem; font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; color: #999; background: #fff; }
+</style>
+</head>
+<body>
+
+  <section class="opt1">
+    <p class="label">Opção 1 — Ink &amp; Lime</p>
+    <h1>Organize seu negócio. <span class="accent">Vai pra cima.</span></h1>
+    <p class="sub">Gestão financeira, catálogo de produtos, PIX e marketing com IA — tudo num painel feito pra quem empreende sozinho.</p>
+    <div class="row">
+      <button class="btn">Começar agora</button>
+      <button class="btn ghost">Ver plataforma</button>
+    </div>
+    <div class="cards">
+      <div class="card"><span>Receita do mês</span><strong>R$ 8.430</strong></div>
+      <div class="card"><span>Crescimento</span><strong>+18%</strong></div>
+      <div class="card"><span>Produtos ativos</span><strong>42</strong></div>
+    </div>
+  </section>
+
+  <p class="divider">↓ rolar para próxima opção ↓</p>
+
+  <section class="opt2">
+    <p class="label">Opção 2 — Paper &amp; Ink</p>
+    <h1>Seu negócio, <span class="accent">organizado</span> com clareza.</h1>
+    <p class="sub">Finanças, produtos e marketing com inteligência artificial reunidos num painel pensado para o microempreendedor brasileiro.</p>
+    <div class="row">
+      <button class="btn">Começar agora</button>
+      <button class="btn ghost">Ver plataforma</button>
+    </div>
+    <div class="cards">
+      <div class="card"><span>Receita do mês</span><strong>R$ 8.430</strong></div>
+      <div class="card"><span>Crescimento</span><strong>+18%</strong></div>
+      <div class="card"><span>Produtos ativos</span><strong>42</strong></div>
+    </div>
+  </section>
+
+  <p class="divider">↓ rolar para próxima opção ↓</p>
+
+  <section class="opt3">
+    <p class="label">[ Opção 3 — Bold Mono ]</p>
+    <h1>Gestão financeira <span class="accent">para MEI</span> sem enrolação.</h1>
+    <p class="sub">Painel direto ao ponto: vendas, estoque, PIX e campanhas de marketing geradas por IA — números claros, decisões rápidas.</p>
+    <div class="row">
+      <button class="btn">Começar agora</button>
+      <button class="btn ghost">Ver plataforma</button>
+    </div>
+    <div class="cards">
+      <div class="card"><span>Receita do mês</span><strong>R$ 8.430</strong></div>
+      <div class="card"><span>Crescimento</span><strong>+18%</strong></div>
+      <div class="card"><span>Produtos ativos</span><strong>42</strong></div>
+    </div>
+  </section>
+
+</body>
+</html>
