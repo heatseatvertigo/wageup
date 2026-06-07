@@ -1,6 +1,10 @@
 const storageKey = "wageup-state-v1";
+const authTokenKey = "wageup-auth-token";
 const apiBaseUrl = window.WAGEUP_API_URL || "http://localhost:8000/api";
+const googleClientId = window.WAGEUP_GOOGLE_CLIENT_ID || "";
 let apiAvailable = true;
+let authToken = localStorage.getItem(authTokenKey);
+let currentUser = null;
 
 const defaultState = {
   products: [
@@ -19,12 +23,15 @@ const defaultState = {
 let state = loadState();
 
 const siteShell = document.querySelector(".site-shell");
+const authShell = document.querySelector("#auth");
+const onboardingShell = document.querySelector("#onboarding");
 const appShell = document.querySelector("#app");
 const sidebar = document.querySelector(".sidebar");
 const title = document.querySelector("#view-title");
 const viewTitles = {
-  overview: "Bem-vindo de volta.",
+  overview: "Visão geral",
   finance: "Financeiro",
+  payments: "PIX",
   products: "Produtos",
   "app-marketing": "Marketing",
   help: "Ajuda"
@@ -65,13 +72,10 @@ const demoContent = {
   }
 };
 
+// ─── Event Listeners ─────────────────────────────────────────────────────────
+
 document.querySelectorAll("[data-open-app]").forEach((button) => {
-  button.addEventListener("click", () => {
-    siteShell.classList.add("is-hidden");
-    appShell.classList.remove("is-hidden");
-    window.scrollTo({ top: 0, behavior: "instant" });
-    render();
-  });
+  button.addEventListener("click", () => openEntryFlow());
 });
 
 document.querySelectorAll("[data-close-app]").forEach((button) => {
@@ -81,6 +85,21 @@ document.querySelectorAll("[data-close-app]").forEach((button) => {
     sidebar.classList.remove("open");
     window.scrollTo({ top: 0, behavior: "instant" });
   });
+});
+
+document.querySelectorAll("[data-close-auth]").forEach((button) => {
+  button.addEventListener("click", () => {
+    authShell.classList.add("is-hidden");
+    siteShell.classList.remove("is-hidden");
+  });
+});
+
+document.querySelectorAll("[data-auth-tab]").forEach((button) => {
+  button.addEventListener("click", () => setAuthTab(button.dataset.authTab));
+});
+
+document.querySelector("[data-logout]").addEventListener("click", async () => {
+  await logout();
 });
 
 document.querySelector(".menu-button").addEventListener("click", () => {
@@ -93,9 +112,39 @@ document.querySelectorAll("[data-demo-view]").forEach((button) => {
 
 document.querySelectorAll("[data-view]").forEach((button) => {
   button.addEventListener("click", () => {
+    if (button.dataset.adminOnly !== undefined && !canAccessFinance()) return;
     setView(button.dataset.view);
     sidebar.classList.remove("open");
   });
+});
+
+document.querySelector("#loginForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await submitAuthForm("/auth/login/", event.currentTarget);
+});
+
+document.querySelector("#registerForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await submitAuthForm("/auth/register/", event.currentTarget);
+});
+
+document.querySelector("#onboardingForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = new FormData(event.currentTarget);
+  const businessName = form.get("business_name").trim();
+  if (!businessName) return;
+
+  try {
+    currentUser = await apiRequest("/auth/onboarding/", {
+      method: "PATCH",
+      body: JSON.stringify({ business_name: businessName })
+    });
+  } catch {
+    // If onboarding fails, proceed anyway.
+  }
+
+  onboardingShell.classList.add("is-hidden");
+  await openApp();
 });
 
 document.querySelector("#transactionForm").addEventListener("submit", async (event) => {
@@ -155,7 +204,7 @@ document.querySelector("#campaignForm").addEventListener("submit", async (event)
   }
 
   output.insertAdjacentHTML("beforeend", `<article class="user-message">${escapeHtml(prompt)}</article>`);
-  output.insertAdjacentHTML("beforeend", `<article class="assistant-message is-loading">Pensando em uma campanha para ${escapeHtml(product.name)}...</article>`);
+  output.insertAdjacentHTML("beforeend", `<article class="assistant-message is-loading">Gerando campanha para ${escapeHtml(product.name)}...</article>`);
   output.scrollTop = output.scrollHeight;
 
   const answer = await askMarketingAi({ product, goal, channel, prompt, margin });
@@ -168,22 +217,218 @@ document.querySelector("#campaignForm").addEventListener("submit", async (event)
   output.scrollTop = output.scrollHeight;
 });
 
+document.querySelector("#paymentForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = new FormData(event.currentTarget);
+  const result = document.querySelector("#paymentResult");
+  result.innerHTML = `<strong>Gerando cobrança...</strong><span>Conectando com a Abacate Pay.</span>`;
+
+  try {
+    const payment = await apiRequest("/payments/", {
+      method: "POST",
+      body: JSON.stringify({
+        description: form.get("description").trim(),
+        amount: Number(form.get("amount")),
+        customer_name: form.get("customer_name").trim(),
+        customer_email: form.get("customer_email").trim(),
+        customer_tax_id: form.get("customer_tax_id").trim()
+      })
+    });
+    renderPaymentResult(payment);
+    event.currentTarget.reset();
+  } catch (error) {
+    result.innerHTML = `<strong>Não foi possível gerar o PIX</strong><span>${escapeHtml(error.message)}</span>`;
+  }
+});
+
 window.addEventListener("resize", () => drawChart());
 
 render();
-initializeApp();
-
+bootstrapSession();
+initGoogleSignIn();
 setDemoView("overview");
 
+// ─── Auth & Session ───────────────────────────────────────────────────────────
+
+async function bootstrapSession() {
+  if (!authToken) return;
+  try {
+    currentUser = await apiRequest("/auth/me/");
+    await openApp();
+  } catch {
+    localStorage.removeItem(authTokenKey);
+    authToken = null;
+    currentUser = null;
+  }
+}
+
+function openEntryFlow() {
+  if (authToken && currentUser) {
+    openApp();
+    return;
+  }
+  siteShell.classList.add("is-hidden");
+  authShell.classList.remove("is-hidden");
+  appShell.classList.add("is-hidden");
+  onboardingShell.classList.add("is-hidden");
+  setAuthTab("login");
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+
+async function openApp() {
+  if (!currentUser?.onboarding_completed) {
+    showOnboarding();
+    return;
+  }
+  siteShell.classList.add("is-hidden");
+  authShell.classList.add("is-hidden");
+  onboardingShell.classList.add("is-hidden");
+  appShell.classList.remove("is-hidden");
+  sidebar.classList.remove("open");
+  applyUserPermissions();
+  await initializeApp();
+  setView(canAccessFinance() ? "overview" : "products");
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+
+function showOnboarding() {
+  siteShell.classList.add("is-hidden");
+  authShell.classList.add("is-hidden");
+  appShell.classList.add("is-hidden");
+  onboardingShell.classList.remove("is-hidden");
+
+  const input = document.querySelector("#ob-business");
+  if (currentUser?.business_name) {
+    input.value = currentUser.business_name;
+  }
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+
+function setAuthTab(tabName) {
+  document.querySelectorAll("[data-auth-tab]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.authTab === tabName);
+  });
+  document.querySelectorAll(".auth-form").forEach((form) => {
+    form.classList.toggle("active", form.id === `${tabName}Form`);
+  });
+  document.querySelector("#authError").textContent = "";
+}
+
+async function submitAuthForm(path, formElement) {
+  const error = document.querySelector("#authError");
+  error.textContent = "";
+
+  try {
+    const payload = Object.fromEntries(new FormData(formElement).entries());
+    const data = await apiRequest(path, {
+      method: "POST",
+      body: JSON.stringify(payload),
+      skipAuth: true
+    });
+    authToken = data.token;
+    currentUser = data.user;
+    localStorage.setItem(authTokenKey, authToken);
+    formElement.reset();
+    await openApp();
+  } catch (requestError) {
+    error.textContent = requestError.message;
+  }
+}
+
+async function logout() {
+  if (authToken) {
+    try {
+      await apiRequest("/auth/logout/", { method: "POST" });
+    } catch {
+      // Token already invalid, local cleanup is enough.
+    }
+  }
+  authToken = null;
+  currentUser = null;
+  localStorage.removeItem(authTokenKey);
+  appShell.classList.add("is-hidden");
+  onboardingShell.classList.add("is-hidden");
+  siteShell.classList.remove("is-hidden");
+  sidebar.classList.remove("open");
+}
+
+// ─── Google OAuth ─────────────────────────────────────────────────────────────
+
+function initGoogleSignIn() {
+  if (!googleClientId) {
+    const fallback = document.querySelector("#googleFallback");
+    if (fallback) fallback.classList.add("is-hidden");
+    return;
+  }
+
+  window.handleGoogleCredential = async (response) => {
+    const error = document.querySelector("#authError");
+    error.textContent = "";
+    try {
+      const data = await apiRequest("/auth/google-signin/", {
+        method: "POST",
+        body: JSON.stringify({ credential: response.credential }),
+        skipAuth: true
+      });
+      authToken = data.token;
+      currentUser = data.user;
+      localStorage.setItem(authTokenKey, authToken);
+      await openApp();
+    } catch (err) {
+      error.textContent = err.message;
+    }
+  };
+
+  window.addEventListener("load", () => {
+    if (!window.google?.accounts) return;
+    google.accounts.id.initialize({
+      client_id: googleClientId,
+      callback: window.handleGoogleCredential,
+      ux_mode: "popup"
+    });
+
+    const wrapper = document.querySelector("#googleSignInWrapper");
+    if (wrapper) {
+      google.accounts.id.renderButton(wrapper, {
+        type: "standard",
+        shape: "rectangular",
+        theme: "outline",
+        size: "large",
+        text: "continue_with",
+        locale: "pt_BR",
+        width: wrapper.offsetWidth || 340
+      });
+    }
+  });
+}
+
+// ─── Permissions & Views ──────────────────────────────────────────────────────
+
+function applyUserPermissions() {
+  const name = currentUser?.name || currentUser?.email || "Conta";
+  document.querySelector("#accountInitial").textContent = name.charAt(0).toUpperCase();
+  document.querySelector("#accountName").textContent = name;
+  document.querySelector("#accountRole").textContent = canAccessFinance() ? "Admin" : "Membro";
+
+  document.querySelectorAll("[data-admin-only]").forEach((item) => {
+    item.classList.toggle("is-hidden", !canAccessFinance());
+  });
+}
+
+function canAccessFinance() {
+  return Boolean(currentUser?.can_access_finance || currentUser?.is_admin);
+}
+
 function setView(viewName) {
+  if ((viewName === "finance" || viewName === "payments") && !canAccessFinance()) {
+    viewName = "products";
+  }
   document.querySelectorAll(".view").forEach((view) => {
     view.classList.toggle("active", view.id === viewName);
   });
-
   document.querySelectorAll(".side-nav button").forEach((button) => {
     button.classList.toggle("active", button.dataset.view === viewName);
   });
-
   title.textContent = viewTitles[viewName] || "Wage Up";
   if (viewName === "overview") drawChart();
 }
@@ -191,11 +436,9 @@ function setView(viewName) {
 function setDemoView(viewName) {
   const content = demoContent[viewName];
   if (!content) return;
-
   document.querySelectorAll("[data-demo-view]").forEach((button) => {
     button.classList.toggle("active", button.dataset.demoView === viewName);
   });
-
   document.querySelector("#demoTitle").textContent = content.title;
   document.querySelector("#demoAction").textContent = content.action;
   document.querySelector("#demoPrompt").textContent = content.prompt;
@@ -206,16 +449,16 @@ function setDemoView(viewName) {
     ["#demoMetricTwoLabel", "#demoMetricTwo"],
     ["#demoMetricThreeLabel", "#demoMetricThree"]
   ];
-
   metricIds.forEach(([labelId, valueId], index) => {
     document.querySelector(labelId).textContent = content.metrics[index][0];
     document.querySelector(valueId).textContent = content.metrics[index][1];
   });
-
   document.querySelectorAll("#demoChart span").forEach((bar, index) => {
     bar.style.height = `${content.bars[index]}%`;
   });
 }
+
+// ─── Render ───────────────────────────────────────────────────────────────────
 
 function render() {
   renderSummary();
@@ -238,24 +481,19 @@ function renderSummary() {
 function renderTransactions() {
   const rows = document.querySelector("#transactionRows");
   rows.innerHTML = "";
-
   state.transactions.forEach((transaction) => {
     const row = document.createElement("tr");
     row.innerHTML = `
       <td>${escapeHtml(transaction.description)}</td>
-      <td>${transaction.type === "income" ? "Entrada" : "Saida"}</td>
+      <td>${transaction.type === "income" ? "Entrada" : "Saída"}</td>
       <td>${formatMoney(transaction.amount)}</td>
-      <td><button class="delete-button" aria-label="Excluir movimentacao" data-delete-transaction="${transaction.id}">x</button></td>
+      <td><button class="delete-button" aria-label="Excluir" data-delete-transaction="${transaction.id}">×</button></td>
     `;
     rows.appendChild(row);
   });
-
   rows.querySelectorAll("[data-delete-transaction]").forEach((button) => {
     button.addEventListener("click", async () => {
-      if (apiAvailable) {
-        await deleteTransaction(button.dataset.deleteTransaction);
-      }
-
+      if (apiAvailable) await deleteTransaction(button.dataset.deleteTransaction);
       state.transactions = state.transactions.filter((item) => item.id !== button.dataset.deleteTransaction);
       persist();
       render();
@@ -266,7 +504,6 @@ function renderTransactions() {
 function renderProducts() {
   const grid = document.querySelector("#productGrid");
   grid.innerHTML = "";
-
   state.products.forEach((product) => {
     const margin = product.price - product.cost;
     const marginPercent = product.price ? (margin / product.price) * 100 : 0;
@@ -276,7 +513,7 @@ function renderProducts() {
       <strong>${escapeHtml(product.name)}</strong>
       <span>${escapeHtml(product.category)}</span>
       <div class="product-meta">
-        <span>Preco: ${formatMoney(product.price)}</span>
+        <span>Preço: ${formatMoney(product.price)}</span>
         <span>Custo: ${formatMoney(product.cost)}</span>
         <span>Margem: ${formatMoney(margin)} (${marginPercent.toFixed(0)}%)</span>
         <span>Estoque: ${product.stock} un.</span>
@@ -289,13 +526,32 @@ function renderProducts() {
 function renderCampaignOptions() {
   const select = document.querySelector("#campaignProduct");
   select.innerHTML = "";
-
   state.products.forEach((product) => {
     const option = document.createElement("option");
     option.value = product.id;
     option.textContent = product.name;
     select.appendChild(option);
   });
+}
+
+function renderPaymentResult(payment) {
+  const result = document.querySelector("#paymentResult");
+  const brCode = payment.metadata?.brCode || "";
+  const qrCode = payment.metadata?.brCodeBase64 || "";
+  result.innerHTML = `
+    <strong>PIX gerado</strong>
+    ${qrCode ? `<img src="${escapeHtml(qrCode)}" alt="QR Code PIX" />` : ""}
+    ${brCode ? `<code>${escapeHtml(brCode)}</code>` : "<span>Código PIX não retornado pela Abacate Pay.</span>"}
+    <span>Status: ${escapeHtml(payment.status)}</span>
+    ${brCode ? `<button class="secondary-button" type="button" data-copy-pix>Copiar código</button>` : ""}
+  `;
+  const copyButton = result.querySelector("[data-copy-pix]");
+  if (copyButton) {
+    copyButton.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(brCode);
+      copyButton.textContent = "Código copiado!";
+    });
+  }
 }
 
 function renderInsights() {
@@ -307,16 +563,22 @@ function renderInsights() {
 
   const insights = [
     {
-      title: "Saude financeira",
-      text: income > expense ? `Voce esta positivo em ${formatMoney(income - expense)}.` : "As saidas estao acima das entradas."
+      title: "Saúde financeira",
+      text: income > expense
+        ? `Positivo em ${formatMoney(income - expense)}.`
+        : income === 0
+        ? "Nenhuma entrada registrada ainda."
+        : "Saídas acima das entradas."
     },
     {
       title: "Estoque",
-      text: lowStock ? `${lowStock} produto(s) precisam de reposicao.` : "Nenhum produto com estoque baixo."
+      text: lowStock ? `${lowStock} produto(s) precisam de reposição.` : "Todos os produtos com estoque ok."
     },
     {
       title: "Melhor margem",
-      text: bestMargin ? `${bestMargin.name} gera ${formatMoney(bestMargin.price - bestMargin.cost)} por unidade.` : "Cadastre produtos para ver margem."
+      text: bestMargin
+        ? `${bestMargin.name}: ${formatMoney(bestMargin.price - bestMargin.cost)} por unidade.`
+        : "Cadastre produtos para ver a margem."
     }
   ];
 
@@ -331,14 +593,12 @@ function renderInsights() {
 function drawChart() {
   const canvas = document.querySelector("#overviewChart");
   if (!canvas || appShell.classList.contains("is-hidden")) return;
-
   const ctx = canvas.getContext("2d");
   const rect = canvas.getBoundingClientRect();
   const scale = window.devicePixelRatio || 1;
   canvas.width = Math.max(320, rect.width * scale);
   canvas.height = 260 * scale;
   ctx.scale(scale, scale);
-
   const width = rect.width;
   const height = 260;
   ctx.clearRect(0, 0, width, height);
@@ -346,21 +606,18 @@ function drawChart() {
   ctx.fillRect(0, 0, width, height);
   const values = [
     { label: "Entradas", value: sumByType("income"), color: "#6f9877" },
-    { label: "Saidas", value: sumByType("expense"), color: "#c19075" },
+    { label: "Saídas", value: sumByType("expense"), color: "#c19075" },
     { label: "Lucro", value: Math.max(sumByType("income") - sumByType("expense"), 0), color: "#284737" }
   ];
   const max = Math.max(...values.map((item) => item.value), 1);
   const barWidth = Math.min(120, (width - 90) / values.length - 18);
   const baseY = height - 48;
-
   values.forEach((item, index) => {
     const x = 34 + index * ((width - 70) / values.length);
     const barHeight = (item.value / max) * 150;
-
     ctx.fillStyle = item.color;
     roundedRect(ctx, x, baseY - barHeight, barWidth, barHeight, 8);
     ctx.fill();
-
     ctx.fillStyle = "#172018";
     ctx.font = "700 13px Space Grotesk, Arial";
     ctx.fillText(item.label, x, baseY + 24);
@@ -380,6 +637,8 @@ function roundedRect(ctx, x, y, width, height, radius) {
   ctx.arcTo(x, y, x + width, y, r);
   ctx.closePath();
 }
+
+// ─── Marketing AI ─────────────────────────────────────────────────────────────
 
 function campaignHeadline(goal, productName) {
   const headlines = {
@@ -403,24 +662,19 @@ async function askMarketingAi({ product, goal, channel, prompt, margin }) {
   try {
     const response = await fetch(`${apiBaseUrl}/marketing/chat/`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        product,
-        goal,
-        channel,
-        prompt
-      })
+      headers: { "Content-Type": "application/json", Authorization: `Token ${authToken}` },
+      body: JSON.stringify({ product, goal, channel, prompt })
     });
-
     if (response.ok) {
       const data = await response.json();
+      const rawText = data.message || data.text || "";
       return {
-        html: escapeHtml(data.message || data.text || "").replaceAll("\n", "<br>"),
+        html: escapeHtml(rawText).replaceAll("\n", "<br>").replaceAll("**", "<strong>").replace(/<strong>(.*?)<\/strong>/g, "<strong>$1</strong>"),
         imageLabel: escapeHtml(data.image_label || `${product.name}<br>${channel}`)
       };
     }
   } catch {
-    // O endpoint real será criado na migração para Django; até lá, mantemos a experiência local.
+    // Fallback to local demo if API unavailable.
   }
 
   return {
@@ -428,38 +682,13 @@ async function askMarketingAi({ product, goal, channel, prompt, margin }) {
       `<strong>Campanha para ${escapeHtml(channel)}</strong><br><br>` +
       `<b>Chamada:</b> ${escapeHtml(campaignHeadline(goal, product.name))}<br><br>` +
       `<b>Ideia de imagem:</b> ${escapeHtml(imagePrompt(goal, product.name))}<br><br>` +
-      `<b>Legenda:</b> Hoje é um bom dia para garantir ${escapeHtml(product.name)}. Produto com visual caprichado, entrega rápida e preço pensado para vender bem. Margem estimada de ${formatMoney(margin)} por unidade.<br><br>` +
+      `<b>Legenda:</b> Hoje é um bom dia para garantir ${escapeHtml(product.name)}. Visual caprichado, entrega rápida. Margem de ${formatMoney(margin)} por unidade.<br><br>` +
       `<b>CTA:</b> Chame no direct ou finalize pelo PIX.`,
     imageLabel: `${escapeHtml(product.name)}<br>${escapeHtml(channel)}`
   };
 }
 
-function sumByType(type) {
-  return state.transactions
-    .filter((transaction) => transaction.type === type)
-    .reduce((total, transaction) => total + transaction.amount, 0);
-}
-
-function formatMoney(value) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL"
-  }).format(value || 0);
-}
-
-function loadState() {
-  try {
-    const saved = localStorage.getItem(storageKey);
-    return saved ? JSON.parse(saved) : clone(defaultState);
-  } catch {
-    return clone(defaultState);
-  }
-}
-
-function persist() {
-  if (apiAvailable) return;
-  localStorage.setItem(storageKey, JSON.stringify(state));
-}
+// ─── API ──────────────────────────────────────────────────────────────────────
 
 async function initializeApp() {
   try {
@@ -475,20 +704,14 @@ async function initializeApp() {
 }
 
 async function loadRemoteState() {
-  const [products, transactions] = await Promise.all([
-    apiRequest("/products/"),
-    apiRequest("/transactions/")
-  ]);
-
+  const products = await apiRequest("/products/");
+  const transactions = canAccessFinance() ? await apiRequest("/transactions/") : [];
   return { products, transactions };
 }
 
 async function createProduct(payload) {
   try {
-    return await apiRequest("/products/", {
-      method: "POST",
-      body: JSON.stringify(payload)
-    });
+    return await apiRequest("/products/", { method: "POST", body: JSON.stringify(payload) });
   } catch {
     apiAvailable = false;
     persist();
@@ -498,10 +721,7 @@ async function createProduct(payload) {
 
 async function createTransaction(payload) {
   try {
-    return await apiRequest("/transactions/", {
-      method: "POST",
-      body: JSON.stringify(payload)
-    });
+    return await apiRequest("/transactions/", { method: "POST", body: JSON.stringify(payload) });
   } catch {
     apiAvailable = false;
     persist();
@@ -518,17 +738,51 @@ async function deleteTransaction(id) {
 }
 
 async function apiRequest(path, options = {}) {
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options
-  });
+  const { skipAuth, ...fetchOptions } = options;
+  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+  if (authToken && !skipAuth) headers.Authorization = `Token ${authToken}`;
+
+  const response = await fetch(`${apiBaseUrl}${path}`, { ...fetchOptions, headers });
 
   if (!response.ok) {
-    throw new Error(`API request failed: ${response.status}`);
+    let detail = `Erro ${response.status}`;
+    try {
+      const data = await response.json();
+      detail = data.detail || data.non_field_errors?.[0] || Object.values(data).flat().join(" ");
+    } catch {
+      // Keep status-based message.
+    }
+    throw new Error(detail);
   }
 
   if (response.status === 204) return null;
   return response.json();
+}
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+
+function sumByType(type) {
+  return state.transactions
+    .filter((t) => t.type === type)
+    .reduce((total, t) => total + Number(t.amount), 0);
+}
+
+function formatMoney(value) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
+}
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem(storageKey);
+    return saved ? JSON.parse(saved) : clone(defaultState);
+  } catch {
+    return clone(defaultState);
+  }
+}
+
+function persist() {
+  if (apiAvailable) return;
+  localStorage.setItem(storageKey, JSON.stringify(state));
 }
 
 function escapeHtml(value) {
@@ -541,17 +795,11 @@ function escapeHtml(value) {
 }
 
 function uid() {
-  if (window.crypto && typeof window.crypto.randomUUID === "function") {
-    return window.crypto.randomUUID();
-  }
-
+  if (window.crypto && typeof window.crypto.randomUUID === "function") return window.crypto.randomUUID();
   return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 function clone(value) {
-  if (typeof structuredClone === "function") {
-    return structuredClone(value);
-  }
-
+  if (typeof structuredClone === "function") return structuredClone(value);
   return JSON.parse(JSON.stringify(value));
 }

@@ -8,6 +8,7 @@ env = environ.Env(
     DJANGO_DEBUG=(bool, True),
     ALLOWED_HOSTS=(list, ["localhost", "127.0.0.1", "testserver"]),
     CORS_ALLOWED_ORIGINS=(list, ["http://localhost:5173", "http://127.0.0.1:5173"]),
+    CSRF_TRUSTED_ORIGINS=(list, ["http://localhost:8000", "http://127.0.0.1:8000"]),
 )
 environ.Env.read_env(ROOT_DIR / ".env")
 
@@ -17,6 +18,9 @@ SECRET_KEY = env("SECRET_KEY", default="django-insecure-dev-wageup-change-me")
 DEBUG = env("DJANGO_DEBUG")
 
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
+RAILWAY_PUBLIC_DOMAIN = env("RAILWAY_PUBLIC_DOMAIN", default="")
+if RAILWAY_PUBLIC_DOMAIN:
+    ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
 
 
 INSTALLED_APPS = [
@@ -28,6 +32,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
+    'rest_framework.authtoken',
     'apps.accounts',
     'apps.businesses',
     'apps.products',
@@ -38,6 +43,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -68,8 +74,17 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 CORS_ALLOWED_ORIGINS = env("CORS_ALLOWED_ORIGINS")
 CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = env("CSRF_TRUSTED_ORIGINS")
+if RAILWAY_PUBLIC_DOMAIN:
+    railway_origin = f"https://{RAILWAY_PUBLIC_DOMAIN}"
+    CORS_ALLOWED_ORIGINS.append(railway_origin)
+    CSRF_TRUSTED_ORIGINS.append(railway_origin)
 
 REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.TokenAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
     ],
@@ -120,8 +135,26 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [ROOT_DIR / "frontend"]
+STATIC_ROOT = ROOT_DIR / "staticfiles"
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 ABACATE_PAY_API_KEY = env("ABACATE_PAY_API_KEY", default="")
 ABACATE_PAY_WEBHOOK_SECRET = env("ABACATE_PAY_WEBHOOK_SECRET", default="")
+WAGEUP_ADMIN_EMAILS = env("WAGEUP_ADMIN_EMAILS", default="")
+ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
+GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID", default="")
+
+CUSTOM_DOMAIN = env("CUSTOM_DOMAIN", default="")
+if CUSTOM_DOMAIN:
+    ALLOWED_HOSTS.append(CUSTOM_DOMAIN)
+    CORS_ALLOWED_ORIGINS.append(f"https://{CUSTOM_DOMAIN}")
+    CSRF_TRUSTED_ORIGINS.append(f"https://{CUSTOM_DOMAIN}")

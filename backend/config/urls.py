@@ -24,6 +24,7 @@ from .views import frontend_index, health_check
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/health/', health_check, name='health-check'),
+    path('api/auth/', include('apps.accounts.urls')),
     path('api/products/', include('apps.products.urls')),
     path('api/transactions/', include('apps.finance.urls')),
     path('api/payments/', include('apps.payments.urls')),

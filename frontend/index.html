@@ -8,11 +8,15 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,0,0&family=Questrial&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body>
+
+    <!-- LANDING PAGE -->
     <div class="site-shell">
       <header class="topbar" aria-label="Navegação principal">
         <a class="brand" href="#inicio" aria-label="Wage Up início">
+          <span class="brand-mark">W</span>
           <span>Wage Up</span>
         </a>
         <nav class="main-nav" aria-label="Seções">
@@ -26,11 +30,12 @@
       </header>
 
       <main>
+        <!-- HERO -->
         <section class="hero" id="inicio">
           <div class="hero-copy">
             <p class="eyebrow">Gestão simples para microempreendedores</p>
             <h1>Wage Up</h1>
-            <p class="hero-subtitle">A plataforma para MEIs venderem melhor, organizarem produtos, acompanharem o dinheiro e criarem conteúdos com IA.</p>
+            <p class="hero-subtitle">A plataforma para MEIs venderem mais, organizarem o catálogo, controlarem o dinheiro e criarem marketing com IA — tudo em um só lugar.</p>
             <div class="hero-actions">
               <button class="primary-button" data-open-app>Começar agora</button>
               <a class="secondary-button" href="#plataforma">Ver plataforma</a>
@@ -38,10 +43,11 @@
           </div>
 
           <div class="floating-stage" aria-label="Recursos principais">
-            <span style="--x: 8%; --y: 18%; --d: 0s">Fluxo de caixa</span>
-            <span style="--x: 58%; --y: 12%; --d: 1.2s">Produtos</span>
-            <span style="--x: 24%; --y: 48%; --d: 2s">PIX</span>
-            <span style="--x: 68%; --y: 52%; --d: .6s">Relatórios</span>
+            <span style="--x: 8%; --y: 14%; --d: 0s">Fluxo de caixa</span>
+            <span style="--x: 58%; --y: 10%; --d: 1.2s">Produtos</span>
+            <span style="--x: 20%; --y: 46%; --d: 2s">PIX</span>
+            <span style="--x: 64%; --y: 50%; --d: .6s">Relatórios</span>
+            <span style="--x: 36%; --y: 28%; --d: 1.6s" class="is-bright">IA</span>
             <div class="hero-panel">
               <div>
                 <strong>R$ 8.430</strong>
@@ -59,6 +65,7 @@
           </div>
         </section>
 
+        <!-- DEMO DO PRODUTO -->
         <section class="product-demo" aria-label="Demonstração do produto">
           <div class="demo-window">
             <div class="window-controls"><span></span><span></span><span></span></div>
@@ -95,11 +102,38 @@
           </div>
         </section>
 
+        <!-- PLATAFORMA -->
+        <section class="module-page" id="plataforma">
+          <div class="section-heading">
+            <p class="eyebrow">Plataforma</p>
+            <h2>Tudo que o MEI precisa em um painel.</h2>
+            <span>Controle financeiro, catálogo de produtos, geração de PIX e marketing com IA — integrados e fáceis de usar.</span>
+          </div>
+          <div class="feature-grid">
+            <article>
+              <div class="icon-box">$</div>
+              <h3>Financeiro</h3>
+              <p>Registre entradas e saídas, veja lucro estimado e acompanhe o desempenho do mês em tempo real.</p>
+            </article>
+            <article>
+              <div class="icon-box">P</div>
+              <h3>Produtos</h3>
+              <p>Cadastre seu catálogo com preço, custo e estoque. A margem é calculada automaticamente.</p>
+            </article>
+            <article>
+              <div class="icon-box">★</div>
+              <h3>Marketing IA</h3>
+              <p>Gere posts, legendas e ideias de imagem baseados no seu catálogo e objetivo de venda.</p>
+            </article>
+          </div>
+        </section>
+
+        <!-- PRODUTOS -->
         <section class="module-page" id="produto">
           <div class="section-heading">
             <p class="eyebrow">Produtos</p>
             <h2>Cadastro, preço e margem em uma tela só.</h2>
-            <span>Organize o catálogo sem planilha. Cada item pode carregar custo, preço, estoque e margem estimada.</span>
+            <span>Organize o catálogo sem planilha. Cada item carrega custo, preço, estoque e margem estimada.</span>
           </div>
           <div class="module-layout">
             <article class="module-copy">
@@ -121,8 +155,7 @@
           </div>
         </section>
 
-      
-
+        <!-- MARKETING -->
         <section class="module-page split" id="marketing">
           <div class="section-heading">
             <p class="eyebrow">Marketing</p>
@@ -144,6 +177,7 @@
           </div>
         </section>
 
+        <!-- FINANCEIRO -->
         <section class="module-page" id="financeiro">
           <div class="section-heading">
             <p class="eyebrow">Financeiro</p>
@@ -157,11 +191,12 @@
           </div>
         </section>
 
+        <!-- PIX -->
         <section class="module-page" id="pix">
           <div class="section-heading">
             <p class="eyebrow">PIX</p>
             <h2>Receba mais rápido e concilie sem confusão.</h2>
-            <span>A visão de PIX conecta recebimentos ao financeiro para reduzir trabalho manual e facilitar o fechamento do mês.</span>
+            <span>Gere cobranças PIX com QR Code e concilie recebimentos ao financeiro automaticamente.</span>
           </div>
           <div class="pix-board">
             <article><span>PIX recebido</span><strong>R$ 149,90</strong><small>Kit Festa Pequeno</small></article>
@@ -189,37 +224,105 @@
             <a href="#marketing">Gerador de posts</a>
             <a href="#financeiro">Relatórios</a>
             <a href="#pix">Conciliação PIX</a>
-            <a href="#inicio">Acessar plataforma</a>
+            <a href="#inicio" data-open-app>Acessar plataforma</a>
           </nav>
           <div class="trust-badges">
-            <span>Dados organizados</span>
+            <span>Dados seguros</span>
             <span>Controle financeiro</span>
-            <span>Marketing</span>
-            <small>2026 © Wage Up. Plataforma em desenvolvimento para microempreendedores.</small>
+            <span>Marketing com IA</span>
+            <small>2026 © Wage Up. Plataforma para microempreendedores.</small>
           </div>
         </div>
         <strong class="footer-wordmark">Wage Up</strong>
       </footer>
     </div>
 
+    <!-- AUTH -->
+    <section class="auth-shell is-hidden" id="auth" aria-label="Entrar na Wage Up">
+      <div class="auth-panel">
+        <button class="auth-back" data-close-auth aria-label="Voltar">← Voltar</button>
+        <div class="auth-copy">
+          <a class="brand auth-brand" href="#"><span class="brand-mark">W</span><span>Wage Up</span></a>
+          <h2>Organize seu negócio em poucos minutos.</h2>
+          <p>Cadastre produtos, acompanhe o financeiro e crie campanhas com IA.</p>
+        </div>
+        <div class="auth-card">
+          <div class="auth-tabs" role="tablist" aria-label="Autenticação">
+            <button class="active" type="button" data-auth-tab="login">Entrar</button>
+            <button type="button" data-auth-tab="register">Criar conta</button>
+          </div>
+
+          <!-- Botão Google (funcional quando GOOGLE_CLIENT_ID configurado) -->
+          <div id="googleSignInWrapper" class="google-button-wrapper"></div>
+          <button class="google-button-fallback is-hidden" id="googleFallback" type="button">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+              <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
+              <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+              <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+            </svg>
+            Continuar com Google
+          </button>
+
+          <div class="auth-divider"><span>ou</span></div>
+
+          <form class="auth-form active" id="loginForm">
+            <input name="email" type="email" placeholder="E-mail" required autocomplete="email" />
+            <input name="password" type="password" placeholder="Senha" required autocomplete="current-password" />
+            <button class="primary-button" type="submit">Entrar</button>
+          </form>
+          <form class="auth-form" id="registerForm">
+            <input name="name" placeholder="Seu nome" required autocomplete="name" />
+            <input name="business_name" placeholder="Nome do negócio" required />
+            <input name="email" type="email" placeholder="E-mail" required autocomplete="email" />
+            <input name="password" type="password" minlength="8" placeholder="Senha com 8+ caracteres" required autocomplete="new-password" />
+            <button class="primary-button" type="submit">Criar conta</button>
+          </form>
+          <p class="auth-error" id="authError" role="alert"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ONBOARDING -->
+    <section class="onboarding-shell is-hidden" id="onboarding" aria-label="Configurar negócio">
+      <div class="onboarding-panel">
+        <div class="onboarding-header">
+          <a class="brand" href="#"><span class="brand-mark">W</span><span>Wage Up</span></a>
+          <p class="eyebrow">Bem-vindo!</p>
+          <h2>Vamos configurar seu negócio.</h2>
+          <p class="onboarding-sub">Leva menos de 1 minuto. Você pode editar depois.</p>
+        </div>
+        <form class="onboarding-form" id="onboardingForm">
+          <div class="onboarding-step">
+            <label for="ob-business">Nome do seu negócio</label>
+            <input id="ob-business" name="business_name" placeholder="Ex.: Doces da Ana" required />
+          </div>
+          <p class="onboarding-info">Depois você poderá cadastrar seus produtos e começar a usar o marketing com IA.</p>
+          <button class="primary-button" type="submit">Começar →</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- APP -->
     <section class="app-shell is-hidden" id="app" aria-label="Aplicativo Wage Up">
       <aside class="sidebar">
         <div class="account-chip">
-          <span>C</span>
+          <span id="accountInitial">C</span>
           <div>
-            <strong>Conta</strong>
-            <small>MEI ativo</small>
+            <strong id="accountName">Conta</strong>
+            <small id="accountRole">MEI ativo</small>
           </div>
         </div>
         <nav class="side-nav" aria-label="Módulos da plataforma">
-          <button class="active" data-view="overview"><span class="material-symbols-rounded">home</span>Conta</button>
-          <button data-view="finance"><span class="material-symbols-rounded">payments</span>Financeiro</button>
+          <button class="active" data-view="overview"><span class="material-symbols-rounded">home</span>Visão geral</button>
+          <button data-view="finance" data-admin-only><span class="material-symbols-rounded">payments</span>Financeiro</button>
+          <button data-view="payments" data-admin-only><span class="material-symbols-rounded">qr_code_2</span>PIX</button>
           <button data-view="products"><span class="material-symbols-rounded">inventory_2</span>Produtos</button>
           <button data-view="app-marketing"><span class="material-symbols-rounded">auto_awesome</span>Marketing</button>
         </nav>
         <div class="side-footer">
           <button data-view="help"><span class="material-symbols-rounded">help</span>Ajuda</button>
-          <button data-close-app><span class="material-symbols-rounded">logout</span>Sair</button>
+          <button data-logout><span class="material-symbols-rounded">logout</span>Sair</button>
         </div>
       </aside>
 
@@ -230,7 +333,7 @@
             <p class="eyebrow">Wage Up</p>
             <h2 id="view-title">Bem-vindo de volta.</h2>
           </div>
-          <button class="ghost-button" data-close-app>Landing</button>
+          <button class="ghost-button" data-close-app>← Landing</button>
         </header>
 
         <section class="view active" id="overview">
@@ -264,7 +367,7 @@
                 <option value="income">Entrada</option>
                 <option value="expense">Saída</option>
               </select>
-              <input name="amount" type="number" min="1" step="0.01" placeholder="Valor" required />
+              <input name="amount" type="number" min="0.01" step="0.01" placeholder="Valor" required />
               <button class="primary-button" type="submit">Adicionar</button>
             </form>
             <div class="table-wrap">
@@ -278,6 +381,28 @@
           </div>
         </section>
 
+        <section class="view" id="payments">
+          <div class="work-panel">
+            <div class="panel-heading">
+              <h3>Cobrança PIX</h3>
+              <span>via Abacate Pay</span>
+            </div>
+            <form class="inline-form" id="paymentForm">
+              <input name="description" placeholder="Descrição da cobrança" required />
+              <input name="amount" type="number" min="0.01" step="0.01" placeholder="Valor (R$)" required />
+              <input name="customer_name" placeholder="Nome do cliente" />
+              <input name="customer_email" type="email" placeholder="E-mail do cliente" />
+              <input name="customer_tax_id" placeholder="CPF/CNPJ do cliente" />
+              <button class="primary-button" type="submit">Gerar PIX</button>
+            </form>
+            <p class="form-hint">O CPF/CNPJ só é exigido pela Abacate Pay quando você informa nome ou e-mail do cliente.</p>
+            <div class="payment-result" id="paymentResult">
+              <strong>Pronto para cobrar</strong>
+              <span>Preencha os dados acima e clique em Gerar PIX.</span>
+            </div>
+          </div>
+        </section>
+
         <section class="view" id="products">
           <div class="work-panel">
             <div class="panel-heading">
@@ -285,7 +410,7 @@
               <span>Cadastro e margem</span>
             </div>
             <form class="inline-form product-form" id="productForm">
-              <input name="name" placeholder="Produto" required />
+              <input name="name" placeholder="Nome do produto" required />
               <input name="category" placeholder="Categoria" required />
               <input name="cost" type="number" min="0" step="0.01" placeholder="Custo" required />
               <input name="price" type="number" min="0" step="0.01" placeholder="Preço" required />
@@ -300,12 +425,12 @@
           <div class="work-panel">
             <div class="panel-heading">
               <h3>Marketing com IA</h3>
-              <span>Chat para posts, imagens e campanhas</span>
+              <span>Campanhas baseadas no seu catálogo</span>
             </div>
             <div class="marketing-chat-layout">
               <div class="chat-panel">
                 <div class="chat-thread" id="campaignOutput">
-                  <article class="assistant-message">Escolha um produto e descreva o que você quer vender. Quando o backend Django estiver ativo, este chat chamará a IA pelo endpoint da plataforma.</article>
+                  <article class="assistant-message">Escolha um produto, defina o objetivo e descreva o que você quer. A IA vai gerar uma campanha personalizada para o seu negócio.</article>
                 </div>
                 <form class="campaign-builder" id="campaignForm">
                   <select name="product" id="campaignProduct" aria-label="Produto"></select>
@@ -320,13 +445,13 @@
                     <option>TikTok</option>
                   </select>
                   <input name="prompt" placeholder="Ex.: vender mais no fim de semana" />
-                  <button class="primary-button" type="submit">Enviar</button>
+                  <button class="primary-button" type="submit">Gerar</button>
                 </form>
               </div>
               <aside class="image-lab">
-                <span>Prévia da imagem</span>
+                <span>Prévia da campanha</span>
                 <div id="imagePreview">Kit Festa<br>fim de semana</div>
-                <small>Na versão com API, esta área recebe a imagem gerada por IA.</small>
+                <small>Visualização da ideia de imagem gerada pela IA.</small>
               </aside>
             </div>
           </div>
@@ -335,13 +460,13 @@
         <section class="view" id="help">
           <div class="work-panel">
             <div class="panel-heading">
-              <h3>Ajuda</h3>
-              <span>Próximos passos</span>
+              <h3>Primeiros passos</h3>
+              <span>Como usar a plataforma</span>
             </div>
             <div class="help-grid">
-              <article><strong>Produtos</strong><p>Cadastre seu catálogo inicial e acompanhe margem por item.</p></article>
-              <article><strong>Financeiro</strong><p>Registre entradas e saídas para alimentar gráficos e relatórios.</p></article>
-              <article><strong>Marketing</strong><p>Use seus produtos como base para campanhas simples e rápidas.</p></article>
+              <article><strong>1. Produtos</strong><p>Cadastre seu catálogo com nome, custo, preço e estoque. A margem é calculada automaticamente.</p></article>
+              <article><strong>2. Financeiro</strong><p>Registre entradas e saídas para alimentar os gráficos e ver o lucro estimado do período.</p></article>
+              <article><strong>3. Marketing</strong><p>Selecione um produto, defina o objetivo e canal — a IA gera o texto da campanha na hora.</p></article>
             </div>
           </div>
         </section>

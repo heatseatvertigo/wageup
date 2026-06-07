@@ -38,6 +38,54 @@ docker compose up -d
 
 Depois use o `DATABASE_URL` do `.env.example` e rode as migrations novamente.
 
+## Deploy no Railway
+
+A configuração inicial de deploy está em:
+
+```txt
+Procfile
+railway.json
+requirements.txt
+```
+
+Arquitetura recomendada no Railway:
+
+```txt
+Service: wageup-web
+  Django + DRF + frontend estático
+
+Service: postgres
+  Banco principal
+
+Service: redis
+  Cache/fila para Celery no próximo passo
+
+Service futuro: wageup-worker
+  Celery worker para imagens, webhooks pesados e tarefas assíncronas
+```
+
+Variáveis importantes no serviço web:
+
+```txt
+SECRET_KEY=
+DJANGO_DEBUG=False
+ALLOWED_HOSTS=seu-dominio.up.railway.app,seu-dominio.com
+CSRF_TRUSTED_ORIGINS=https://seu-dominio.up.railway.app,https://seu-dominio.com
+CORS_ALLOWED_ORIGINS=https://seu-dominio.up.railway.app,https://seu-dominio.com
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+ABACATE_PAY_API_KEY=
+ABACATE_PAY_WEBHOOK_SECRET=
+```
+
+Fluxo sugerido:
+
+1. Crie um projeto no Railway.
+2. Conecte o repositório pelo GitHub.
+3. Adicione um serviço PostgreSQL.
+4. Configure as variáveis do serviço web.
+5. Faça o deploy.
+6. Configure o domínio público como URL de webhook no painel da Abacate Pay.
+
 ## Próximas integrações
 
 - `payments`: criar cobrança na Abacate Pay, salvar `Payment` e processar webhooks com idempotência.

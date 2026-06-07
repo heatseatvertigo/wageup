@@ -1,3 +1,109 @@
-from django.shortcuts import render
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from rest_framework import status
+from rest_framework.authtoken.models import Token
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
 
-# Create your views here.
+from apps.businesses.models import Business
+from .models import UserProfile
+from .serializers import LoginSerializer, OnboardingSerializer, RegisterSerializer, UserProfileSerializer
+
+User = get_user_model()
+
+
+def auth_payload(user):
+    token, _ = Token.objects.get_or_create(user=user)
+    profile = getattr(user, "profile", None)
+    return {
+        "token": token.key,
+        "user": UserProfileSerializer(profile).data,
+    }
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def register_view(request):
+    serializer = RegisterSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    user = serializer.save()
+    return Response(auth_payload(user), status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def login_view(request):
+    serializer = LoginSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    return Response(auth_payload(serializer.validated_data["user"]))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def logout_view(request):
+    Token.objects.filter(user=request.user).delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def me_view(request):
+    return Response(UserProfileSerializer(request.user.profile).data)
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def onboarding_view(request):
+    serializer = OnboardingSerializer(request.user.profile, data=request.data, partial=True)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(UserProfileSerializer(request.user.profile).data)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def google_signin_view(request):
+    if not settings.GOOGLE_CLIENT_ID:
+        return Response({"detail": "Google login não configurado."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    credential = request.data.get("credential", "")
+    if not credential:
+        return Response({"detail": "credential obrigatório."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        from google.auth.transport import requests as google_requests
+        from google.oauth2 import id_token as google_id_token
+        idinfo = google_id_token.verify_oauth2_token(
+            credential,
+            google_requests.Request(),
+            settings.GOOGLE_CLIENT_ID,
+        )
+    except Exception:
+        return Response({"detail": "Token Google inválido."}, status=status.HTTP_401_UNAUTHORIZED)
+
+    email = idinfo.get("email", "").lower()
+    name = idinfo.get("name", "") or idinfo.get("given_name", "") or email.split("@")[0]
+
+    if not email:
+        return Response({"detail": "E-mail não disponível na conta Google."}, status=status.HTTP_400_BAD_REQUEST)
+
+    user, created = User.objects.get_or_create(
+        email=email,
+        defaults={"username": email, "first_name": name},
+    )
+
+    if created:
+        admin_emails = [
+            item.strip().lower()
+            for item in getattr(settings, "WAGEUP_ADMIN_EMAILS", "").split(",")
+            if item.strip()
+        ]
+        role = UserProfile.Role.ADMIN if email in admin_emails else UserProfile.Role.MEMBER
+        UserProfile.objects.create(user=user, role=role, business_name=name)
+        Business.objects.create(owner=user, name=name)
+    elif not hasattr(user, "profile"):
+        UserProfile.objects.create(user=user, role=UserProfile.Role.MEMBER, business_name=name)
+        Business.objects.filter(owner=user).get_or_create(defaults={"name": name})
+
+    return Response(auth_payload(user), status=status.HTTP_200_OK)
