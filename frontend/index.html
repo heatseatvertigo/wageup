@@ -6,7 +6,7 @@
     <title>Wage Up | Plataforma para microempreendedores</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,0,0&family=Newsreader:ital,opsz,wght@0,6..72,400..600;1,6..72,400..600&family=Archivo:wght@400..900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,0,0&family=Questrial&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
     <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
@@ -19,11 +19,11 @@
           <span>Wage Up</span>
         </a>
         <nav class="main-nav" aria-label="Seções">
-          <a href="#produto">Produtos</a>
-          <a href="#plataforma">Plataforma</a>
-          <a href="#marketing">Marketing</a>
-          <a href="#financeiro">Financeiro</a>
-          <a href="#pix">PIX</a>
+          <a href="#" data-open-module="produtos">Produtos</a>
+          <a href="#" data-open-module="plataforma">Plataforma</a>
+          <a href="#" data-open-module="marketing">Marketing</a>
+          <a href="#" data-open-module="financeiro">Financeiro</a>
+          <a href="#" data-open-module="pix">PIX</a>
         </nav>
         <button class="ghost-button" data-open-app>Entrar</button>
       </header>
@@ -41,12 +41,14 @@
             </div>
           </div>
 
-          <div class="floating-stage" aria-label="Recursos principais">
-            <span style="--x: 8%; --y: 14%; --d: 0s">Fluxo de caixa</span>
-            <span style="--x: 58%; --y: 10%; --d: 1.2s">Produtos</span>
-            <span style="--x: 20%; --y: 46%; --d: 2s">PIX</span>
-            <span style="--x: 64%; --y: 50%; --d: .6s">Relatórios</span>
-            <span style="--x: 36%; --y: 28%; --d: 1.6s" class="is-bright">IA</span>
+          <div class="floating-stage" aria-label="O que dá para fazer na Wage Up">
+            <div class="word-rotator">
+              <span class="word-rotator-prefix">Sua plataforma para</span>
+              <span class="word-rotator-stage" aria-live="polite">
+                <span class="word-rotator-word" id="heroRotatorWord">vender mais</span>
+              </span>
+              <span class="word-rotator-suffix">— tudo no mesmo lugar.</span>
+            </div>
             <div class="hero-panel">
               <div>
                 <strong>R$ 8.430</strong>
@@ -107,6 +109,7 @@
             <p class="eyebrow">Plataforma</p>
             <h2>Tudo que o MEI precisa em um painel.</h2>
             <span>Controle financeiro, catálogo de produtos, geração de PIX e marketing com IA — integrados e fáceis de usar.</span>
+            <a class="text-link" data-open-module="plataforma">Como os módulos se conectam →</a>
           </div>
           <div class="feature-grid">
             <article>
@@ -133,6 +136,7 @@
             <p class="eyebrow">Produtos</p>
             <h2>Cadastro, preço e margem em uma tela só.</h2>
             <span>Organize o catálogo sem planilha. Cada item carrega custo, preço, estoque e margem estimada.</span>
+            <a class="text-link" data-open-module="produtos">Ver como funciona o módulo de Produtos →</a>
           </div>
           <div class="module-layout">
             <article class="module-copy">
@@ -160,6 +164,7 @@
             <p class="eyebrow">Marketing</p>
             <h2>Conteúdo com IA conectado ao seu catálogo.</h2>
             <span>A IA usa seus produtos, margem e objetivo de venda para sugerir posts, legendas, ideias de imagem e mensagens para WhatsApp.</span>
+            <a class="text-link" data-open-module="marketing">Ver como funciona o Marketing com IA →</a>
           </div>
           <div class="module-layout">
             <div class="ai-preview">
@@ -182,6 +187,7 @@
             <p class="eyebrow">Financeiro</p>
             <h2>Gráficos e relatórios para decidir melhor.</h2>
             <span>Registre entradas e saídas para entender lucro, despesas recorrentes e evolução do negócio.</span>
+            <a class="text-link" data-open-module="financeiro">Ver como funciona o módulo Financeiro →</a>
           </div>
           <div class="metric-row">
             <div><strong>Receita</strong><span>Entradas por período, produto e canal.</span></div>
@@ -196,6 +202,7 @@
             <p class="eyebrow">PIX</p>
             <h2>Receba mais rápido e concilie sem confusão.</h2>
             <span>Gere cobranças PIX com QR Code e concilie recebimentos ao financeiro automaticamente.</span>
+            <a class="text-link" data-open-module="pix">Ver como funciona o módulo PIX →</a>
           </div>
           <div class="pix-board">
             <article><span>PIX recebido</span><strong>R$ 149,90</strong><small>Kit Festa Pequeno</small></article>
@@ -236,12 +243,374 @@
       </footer>
     </div>
 
+    <!-- PÁGINAS DE MÓDULO -->
+    <section class="module-detail is-hidden" id="page-plataforma" aria-label="Plataforma — visão geral">
+      <div class="module-detail-inner">
+        <button class="ghost-button module-detail-back" data-close-module>← Voltar</button>
+        <header class="module-detail-hero">
+          <p class="eyebrow">Plataforma</p>
+          <h1>Tudo que o seu negócio precisa, organizado em um só lugar.</h1>
+          <p class="module-detail-lead">A maioria dos microempreendedores usa um aplicativo para vender, uma planilha para o financeiro, papel para anotar pedidos e o celular para criar posts. A Wage Up junta essas quatro frentes — produtos, financeiro, PIX e marketing com IA — num painel só, que conversa entre si.</p>
+          <div class="hero-actions">
+            <button class="primary-button" data-open-app>Conhecer o painel</button>
+          </div>
+        </header>
+
+        <section class="module-detail-steps">
+          <p class="eyebrow">Como tudo se conecta</p>
+          <h2>Quatro módulos, um único fluxo de trabalho.</h2>
+          <ol>
+            <li>
+              <span class="step-index">01</span>
+              <div>
+                <strong>Produtos</strong>
+                <p>Você cadastra o catálogo com custo, preço e estoque — e a margem de cada item é calculada automaticamente.</p>
+                <a class="text-link" data-open-module="produtos">Ver módulo de Produtos →</a>
+              </div>
+            </li>
+            <li>
+              <span class="step-index">02</span>
+              <div>
+                <strong>Financeiro</strong>
+                <p>Cada entrada e saída registrada vira um retrato real do seu negócio: lucro, despesas e tendência do mês.</p>
+                <a class="text-link" data-open-module="financeiro">Ver módulo Financeiro →</a>
+              </div>
+            </li>
+            <li>
+              <span class="step-index">03</span>
+              <div>
+                <strong>PIX</strong>
+                <p>Cobranças com QR Code são geradas em segundos e conciliadas automaticamente com o financeiro, sem digitar nada de novo.</p>
+                <a class="text-link" data-open-module="pix">Ver módulo PIX →</a>
+              </div>
+            </li>
+            <li>
+              <span class="step-index">04</span>
+              <div>
+                <strong>Marketing com IA</strong>
+                <p>A IA usa os produtos que você já cadastrou para sugerir campanhas prontas para Instagram, WhatsApp e outros canais.</p>
+                <a class="text-link" data-open-module="marketing">Ver módulo de Marketing →</a>
+              </div>
+            </li>
+          </ol>
+        </section>
+
+        <section class="module-detail-benefit">
+          <p class="eyebrow">Por que isso importa</p>
+          <h2>Menos tempo trocando de aplicativo, mais tempo cuidando do negócio.</h2>
+          <div class="benefit-grid">
+            <article>
+              <span class="benefit-mark">↻</span>
+              <strong>Os dados se conectam sozinhos</strong>
+              <p>Um produto cadastrado já pode virar uma campanha de marketing ou uma cobrança PIX — sem retrabalho.</p>
+            </article>
+            <article>
+              <span class="benefit-mark">◔</span>
+              <strong>Decisões com base na realidade</strong>
+              <p>O painel mostra o que está vendendo, o que está sobrando em estoque e quanto sobra no caixa — em tempo real.</p>
+            </article>
+            <article>
+              <span class="benefit-mark">⚲</span>
+              <strong>Pensado para o dia a dia do MEI</strong>
+              <p>Sem jargões financeiros nem telas complicadas: cada módulo resolve um problema concreto de quem vende todos os dias.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="module-detail-cta">
+          <h2>Pronto para ver tudo funcionando junto?</h2>
+          <p>Crie sua conta gratuita e configure seu negócio em poucos minutos.</p>
+          <button class="primary-button" data-open-app>Começar agora</button>
+        </section>
+      </div>
+    </section>
+
+    <section class="module-detail is-hidden" id="page-produtos" aria-label="Produtos — como funciona">
+      <div class="module-detail-inner">
+        <button class="ghost-button module-detail-back" data-close-module>← Voltar</button>
+        <header class="module-detail-hero">
+          <p class="eyebrow">Produtos</p>
+          <h1>Seu catálogo, com a margem calculada para você.</h1>
+          <p class="module-detail-lead">Chega de planilha para saber se está vendendo no lucro ou no prejuízo. Cadastre cada produto com custo e preço, e a Wage Up calcula a margem na hora — além de avisar quando o estoque está acabando.</p>
+          <div class="hero-actions">
+            <button class="primary-button" data-open-app>Cadastrar meu primeiro produto</button>
+          </div>
+        </header>
+
+        <section class="module-detail-steps">
+          <p class="eyebrow">Como funciona</p>
+          <h2>Do cadastro à reposição, em três passos.</h2>
+          <ol>
+            <li>
+              <span class="step-index">01</span>
+              <div>
+                <strong>Cadastre nome, categoria, custo e preço</strong>
+                <p>Leva menos de um minuto por item. Você também informa a quantidade em estoque.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-index">02</span>
+              <div>
+                <strong>Veja a margem calculada na hora</strong>
+                <p>A diferença entre custo e preço — em reais e em porcentagem — aparece automaticamente em cada cartão do produto.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-index">03</span>
+              <div>
+                <strong>Use o catálogo no resto da plataforma</strong>
+                <p>Os mesmos produtos alimentam as campanhas de marketing com IA e aparecem nos relatórios financeiros.</p>
+              </div>
+            </li>
+          </ol>
+        </section>
+
+        <section class="module-detail-benefit">
+          <p class="eyebrow">O que isso muda para o seu negócio</p>
+          <h2>Você para de adivinhar e passa a saber.</h2>
+          <div class="benefit-grid">
+            <article>
+              <span class="benefit-mark">%</span>
+              <strong>Nunca mais vender no prejuízo sem perceber</strong>
+              <p>Com a margem visível em cada produto, fica fácil identificar itens que estão custando caro demais para o que rendem.</p>
+            </article>
+            <article>
+              <span class="benefit-mark">▤</span>
+              <strong>Saiba o que repor antes de faltar</strong>
+              <p>Acompanhe o estoque de cada item e evite perder vendas por falta de produto — ou capital parado em excesso de estoque.</p>
+            </article>
+            <article>
+              <span class="benefit-mark">↗</span>
+              <strong>Catálogo organizado vira oportunidade</strong>
+              <p>Um catálogo completo é a base para campanhas de marketing melhores e para entender quais produtos merecem mais atenção.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="module-detail-cta">
+          <h2>Pronto para organizar seu catálogo?</h2>
+          <p>Cadastre seus produtos e veja a margem de cada um calculada automaticamente.</p>
+          <button class="primary-button" data-open-app>Começar agora</button>
+        </section>
+      </div>
+    </section>
+
+    <section class="module-detail is-hidden" id="page-marketing" aria-label="Marketing com IA — como funciona">
+      <div class="module-detail-inner">
+        <button class="ghost-button module-detail-back" data-close-module>← Voltar</button>
+        <header class="module-detail-hero">
+          <p class="eyebrow">Marketing com IA</p>
+          <h1>Campanhas prontas em segundos, baseadas no seu próprio catálogo.</h1>
+          <p class="module-detail-lead">Você não precisa contratar agência nem passar a noite pensando em legenda. Escolha um produto, diga o objetivo e o canal — a IA da Wage Up gera o texto da campanha na hora, pronto para publicar.</p>
+          <div class="hero-actions">
+            <button class="primary-button" data-open-app>Gerar minha primeira campanha</button>
+          </div>
+        </header>
+
+        <section class="module-detail-steps">
+          <p class="eyebrow">Como funciona</p>
+          <h2>Da ideia ao post pronto, em uma conversa.</h2>
+          <ol>
+            <li>
+              <span class="step-index">01</span>
+              <div>
+                <strong>Escolha o produto e o objetivo</strong>
+                <p>Promoção, lançamento ou relacionamento — você escolhe o que precisa vender e por quê.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-index">02</span>
+              <div>
+                <strong>Selecione o canal e descreva o contexto</strong>
+                <p>Instagram, WhatsApp ou TikTok — e uma frase sobre o momento ("vender mais no fim de semana", por exemplo).</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-index">03</span>
+              <div>
+                <strong>Receba o texto pronto da campanha</strong>
+                <p>A IA (Claude, da Anthropic) gera legendas, mensagens e ideias de imagem com base no produto, preço e margem reais do seu catálogo.</p>
+              </div>
+            </li>
+          </ol>
+        </section>
+
+        <section class="module-detail-benefit">
+          <p class="eyebrow">O que isso muda para o seu negócio</p>
+          <h2>Presença constante nas redes, sem virar um segundo trabalho.</h2>
+          <div class="benefit-grid">
+            <article>
+              <span class="benefit-mark">⏱</span>
+              <strong>Economize tempo todos os dias</strong>
+              <p>O que levaria uma hora pensando em frases e formatos sai pronto em segundos — você só ajusta e publica.</p>
+            </article>
+            <article>
+              <span class="benefit-mark">⌬</span>
+              <strong>Campanhas conectadas ao que você vende de verdade</strong>
+              <p>Como a IA conhece seu catálogo, as sugestões falam do produto certo, com o preço e o diferencial certos — não de algo genérico.</p>
+            </article>
+            <article>
+              <span class="benefit-mark">▥</span>
+              <strong>Histórico de campanhas sempre à mão</strong>
+              <p>Toda campanha gerada fica salva e organizada por produto, para você reaproveitar ideias que já funcionaram.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="module-detail-cta">
+          <h2>Pronto para nunca mais travar na hora de postar?</h2>
+          <p>Gere sua primeira campanha com base no seu catálogo em menos de um minuto.</p>
+          <button class="primary-button" data-open-app>Começar agora</button>
+        </section>
+      </div>
+    </section>
+
+    <section class="module-detail is-hidden" id="page-financeiro" aria-label="Financeiro — como funciona">
+      <div class="module-detail-inner">
+        <button class="ghost-button module-detail-back" data-close-module>← Voltar</button>
+        <header class="module-detail-hero">
+          <p class="eyebrow">Financeiro</p>
+          <h1>Entradas, saídas e lucro — sem depender de planilha ou caderno.</h1>
+          <p class="module-detail-lead">Registrar uma venda ou uma despesa leva poucos segundos. Em troca, você ganha um retrato sempre atualizado do seu negócio: quanto entrou, quanto saiu e quanto sobrou de verdade no fim do mês.</p>
+          <div class="hero-actions">
+            <button class="primary-button" data-open-app>Organizar meu financeiro</button>
+          </div>
+        </header>
+
+        <section class="module-detail-steps">
+          <p class="eyebrow">Como funciona</p>
+          <h2>Cada lançamento alimenta o seu painel.</h2>
+          <ol>
+            <li>
+              <span class="step-index">01</span>
+              <div>
+                <strong>Registre entradas e saídas</strong>
+                <p>Uma venda, uma compra de insumo, uma conta paga — descreva, escolha o tipo e informe o valor.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-index">02</span>
+              <div>
+                <strong>Acompanhe o resumo em tempo real</strong>
+                <p>Receita, despesas e lucro estimado aparecem atualizados no painel, com gráfico da evolução do período.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-index">03</span>
+              <div>
+                <strong>Tome decisões com base no que está acontecendo agora</strong>
+                <p>Veja para onde o dinheiro está indo e ajuste preços, compras ou prioridades antes que o mês termine.</p>
+              </div>
+            </li>
+          </ol>
+        </section>
+
+        <section class="module-detail-benefit">
+          <p class="eyebrow">O que isso muda para o seu negócio</p>
+          <h2>Saber, ao certo, quanto sobra no fim do mês.</h2>
+          <div class="benefit-grid">
+            <article>
+              <span class="benefit-mark">＋</span>
+              <strong>Enxergue o lucro real, não a sensação de lucro</strong>
+              <p>Vender bastante não é o mesmo que lucrar. O painel mostra a diferença entre entradas e saídas com clareza.</p>
+            </article>
+            <article>
+              <span class="benefit-mark">▽</span>
+              <strong>Identifique despesas que pesam mais do que parecem</strong>
+              <p>Pequenos custos recorrentes somam rápido. Veja exatamente onde o dinheiro está saindo todo mês.</p>
+            </article>
+            <article>
+              <span class="benefit-mark">◰</span>
+              <strong>Reconciliação automática com o PIX</strong>
+              <p>Pagamentos recebidos por PIX entram direto no seu financeiro — sem precisar lançar tudo de novo na mão.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="module-detail-cta">
+          <h2>Pronto para enxergar seu negócio com clareza?</h2>
+          <p>Registre sua primeira movimentação e veja o painel ganhar vida.</p>
+          <button class="primary-button" data-open-app>Começar agora</button>
+        </section>
+      </div>
+    </section>
+
+    <section class="module-detail is-hidden" id="page-pix" aria-label="PIX — como funciona">
+      <div class="module-detail-inner">
+        <button class="ghost-button module-detail-back" data-close-module>← Voltar</button>
+        <header class="module-detail-hero">
+          <p class="eyebrow">PIX</p>
+          <h1>Receba na hora, com QR Code pronto para o seu cliente pagar.</h1>
+          <p class="module-detail-lead">Gere uma cobrança com valor, descrição e dados do cliente — a Wage Up cria o QR Code e o código "copia e cola" na hora, através da Abacate Pay. Quando o cliente paga, o status atualiza sozinho.</p>
+          <div class="hero-actions">
+            <button class="primary-button" data-open-app>Gerar minha primeira cobrança</button>
+          </div>
+        </header>
+
+        <section class="module-detail-steps">
+          <p class="eyebrow">Como funciona</p>
+          <h2>Da cobrança ao recebimento, sem passos extras.</h2>
+          <ol>
+            <li>
+              <span class="step-index">01</span>
+              <div>
+                <strong>Preencha valor e descrição da cobrança</strong>
+                <p>Se quiser, inclua nome, e-mail e CPF/CNPJ do cliente — útil para emissão e organização dos recebimentos.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-index">02</span>
+              <div>
+                <strong>Compartilhe o QR Code ou o código copia e cola</strong>
+                <p>O cliente paga direto pelo aplicativo do banco — sem maquininha, sem taxas escondidas, sem demora.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-index">03</span>
+              <div>
+                <strong>Veja o status mudar sozinho</strong>
+                <p>Um aviso automático da Abacate Pay confirma o pagamento e atualiza o registro — e o financeiro — sem você precisar conferir nada manualmente.</p>
+              </div>
+            </li>
+          </ol>
+        </section>
+
+        <section class="module-detail-benefit">
+          <p class="eyebrow">O que isso muda para o seu negócio</p>
+          <h2>Menos tempo cobrando, mais tempo vendendo.</h2>
+          <div class="benefit-grid">
+            <article>
+              <span class="benefit-mark">⚡</span>
+              <strong>Recebimento na hora</strong>
+              <p>PIX cai na conta em segundos — sem esperar compensação de boleto ou prazo de cartão.</p>
+            </article>
+            <article>
+              <span class="benefit-mark">✓</span>
+              <strong>Conciliação automática</strong>
+              <p>Cada cobrança paga é registrada e cruzada com o financeiro sozinha — acabou o trabalho de comparar extrato com pedidos.</p>
+            </article>
+            <article>
+              <span class="benefit-mark">▢</span>
+              <strong>Mais profissionalismo para o seu cliente</strong>
+              <p>QR Code, recibo e confirmação automática transmitem a mesma seriedade de uma loja estruturada — mesmo sendo um negócio pequeno.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="module-detail-cta">
+          <h2>Pronto para receber sem complicação?</h2>
+          <p>Gere sua primeira cobrança PIX e veja o QR Code na tela em segundos.</p>
+          <button class="primary-button" data-open-app>Começar agora</button>
+        </section>
+      </div>
+    </section>
+
     <!-- AUTH -->
     <section class="auth-shell is-hidden" id="auth" aria-label="Entrar na Wage Up">
       <div class="auth-panel">
         <button class="auth-back" data-close-auth aria-label="Voltar">← Voltar</button>
         <div class="auth-copy">
-          <a class="brand auth-brand" href="#"><span class="brand-mark">W</span><span>Wage Up</span></a>
+          <a class="brand auth-brand" href="#"></span><span>Wage Up</span></a>
           <h2>Organize seu negócio em poucos minutos.</h2>
           <p>Cadastre produtos, acompanhe o financeiro e crie campanhas com IA.</p>
         </div>

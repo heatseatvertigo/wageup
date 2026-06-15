@@ -127,4 +127,46 @@ Para domínio próprio: configurar `CUSTOM_DOMAIN=seudominio.com` nas variáveis
 - [backend/apps/payments/services.py](backend/apps/payments/services.py) — cliente Abacate Pay
 - [backend/apps/marketing/views.py](backend/apps/marketing/views.py) — `_call_claude()` para IA
 - [frontend/app.js](frontend/app.js) — toda a lógica do SPA (744 linhas)
+- [frontend/styles.css](frontend/styles.css) — CSS atual do SPA
+- [frontend/index.html](frontend/index.html) — HTML do SPA
+- [design-system.md](design-system.md) — **Design system completo** (cores, tipografia, componentes)
 - [.env.example](.env.example) — template de variáveis de ambiente
+
+---
+
+## Regras de Frontend — Design System
+
+**SEMPRE** leia `design-system.md` antes de criar ou modificar qualquer arquivo CSS ou HTML com componentes visuais.
+
+Todas as cores, fontes, espaçamentos e componentes estão definidos lá como CSS custom properties.
+
+**Nunca:**
+- Usar cores hardcoded (`#ffffff`, `green`, `rgba(...)`) — use sempre as variáveis do design system
+- Usar `font-family: Inter`, `Arial`, `Roboto` ou qualquer fonte fora do design system
+- Criar `box-shadow` fora dos tokens (`--shadow-sm`, `--shadow-md`, `--shadow-lg`)
+- Usar `border-radius` maior que `--radius-xl` (16px) em cards de dados
+- Exibir valores monetários sem `font-family: var(--font-mono)` (DM Mono)
+
+### Regras de CSS
+- Mobile-first: CSS base para mobile, `@media (min-width: ...)` para desktop
+- Nunca use `!important`
+- Animações: apenas `opacity` e `transform` — nunca anime `height`, `width`, `top`, `left`
+- Prefira `gap` a `margin` para espaçamento entre filhos de flex/grid
+
+### Nomenclatura BEM simplificado
+```css
+.bloco {}
+.bloco__elemento {}
+.bloco--modificador {}
+/* ex: .card, .card__header, .card__value, .card--highlighted */
+```
+
+### Valores financeiros
+Todo valor monetário deve:
+1. Usar `font-family: var(--font-mono)` (DM Mono)
+2. Estar formatado como `R$ 1.234,56`
+3. Usar `var(--color-positive)` para receita/lucro, `var(--color-negative)` para despesa/prejuízo
+4. Nunca usar cor como único indicador — incluir ícone ou label textual
+
+### Escopo de alterações
+Antes de modificar qualquer arquivo, confirme exatamente o que foi pedido. Alterações cirúrgicas — preserve o que está funcionando.

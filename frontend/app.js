@@ -94,6 +94,40 @@ document.querySelectorAll("[data-close-auth]").forEach((button) => {
   });
 });
 
+const moduleDetails = new Map();
+document.querySelectorAll(".module-detail").forEach((section) => {
+  const key = section.id.replace(/^page-/, "");
+  moduleDetails.set(key, section);
+});
+
+document.querySelectorAll("[data-open-module]").forEach((trigger) => {
+  trigger.addEventListener("click", (event) => {
+    event.preventDefault();
+    openModulePage(trigger.dataset.openModule);
+  });
+});
+
+document.querySelectorAll("[data-close-module]").forEach((button) => {
+  button.addEventListener("click", () => closeModulePage());
+});
+
+function openModulePage(key) {
+  const target = moduleDetails.get(key);
+  if (!target) return;
+
+  moduleDetails.forEach((section) => section.classList.add("is-hidden"));
+  siteShell.classList.add("is-hidden");
+  target.classList.remove("is-hidden");
+  sidebar.classList.remove("open");
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+
+function closeModulePage() {
+  moduleDetails.forEach((section) => section.classList.add("is-hidden"));
+  siteShell.classList.remove("is-hidden");
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+
 document.querySelectorAll("[data-auth-tab]").forEach((button) => {
   button.addEventListener("click", () => setAuthTab(button.dataset.authTab));
 });
@@ -247,6 +281,7 @@ render();
 bootstrapSession();
 initGoogleSignIn();
 setDemoView("overview");
+startWordRotator();
 
 // ─── Auth & Session ───────────────────────────────────────────────────────────
 
@@ -458,6 +493,32 @@ function setDemoView(viewName) {
   });
 }
 
+const heroRotatorWords = [
+  "vender mais",
+  "organizar o catálogo",
+  "controlar o financeiro",
+  "criar campanhas com IA",
+  "receber via PIX"
+];
+
+function startWordRotator() {
+  const word = document.querySelector("#heroRotatorWord");
+  if (!word) return;
+  let index = 0;
+  word.classList.add("is-entering");
+  setInterval(() => {
+    word.classList.remove("is-entering");
+    word.classList.add("is-leaving");
+    window.setTimeout(() => {
+      index = (index + 1) % heroRotatorWords.length;
+      word.textContent = heroRotatorWords[index];
+      word.classList.remove("is-leaving");
+      void word.offsetWidth;
+      word.classList.add("is-entering");
+    }, 340);
+  }, 2600);
+}
+
 // ─── Render ───────────────────────────────────────────────────────────────────
 
 function render() {
@@ -481,6 +542,10 @@ function renderSummary() {
 function renderTransactions() {
   const rows = document.querySelector("#transactionRows");
   rows.innerHTML = "";
+  if (!state.transactions.length) {
+    rows.innerHTML = `<tr class="empty-row"><td colspan="4">Nenhuma movimentação ainda — registre a primeira entrada ou saída acima.</td></tr>`;
+    return;
+  }
   state.transactions.forEach((transaction) => {
     const row = document.createElement("tr");
     row.innerHTML = `
@@ -504,6 +569,10 @@ function renderTransactions() {
 function renderProducts() {
   const grid = document.querySelector("#productGrid");
   grid.innerHTML = "";
+  if (!state.products.length) {
+    grid.innerHTML = `<p class="empty-state">Seu catálogo está vazio — cadastre o primeiro produto acima para começar a calcular margens automaticamente.</p>`;
+    return;
+  }
   state.products.forEach((product) => {
     const margin = product.price - product.cost;
     const marginPercent = product.price ? (margin / product.price) * 100 : 0;
@@ -513,10 +582,10 @@ function renderProducts() {
       <strong>${escapeHtml(product.name)}</strong>
       <span>${escapeHtml(product.category)}</span>
       <div class="product-meta">
-        <span>Preço: ${formatMoney(product.price)}</span>
-        <span>Custo: ${formatMoney(product.cost)}</span>
-        <span>Margem: ${formatMoney(margin)} (${marginPercent.toFixed(0)}%)</span>
-        <span>Estoque: ${product.stock} un.</span>
+        <span><b>Preço</b><em>${formatMoney(product.price)}</em></span>
+        <span><b>Custo</b><em>${formatMoney(product.cost)}</em></span>
+        <span><b>Margem</b><em>${formatMoney(margin)} · ${marginPercent.toFixed(0)}%</em></span>
+        <span><b>Estoque</b><em>${product.stock} un.</em></span>
       </div>
     `;
     grid.appendChild(card);
