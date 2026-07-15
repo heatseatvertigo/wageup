@@ -18,9 +18,11 @@ SECRET_KEY = env("SECRET_KEY", default="django-insecure-dev-wageup-change-me")
 DEBUG = env("DJANGO_DEBUG")
 
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
-RAILWAY_PUBLIC_DOMAIN = env("RAILWAY_PUBLIC_DOMAIN", default="")
-if RAILWAY_PUBLIC_DOMAIN:
-    ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
+# Dominios preenchidos automaticamente pela plataforma de deploy.
+# Railway usa RAILWAY_PUBLIC_DOMAIN; Render usa RENDER_EXTERNAL_HOSTNAME.
+PLATFORM_DOMAIN = env("RAILWAY_PUBLIC_DOMAIN", default="") or env("RENDER_EXTERNAL_HOSTNAME", default="")
+if PLATFORM_DOMAIN:
+    ALLOWED_HOSTS.append(PLATFORM_DOMAIN)
 
 
 INSTALLED_APPS = [
@@ -75,10 +77,10 @@ WSGI_APPLICATION = 'config.wsgi.application'
 CORS_ALLOWED_ORIGINS = env("CORS_ALLOWED_ORIGINS")
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = env("CSRF_TRUSTED_ORIGINS")
-if RAILWAY_PUBLIC_DOMAIN:
-    railway_origin = f"https://{RAILWAY_PUBLIC_DOMAIN}"
-    CORS_ALLOWED_ORIGINS.append(railway_origin)
-    CSRF_TRUSTED_ORIGINS.append(railway_origin)
+if PLATFORM_DOMAIN:
+    platform_origin = f"https://{PLATFORM_DOMAIN}"
+    CORS_ALLOWED_ORIGINS.append(platform_origin)
+    CSRF_TRUSTED_ORIGINS.append(platform_origin)
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [

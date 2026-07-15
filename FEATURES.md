@@ -36,7 +36,8 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 
 - [x] Gerar cobrança PIX (QR Code + código "copia e cola") através da API da Abacate Pay
 - [x] Registrar a cobrança localmente (`Payment`) com status `pending` / `paid` / `failed` / `refunded`
-- [x] Anexar dados do cliente (nome, e-mail, CPF/CNPJ, celular) à cobrança — **a Abacate Pay exige o CPF/CNPJ sempre que nome ou e-mail forem informados**, então o campo foi adicionado ao formulário (corrigido em 2026-06-07; antes disso a geração de PIX falhava com erro 422 da API)
+- [x] Anexar dados do cliente (nome, e-mail, CPF/CNPJ, celular) à cobrança — **a Abacate Pay exige CPF/CNPJ e celular juntos**; se um dos dois faltar, a cobrança é gerada sem os dados do cliente (regra ajustada em 2026-07-15; antes disso a API retornava erro 422)
+- [x] Lista de "Cobranças recentes" na tela de PIX, com badge de status, botão para reexibir o QR Code e atualização manual de status
 - [x] Webhook (`/api/payments/webhook/abacatepay/`) para receber atualizações automáticas de status (pago, reembolsado, contestado) e atualizar o registro local
 - [ ] Consolidação automática de recebíveis / conciliação financeira a partir dos pagamentos recebidos (ainda não implementado — está no escopo do TCC)
 

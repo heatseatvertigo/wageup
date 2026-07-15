@@ -95,20 +95,18 @@ def abacatepay_webhook(request):
 
 
 def build_customer(data):
-    # A Abacate Pay valida o objeto "customer" como CPF ou CNPJ e exige o
-    # campo taxId nesse momento - enviar nome/e-mail sem taxId faz a API
-    # responder com 422 "Value should be one of 'object', 'object'".
-    # Por isso só anexamos o customer quando o taxId estiver presente.
-    if not data.get("customer_tax_id"):
+    # Abacate Pay rejeita o objeto customer com 422 a menos que taxId E
+    # cellphone estejam presentes juntos. Omitir o customer inteiro é válido.
+    tax_id = (data.get("customer_tax_id") or "").strip()
+    cellphone = (data.get("customer_cellphone") or "").strip()
+    if not tax_id or not cellphone:
         return None
 
-    customer = {"taxId": data["customer_tax_id"]}
+    customer = {"taxId": tax_id, "cellphone": cellphone}
     if data.get("customer_name"):
-        customer["name"] = data["customer_name"]
+        customer["name"] = data["customer_name"].strip()
     if data.get("customer_email"):
-        customer["email"] = data["customer_email"]
-    if data.get("customer_cellphone"):
-        customer["cellphone"] = data["customer_cellphone"]
+        customer["email"] = data["customer_email"].strip()
     return customer
 
 
@@ -126,7 +124,7 @@ def apply_payment_event(event_type, data):
         payment.status = Payment.Status.PAID
     elif event_type in {"checkout.refunded", "transparent.refunded"}:
         payment.status = Payment.Status.REFUNDED
-    elif event_type in {"checkout.disputed", "transparent.disputed"}:
+    elif event_type in {"checkout.disputed", "transparent.disputed", "transparent.lost"}:
         payment.status = Payment.Status.FAILED
     else:
         return

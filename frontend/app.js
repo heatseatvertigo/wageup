@@ -1,6 +1,6 @@
 const storageKey = "wageup-state-v1";
 const authTokenKey = "wageup-auth-token";
-const apiBaseUrl = window.WAGEUP_API_URL || "http://localhost:8000/api";
+const apiBaseUrl = window.WAGEUP_API_URL || "/api";
 const googleClientId = window.WAGEUP_GOOGLE_CLIENT_ID || "";
 let apiAvailable = true;
 let authToken = localStorage.getItem(authTokenKey);
@@ -21,6 +21,7 @@ const defaultState = {
 };
 
 let state = loadState();
+let currentPayments = [];
 
 const siteShell = document.querySelector(".site-shell");
 const authShell = document.querySelector("#auth");
@@ -251,6 +252,8 @@ document.querySelector("#campaignForm").addEventListener("submit", async (event)
   output.scrollTop = output.scrollHeight;
 });
 
+document.querySelector("#refreshPaymentsBtn").addEventListener("click", () => loadPayments());
+
 document.querySelector("#paymentForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
@@ -265,10 +268,13 @@ document.querySelector("#paymentForm").addEventListener("submit", async (event) 
         amount: Number(form.get("amount")),
         customer_name: form.get("customer_name").trim(),
         customer_email: form.get("customer_email").trim(),
-        customer_tax_id: form.get("customer_tax_id").trim()
+        customer_tax_id: form.get("customer_tax_id").trim(),
+        customer_cellphone: form.get("customer_cellphone").trim()
       })
     });
+    currentPayments.unshift(payment);
     renderPaymentResult(payment);
+    renderPaymentList();
     event.currentTarget.reset();
   } catch (error) {
     result.innerHTML = `<strong>Não foi possível gerar o PIX</strong><span>${escapeHtml(error.message)}</span>`;
@@ -466,6 +472,7 @@ function setView(viewName) {
   });
   title.textContent = viewTitles[viewName] || "Wage Up";
   if (viewName === "overview") drawChart();
+  if (viewName === "payments") loadPayments();
 }
 
 function setDemoView(viewName) {
@@ -607,12 +614,21 @@ function renderPaymentResult(payment) {
   const result = document.querySelector("#paymentResult");
   const brCode = payment.metadata?.brCode || "";
   const qrCode = payment.metadata?.brCodeBase64 || "";
+  const expiresAt = payment.metadata?.expiresAt;
+  const expiryText = expiresAt
+    ? `<span class="payment-result__expiry">Válido até ${new Date(expiresAt).toLocaleString("pt-BR")}</span>`
+    : "";
+  const statusLabel = { pending: "Pendente", paid: "Pago", failed: "Falhou", refunded: "Reembolsado", canceled: "Cancelado" };
   result.innerHTML = `
     <strong>PIX gerado</strong>
-    ${qrCode ? `<img src="${escapeHtml(qrCode)}" alt="QR Code PIX" />` : ""}
+    ${qrCode ? `<img src="${qrCode}" alt="QR Code PIX" />` : ""}
     ${brCode ? `<code>${escapeHtml(brCode)}</code>` : "<span>Código PIX não retornado pela Abacate Pay.</span>"}
-    <span>Status: ${escapeHtml(payment.status)}</span>
-    ${brCode ? `<button class="secondary-button" type="button" data-copy-pix>Copiar código</button>` : ""}
+    <span class="payment-result__status payment-status status--${escapeHtml(payment.status)}">${statusLabel[payment.status] || escapeHtml(payment.status)}</span>
+    ${expiryText}
+    <div class="payment-result__actions">
+      ${brCode ? `<button class="secondary-button" type="button" data-copy-pix>Copiar código</button>` : ""}
+      <button class="ghost-button" type="button" data-refresh-pix="${escapeHtml(payment.id)}">Verificar pagamento ↻</button>
+    </div>
   `;
   const copyButton = result.querySelector("[data-copy-pix]");
   if (copyButton) {
@@ -621,6 +637,100 @@ function renderPaymentResult(payment) {
       copyButton.textContent = "Código copiado!";
     });
   }
+  const refreshBtn = result.querySelector("[data-refresh-pix]");
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", async () => {
+      refreshBtn.textContent = "Verificando...";
+      refreshBtn.disabled = true;
+      try {
+        const updated = await apiRequest(`/payments/${refreshBtn.dataset.refreshPix}/`);
+        const idx = currentPayments.findIndex((p) => p.id === updated.id);
+        if (idx !== -1) currentPayments[idx] = updated;
+        renderPaymentResult(updated);
+        renderPaymentList();
+      } catch {
+        refreshBtn.textContent = "Erro ao verificar";
+        refreshBtn.disabled = false;
+      }
+    });
+  }
+}
+
+async function loadPayments() {
+  try {
+    const data = await apiRequest("/payments/");
+    currentPayments = Array.isArray(data) ? data : (data.results || []);
+    renderPaymentList();
+  } catch {
+    // silently fail — don't block the view
+  }
+}
+
+function renderPaymentList() {
+  const container = document.querySelector("#paymentsList");
+  if (!container) return;
+
+  if (!currentPayments.length) {
+    container.innerHTML = `<p class="empty-state">Nenhuma cobrança gerada ainda.</p>`;
+    return;
+  }
+
+  const statusLabel = { pending: "Pendente", paid: "Pago", failed: "Falhou", refunded: "Reembolsado", canceled: "Cancelado" };
+
+  container.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Descrição</th>
+            <th>Valor</th>
+            <th>Status</th>
+            <th>Data</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${currentPayments.map((p) => `
+            <tr>
+              <td>${escapeHtml(p.metadata?.description || "—")}</td>
+              <td><span class="value-currency">${formatMoney(p.amount)}</span></td>
+              <td><span class="payment-status status--${escapeHtml(p.status)}">${statusLabel[p.status] || escapeHtml(p.status)}</span></td>
+              <td>${new Date(p.created_at).toLocaleDateString("pt-BR")}</td>
+              <td class="payment-list__actions">
+                ${p.metadata?.brCode ? `<button class="ghost-button" data-list-show-pix="${escapeHtml(p.id)}">Ver QR</button>` : ""}
+                <button class="ghost-button" data-list-refresh="${escapeHtml(p.id)}">↻</button>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  container.querySelectorAll("[data-list-show-pix]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const payment = currentPayments.find((p) => p.id === btn.dataset.listShowPix);
+      if (payment) {
+        renderPaymentResult(payment);
+        document.querySelector("#paymentResult").scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    });
+  });
+
+  container.querySelectorAll("[data-list-refresh]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.listRefresh;
+      btn.textContent = "...";
+      try {
+        const updated = await apiRequest(`/payments/${id}/`);
+        const idx = currentPayments.findIndex((p) => p.id === id);
+        if (idx !== -1) currentPayments[idx] = updated;
+        renderPaymentList();
+      } catch {
+        btn.textContent = "↻";
+      }
+    });
+  });
 }
 
 function renderInsights() {

@@ -701,7 +701,6 @@
             <p class="eyebrow">Wage Up</p>
             <h2 id="view-title">Bem-vindo de volta.</h2>
           </div>
-          <button class="ghost-button" data-close-app>← Landing</button>
         </header>
 
         <section class="view active" id="overview">
@@ -761,13 +760,21 @@
               <input name="customer_name" placeholder="Nome do cliente" />
               <input name="customer_email" type="email" placeholder="E-mail do cliente" />
               <input name="customer_tax_id" placeholder="CPF/CNPJ do cliente" />
+              <input name="customer_cellphone" placeholder="Celular do cliente ex: (11) 99999-9999" />
               <button class="primary-button" type="submit">Gerar PIX</button>
             </form>
-            <p class="form-hint">O CPF/CNPJ só é exigido pela Abacate Pay quando você informa nome ou e-mail do cliente.</p>
+            <p class="form-hint">Dados do cliente são opcionais. Se preencher, informe CPF/CNPJ e celular juntos.</p>
             <div class="payment-result" id="paymentResult">
               <strong>Pronto para cobrar</strong>
               <span>Preencha os dados acima e clique em Gerar PIX.</span>
             </div>
+          </div>
+          <div class="work-panel">
+            <div class="panel-heading">
+              <h3>Cobranças recentes</h3>
+              <button class="ghost-button" id="refreshPaymentsBtn" type="button">Atualizar</button>
+            </div>
+            <div id="paymentsList"></div>
           </div>
         </section>
 
