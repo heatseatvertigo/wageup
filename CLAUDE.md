@@ -17,7 +17,7 @@ O escopo completo está em `Escopo TCC.pdf` na raiz do projeto.
 **Frontend**: SPA em vanilla JS (sem framework), servido pelo próprio Django via WhiteNoise.
 **Pagamentos**: Abacate Pay (PIX). Integração em `backend/apps/payments/services.py`.
 **IA**: Anthropic Claude Haiku (`claude-haiku-4-5-20251001`) para geração de campanhas de marketing.
-**Deploy**: Railway (backend + PostgreSQL). Frontend já está no Vercel mas pode ser servido pelo Railway também.
+**Deploy**: Render (aplicação) + Neon (PostgreSQL). Produção em https://wageup.onrender.com. Ver [DEPLOY-RENDER.md](DEPLOY-RENDER.md).
 
 ### Apps Django
 
@@ -52,13 +52,13 @@ Arquivo `.env` na raiz do projeto (não commitado). Ver `.env.example` para refe
 |---|---|
 | `SECRET_KEY` | Django secret key |
 | `DJANGO_DEBUG` | `True` local, `False` produção |
-| `DATABASE_URL` | SQLite local (`sqlite:///db.sqlite3`), PostgreSQL no Railway |
+| `DATABASE_URL` | SQLite local (default `backend/db.sqlite3`), PostgreSQL (Neon) em produção |
 | `ABACATE_PAY_API_KEY` | Chave da Abacate Pay para gerar PIX |
 | `ABACATE_PAY_WEBHOOK_SECRET` | Segredo do webhook da Abacate Pay |
 | `WAGEUP_ADMIN_EMAILS` | E-mails com role admin (ex: `admin@wageup.com`) |
 | `ANTHROPIC_API_KEY` | Chave da Anthropic para IA de marketing |
 | `CUSTOM_DOMAIN` | Domínio próprio — adicionado automaticamente ao CORS/ALLOWED_HOSTS |
-| `RAILWAY_PUBLIC_DOMAIN` | Preenchido automaticamente pelo Railway |
+| `RENDER_EXTERNAL_HOSTNAME` | Preenchido automaticamente pelo Render — adicionado ao ALLOWED_HOSTS/CORS/CSRF |
 
 ---
 
@@ -97,7 +97,7 @@ GET/POST        /api/marketing/campaigns/
 
 1. **Business criado no registro**: simplificação para TCC — cada user tem exatamente 1 business. Em produção real, suportaria múltiplos.
 
-2. **Frontend servido pelo Django**: WhiteNoise serve `frontend/` como static files. O `index.html` é servido em `/`. Isso simplifica o deploy (tudo num serviço só no Railway).
+2. **Frontend servido pelo Django**: WhiteNoise serve `frontend/` como static files. O `index.html` é servido em `/`. Isso simplifica o deploy (tudo num serviço só no Render).
 
 3. **Marketing AI com fallback**: se `ANTHROPIC_API_KEY` não estiver configurada, o endpoint retorna uma resposta demo local. Não quebra em dev sem chave.
 
@@ -109,13 +109,16 @@ GET/POST        /api/marketing/campaigns/
 
 ---
 
-## Deploy no Railway
+## Deploy no Render + Neon
 
-O `Procfile` e `railway.json` já estão configurados:
-- `release`: roda `migrate` automaticamente
-- `web`: gunicorn servindo `config.wsgi:application` do diretório `backend/`
+O `render.yaml` já está configurado:
+- `buildCommand`: instala deps e roda `collectstatic`
+- `preDeployCommand`: roda `migrate` automaticamente
+- `startCommand`: gunicorn servindo `config.wsgi:application` do diretório `backend/`
 
-Para domínio próprio: configurar `CUSTOM_DOMAIN=seudominio.com` nas variáveis do Railway.
+Banco PostgreSQL no Neon (não expira; backups automáticos). Passo a passo completo em [DEPLOY-RENDER.md](DEPLOY-RENDER.md).
+
+Para domínio próprio: configurar `CUSTOM_DOMAIN=seudominio.com` nas variáveis do Render.
 
 ---
 
