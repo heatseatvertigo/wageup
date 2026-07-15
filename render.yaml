@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: wageup
+    runtime: python
+    plan: free
+    branch: main
+    buildCommand: pip install -r requirements.txt && python backend/manage.py collectstatic --noinput
+    preDeployCommand: python backend/manage.py migrate --noinput
+    startCommand: gunicorn config.wsgi:application --chdir backend --bind 0.0.0.0:$PORT
+    envVars:
+      # Preenchidos manualmente no painel do Render (nao commitar valores reais):
+      #   DATABASE_URL          -> connection string do Neon
+      #   SECRET_KEY            -> gerar com get_random_secret_key()
+      #   ABACATE_PAY_API_KEY
+      #   ABACATE_PAY_WEBHOOK_SECRET
+      #   WAGEUP_ADMIN_EMAILS
+      #   ANTHROPIC_API_KEY
+      #   GOOGLE_CLIENT_ID      (opcional, para login Google)
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: localhost,127.0.0.1,testserver
+      - key: PYTHON_VERSION
+        value: "3.12"
