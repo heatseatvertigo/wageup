@@ -1,7 +1,8 @@
 from django.conf import settings
+from django.db.models import Sum
 from django.utils import timezone
 from rest_framework import status, viewsets
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
@@ -23,6 +24,28 @@ class PaymentViewSet(viewsets.ModelViewSet):
         if not business:
             return Payment.objects.none()
         return Payment.objects.filter(business=business)
+
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        """Consolidação de recebíveis do business: recebido, a receber e recebido no mês."""
+        qs = self.get_queryset()
+        now = timezone.now()
+
+        paid = qs.filter(status=Payment.Status.PAID)
+        pending = qs.filter(status=Payment.Status.PENDING)
+
+        def total(queryset):
+            return float(queryset.aggregate(total=Sum("amount"))["total"] or 0)
+
+        return Response({
+            "received_total": total(paid),
+            "received_this_month": total(
+                paid.filter(created_at__year=now.year, created_at__month=now.month)
+            ),
+            "pending_total": total(pending),
+            "paid_count": paid.count(),
+            "pending_count": pending.count(),
+        })
 
     def create(self, request, *args, **kwargs):
         serializer = PixChargeCreateSerializer(data=request.data)

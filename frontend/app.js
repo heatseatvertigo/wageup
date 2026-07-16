@@ -471,7 +471,7 @@ function setView(viewName) {
     button.classList.toggle("active", button.dataset.view === viewName);
   });
   title.textContent = viewTitles[viewName] || "Wage Up";
-  if (viewName === "overview") drawChart();
+  if (viewName === "overview") { drawChart(); loadReceivables(); }
   if (viewName === "payments") loadPayments();
 }
 
@@ -663,6 +663,24 @@ async function loadPayments() {
     renderPaymentList();
   } catch {
     // silently fail — don't block the view
+  }
+}
+
+async function loadReceivables() {
+  const panel = document.querySelector("#receivablesPanel");
+  if (!panel || !canAccessFinance()) return;
+  try {
+    const s = await apiRequest("/payments/summary/");
+    document.querySelector("#rec-month").textContent = formatMoney(s.received_this_month);
+    document.querySelector("#rec-pending").textContent = formatMoney(s.pending_total);
+    document.querySelector("#rec-total").textContent = formatMoney(s.received_total);
+    document.querySelector("#rec-pending-count").textContent =
+      s.pending_count ? `${s.pending_count} cobrança(s) aguardando` : "Nada pendente";
+    document.querySelector("#rec-paid-count").textContent =
+      s.paid_count ? `${s.paid_count} cobrança(s) paga(s)` : "Nenhuma paga ainda";
+    panel.hidden = false;
+  } catch {
+    panel.hidden = true;
   }
 }
 

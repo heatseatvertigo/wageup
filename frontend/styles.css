@@ -1825,6 +1825,13 @@ td:first-child { font-weight: var(--weight-medium); }
 
 .value-positive { color: var(--color-positive); font-family: var(--font-mono); }
 .value-negative { color: var(--color-negative); font-family: var(--font-mono); }
+.value-warning  { color: var(--color-warning);  font-family: var(--font-mono); }
+.value-currency { font-family: var(--font-mono); }
+
+.rec-hint {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
 
 .empty-row td {
   text-align: center;

@@ -39,7 +39,7 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 - [x] Anexar dados do cliente (nome, e-mail, CPF/CNPJ, celular) à cobrança — **a Abacate Pay exige CPF/CNPJ e celular juntos**; se um dos dois faltar, a cobrança é gerada sem os dados do cliente (regra ajustada em 2026-07-15; antes disso a API retornava erro 422)
 - [x] Lista de "Cobranças recentes" na tela de PIX, com badge de status, botão para reexibir o QR Code e atualização manual de status
 - [x] Webhook (`/api/payments/webhook/abacatepay/`) para receber atualizações automáticas de status (pago, reembolsado, contestado) e atualizar o registro local
-- [ ] Consolidação automática de recebíveis / conciliação financeira a partir dos pagamentos recebidos (ainda não implementado — está no escopo do TCC)
+- [x] Consolidação de recebíveis — painel na Visão geral com total recebido, recebido no mês e valor a receber, agregado a partir das cobranças (`GET /api/payments/summary/`)
 
 ## 5. Marketing com Inteligência Artificial
 
@@ -65,9 +65,9 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 
 Com base no `Escopo TCC.pdf`, os itens abaixo ainda não foram implementados:
 
-1. **Consolidação automática de recebíveis** — hoje os pagamentos ficam registrados individualmente; falta uma visão consolidada (ex.: "quanto eu tenho a receber este mês").
-2. **Insights/recomendações por IA** — a IA hoje só gera texto de campanha sob demanda; falta cruzar dados financeiros + produtos para sugerir ações automaticamente.
-3. **Geração de imagens para campanhas de marketing**.
+1. **Insights/recomendações por IA** — a IA hoje só gera texto de campanha sob demanda; falta cruzar dados financeiros + produtos para sugerir ações automaticamente.
+2. **Geração de imagens para campanhas de marketing**.
+3. **Recomendações automáticas de ações de marketing** baseadas no desempenho do negócio.
 
 ---
 
