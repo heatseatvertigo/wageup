@@ -254,6 +254,8 @@ document.querySelector("#campaignForm").addEventListener("submit", async (event)
 
 document.querySelector("#refreshPaymentsBtn").addEventListener("click", () => loadPayments());
 
+document.querySelector("#genInsightsBtn").addEventListener("click", () => loadAiInsights());
+
 document.querySelector("#paymentForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
@@ -779,12 +781,34 @@ function renderInsights() {
     }
   ];
 
+  renderInsightList(insights);
+}
+
+function renderInsightList(insights) {
+  const container = document.querySelector("#insights");
+  if (!container) return;
   container.innerHTML = insights.map((item) => `
     <article>
-      <strong>${item.title}</strong>
-      <span>${item.text}</span>
+      <strong>${escapeHtml(item.title)}</strong>
+      <span>${escapeHtml(item.text)}</span>
     </article>
   `).join("");
+}
+
+async function loadAiInsights() {
+  const btn = document.querySelector("#genInsightsBtn");
+  if (!btn) return;
+  btn.disabled = true;
+  btn.textContent = "Gerando...";
+  try {
+    const data = await apiRequest("/finance/insights/");
+    if (data.insights?.length) renderInsightList(data.insights);
+    btn.textContent = "Atualizar insights ✨";
+  } catch {
+    btn.textContent = "Erro — tentar de novo";
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function drawChart() {

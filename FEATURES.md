@@ -52,7 +52,7 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 ## 6. Visão geral / Dashboard
 
 - [x] Tela inicial com resumo do negócio (produtos cadastrados, transações recentes, indicadores financeiros para admins)
-- [ ] Insights e recomendações geradas por IA com base nos dados financeiros e de produtos (ainda não implementado — está no escopo do TCC)
+- [x] Insights por IA com base nos dados financeiros, recebíveis e produtos — botão "Gerar insights com IA" na Visão geral (`GET /api/finance/insights/`), com fallback local por regras quando não há `ANTHROPIC_API_KEY` ou a chamada à IA falha
 
 ## 7. Administração e visibilidade de dados
 
@@ -65,9 +65,8 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 
 Com base no `Escopo TCC.pdf`, os itens abaixo ainda não foram implementados:
 
-1. **Insights/recomendações por IA** — a IA hoje só gera texto de campanha sob demanda; falta cruzar dados financeiros + produtos para sugerir ações automaticamente.
+1. **Recomendações automáticas de ações de marketing** baseadas no desempenho do negócio.
 2. **Geração de imagens para campanhas de marketing**.
-3. **Recomendações automáticas de ações de marketing** baseadas no desempenho do negócio.
 
 ---
 
