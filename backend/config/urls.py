@@ -19,6 +19,7 @@ from django.urls import include, path, re_path
 from django.views.static import serve
 from django.conf import settings
 
+from apps.finance.views import business_insights
 from .views import frontend_index, health_check
 
 urlpatterns = [
@@ -27,6 +28,7 @@ urlpatterns = [
     path('api/auth/', include('apps.accounts.urls')),
     path('api/products/', include('apps.products.urls')),
     path('api/transactions/', include('apps.finance.urls')),
+    path('api/finance/insights/', business_insights, name='business-insights'),
     path('api/payments/', include('apps.payments.urls')),
     path('api/marketing/', include('apps.marketing.urls')),
     re_path(r'^(?P<path>app\.js|styles\.css)$', serve, {'document_root': settings.ROOT_DIR / 'frontend'}),
