@@ -349,7 +349,10 @@ function showOnboarding() {
 
 function setAuthTab(tabName) {
   document.querySelectorAll("[data-auth-tab]").forEach((button) => {
-    button.classList.toggle("active", button.dataset.authTab === tabName);
+    const isActive = button.dataset.authTab === tabName;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-selected", String(isActive));
+    button.tabIndex = isActive ? 0 : -1;
   });
   document.querySelectorAll(".auth-form").forEach((form) => {
     form.classList.toggle("active", form.id === `${tabName}Form`);
