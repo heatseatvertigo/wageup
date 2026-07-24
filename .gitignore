@@ -11,3 +11,6 @@ node_modules/
 dist/
 build/
 staticfiles/
+
+# Skills de design instaladas localmente (tooling, não é código da aplicação)
+.claude/skills/
