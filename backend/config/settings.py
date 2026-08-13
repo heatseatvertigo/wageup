@@ -99,6 +99,12 @@ REST_FRAMEWORK = {
 DATABASES = {
     "default": env.db("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
 }
+# Reuso de conexao so faz sentido em Postgres (Neon/producao). Em SQLite local
+# manter conexoes persistentes nao traz ganho e pode travar o arquivo, entao o
+# ajuste e aplicado apenas quando o backend for PostgreSQL.
+if DATABASES["default"]["ENGINE"] == "django.db.backends.postgresql":
+    DATABASES["default"]["CONN_MAX_AGE"] = 60
+    DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 
 
 # Password validation
