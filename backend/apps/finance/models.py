@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 import uuid
 
 
@@ -18,7 +19,10 @@ class Transaction(models.Model):
     description = models.CharField(max_length=180)
     type = models.CharField(max_length=16, choices=TransactionType.choices)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
-    occurred_at = models.DateTimeField(auto_now_add=True)
+    # Data do lançamento. Por padrão captura o momento da criação, mas é
+    # editável para permitir lançar movimentações retroativas (ex.: um
+    # pagamento recebido em outro dia).
+    occurred_at = models.DateTimeField(default=timezone.now)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
