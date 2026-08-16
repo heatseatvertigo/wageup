@@ -13,15 +13,27 @@ const defaultState = {
     { id: uid(), name: "Kit festa pequeno", category: "Kits", cost: 38, price: 79, stock: 6 }
   ],
   transactions: [
-    { id: uid(), description: "Vendas no PIX", type: "income", amount: 1800 },
-    { id: uid(), description: "Insumos", type: "expense", amount: 420 },
-    { id: uid(), description: "Encomenda corporativa", type: "income", amount: 960 },
-    { id: uid(), description: "Embalagens", type: "expense", amount: 180 }
+    { id: uid(), description: "Vendas no PIX", type: "income", amount: 1800, occurred_at: daysAgoISO(0) },
+    { id: uid(), description: "Insumos", type: "expense", amount: 420, occurred_at: daysAgoISO(0) },
+    { id: uid(), description: "Encomenda corporativa", type: "income", amount: 960, occurred_at: daysAgoISO(3) },
+    { id: uid(), description: "Embalagens", type: "expense", amount: 180, occurred_at: daysAgoISO(5) },
+    { id: uid(), description: "Feira de domingo", type: "income", amount: 1240, occurred_at: daysAgoISO(34) },
+    { id: uid(), description: "Reposição de estoque", type: "expense", amount: 510, occurred_at: daysAgoISO(38) },
+    { id: uid(), description: "Encomendas do mês", type: "income", amount: 2100, occurred_at: daysAgoISO(66) },
+    { id: uid(), description: "Taxa da maquininha", type: "expense", amount: 95, occurred_at: daysAgoISO(70) }
   ]
 };
 
 let state = loadState();
 let currentPayments = [];
+
+// Calendário da visão geral: mês atualmente em foco + rótulos pt-BR.
+const CAL_MONTHS = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+];
+const CAL_WEEKDAYS = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+let calendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
 const siteShell = document.querySelector(".site-shell");
 const authShell = document.querySelector("#auth");
@@ -191,15 +203,27 @@ document.querySelector("#transactionForm").addEventListener("submit", async (eve
     amount: Number(form.get("amount"))
   };
 
+  // Data opcional: se informada, envia como meio-dia local (evita virada de dia
+  // por fuso). Se vazia, o backend grava o momento da criação automaticamente.
+  const chosenDate = form.get("occurred_at");
+  if (chosenDate) payload.occurred_at = `${chosenDate}T12:00:00`;
+
   const transaction = apiAvailable
     ? await createTransaction(payload)
-    : { id: uid(), ...payload };
+    : { id: uid(), occurred_at: new Date().toISOString(), ...payload };
 
   state.transactions.unshift(transaction);
   event.currentTarget.reset();
+  prefillTransactionDate();
   persist();
   render();
 });
+
+function prefillTransactionDate() {
+  const input = document.querySelector('#transactionForm input[name="occurred_at"]');
+  if (input) input.value = dateKey(new Date());
+}
+prefillTransactionDate();
 
 document.querySelector("#productForm").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -254,8 +278,6 @@ document.querySelector("#campaignForm").addEventListener("submit", async (event)
 
 document.querySelector("#refreshPaymentsBtn").addEventListener("click", () => loadPayments());
 
-document.querySelector("#genInsightsBtn").addEventListener("click", () => loadAiInsights());
-
 document.querySelector("#paymentForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
@@ -283,7 +305,31 @@ document.querySelector("#paymentForm").addEventListener("submit", async (event) 
   }
 });
 
-window.addEventListener("resize", () => drawChart());
+// ─── Calendário (visão geral) ───────────────────────────────────────────────
+document.querySelector("#calPrev")?.addEventListener("click", () => shiftCalendarMonth(-1));
+document.querySelector("#calNext")?.addEventListener("click", () => shiftCalendarMonth(1));
+document.querySelectorAll("[data-close-drawer]").forEach((el) =>
+  el.addEventListener("click", closeDayDrawer)
+);
+let chartResizeTimer;
+window.addEventListener("resize", () => {
+  window.clearTimeout(chartResizeTimer);
+  chartResizeTimer = window.setTimeout(() => renderSemesterChart(), 150);
+});
+
+// Legenda: clicar liga/desliga cada série do gráfico.
+document.querySelectorAll("#chartLegend .chart-legend__item").forEach((button) => {
+  button.addEventListener("click", () => {
+    const key = button.dataset.series;
+    const active = !chartSeries[key];
+    // Mantém ao menos uma série visível.
+    if (!active && Object.values(chartSeries).filter(Boolean).length === 1) return;
+    chartSeries[key] = active;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+    renderSemesterChart();
+  });
+});
 
 render();
 bootstrapSession();
@@ -476,13 +522,14 @@ function setView(viewName) {
     button.classList.toggle("active", button.dataset.view === viewName);
   });
   title.textContent = viewTitles[viewName] || "Wage Up";
-  if (viewName === "overview") { drawChart(); loadReceivables(); }
+  if (viewName === "overview") { renderSummary(); renderCalendar(); renderSemesterChart(); }
   if (viewName === "payments") loadPayments();
 }
 
 function setDemoView(viewName) {
   const content = demoContent[viewName];
   if (!content) return;
+  if (!document.querySelector("#demoTitle")) return;
   document.querySelectorAll("[data-demo-view]").forEach((button) => {
     button.classList.toggle("active", button.dataset.demoView === viewName);
   });
@@ -538,17 +585,392 @@ function render() {
   renderTransactions();
   renderProducts();
   renderCampaignOptions();
-  renderInsights();
-  drawChart();
+  renderCalendar();
+  renderSemesterChart();
+}
+
+// ─── Calendário e resumo por mês ────────────────────────────────────────────
+
+function dateKey(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function transactionDate(transaction) {
+  const raw = transaction.occurred_at || transaction.created_at;
+  return raw ? new Date(raw) : new Date();
+}
+
+function transactionsByDay() {
+  const map = {};
+  state.transactions.forEach((transaction) => {
+    const key = dateKey(transactionDate(transaction));
+    if (!map[key]) map[key] = { income: 0, expense: 0, items: [] };
+    const amount = Number(transaction.amount) || 0;
+    if (transaction.type === "income") map[key].income += amount;
+    else map[key].expense += amount;
+    map[key].items.push(transaction);
+  });
+  return map;
 }
 
 function renderSummary() {
-  const income = sumByType("income");
-  const expense = sumByType("expense");
-  document.querySelector("#total-revenue").textContent = formatMoney(income);
-  document.querySelector("#total-expenses").textContent = formatMoney(expense);
-  document.querySelector("#total-profit").textContent = formatMoney(income - expense);
-  document.querySelector("#total-products").textContent = state.products.length;
+  const year = calendarCursor.getFullYear();
+  const month = calendarCursor.getMonth();
+  let income = 0;
+  let expense = 0;
+  state.transactions.forEach((transaction) => {
+    const date = transactionDate(transaction);
+    if (date.getFullYear() !== year || date.getMonth() !== month) return;
+    const amount = Number(transaction.amount) || 0;
+    if (transaction.type === "income") income += amount;
+    else expense += amount;
+  });
+
+  const profit = income - expense;
+  const profitEl = document.querySelector("#ov-profit");
+  const expenseEl = document.querySelector("#ov-expenses");
+  if (profitEl) {
+    profitEl.textContent = formatMoney(profit);
+    profitEl.classList.toggle("value-positive", profit >= 0);
+    profitEl.classList.toggle("value-negative", profit < 0);
+  }
+  if (expenseEl) expenseEl.textContent = formatMoney(expense);
+}
+
+function renderCalendar() {
+  const grid = document.querySelector("#calGrid");
+  const label = document.querySelector("#calMonthLabel");
+  if (!grid || !label) return;
+
+  const year = calendarCursor.getFullYear();
+  const month = calendarCursor.getMonth();
+  label.textContent = `${CAL_MONTHS[month]} de ${year}`;
+
+  const byDay = transactionsByDay();
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayKey = dateKey(new Date());
+
+  let cells = "";
+  for (let i = 0; i < firstWeekday; i += 1) {
+    cells += `<span class="calendar__cell calendar__cell--empty" aria-hidden="true"></span>`;
+  }
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const key = dateKey(new Date(year, month, day));
+    const info = byDay[key];
+    const hasData = Boolean(info && info.items.length);
+    const isToday = key === todayKey;
+    cells += `
+      <button type="button" role="gridcell"
+        class="calendar__cell${isToday ? " is-today" : ""}${hasData ? " has-data" : ""}"
+        data-day="${key}" aria-label="Dia ${day}${hasData ? ", com movimentações" : ""}">
+        <span class="calendar__day">${day}</span>
+        ${hasData ? `<span class="calendar__marks">
+          ${info.income ? `<span class="calendar__mark calendar__mark--in" title="Entradas"></span>` : ""}
+          ${info.expense ? `<span class="calendar__mark calendar__mark--out" title="Saídas"></span>` : ""}
+        </span>` : ""}
+      </button>`;
+  }
+  grid.innerHTML = cells;
+
+  grid.querySelectorAll("[data-day]").forEach((cell) => {
+    cell.addEventListener("click", () => openDayDrawer(cell.dataset.day));
+  });
+}
+
+function shiftCalendarMonth(delta) {
+  calendarCursor = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + delta, 1);
+  renderSummary();
+  renderCalendar();
+  renderSemesterChart();
+}
+
+function openDayDrawer(key) {
+  const drawer = document.querySelector("#dayDrawer");
+  if (!drawer) return;
+
+  const info = transactionsByDay()[key] || { income: 0, expense: 0, items: [] };
+  const [y, m, d] = key.split("-").map(Number);
+  const dateObj = new Date(y, m - 1, d);
+
+  document.querySelector("#drawerDate").textContent = `${d} de ${CAL_MONTHS[m - 1]} de ${y}`;
+  document.querySelector("#drawerWeekday").textContent = CAL_WEEKDAYS[dateObj.getDay()];
+  document.querySelector("#drawerIncome").textContent = formatMoney(info.income);
+  document.querySelector("#drawerExpense").textContent = formatMoney(info.expense);
+
+  const net = info.income - info.expense;
+  const netEl = document.querySelector("#drawerNet");
+  netEl.textContent = formatMoney(net);
+  netEl.classList.toggle("value-positive", net >= 0);
+  netEl.classList.toggle("value-negative", net < 0);
+
+  const list = document.querySelector("#drawerList");
+  if (!info.items.length) {
+    list.innerHTML = `<p class="day-drawer__empty">Nenhuma movimentação registrada neste dia.</p>`;
+  } else {
+    list.innerHTML = info.items.map((transaction) => {
+      const isIncome = transaction.type === "income";
+      return `
+        <div class="day-drawer__item">
+          <div class="day-drawer__item-info">
+            <strong>${escapeHtml(transaction.description)}</strong>
+            <span class="day-drawer__item-type day-drawer__item-type--${isIncome ? "in" : "out"}">
+              ${isIncome ? "Entrada" : "Saída"}
+            </span>
+          </div>
+          <span class="value-currency ${isIncome ? "value-positive" : "value-negative"}">
+            ${isIncome ? "+" : "−"} ${formatMoney(transaction.amount)}
+          </span>
+        </div>`;
+    }).join("");
+  }
+
+  drawer.hidden = false;
+  requestAnimationFrame(() => drawer.classList.add("is-open"));
+  document.addEventListener("keydown", drawerEscHandler);
+}
+
+function closeDayDrawer() {
+  const drawer = document.querySelector("#dayDrawer");
+  if (!drawer) return;
+  drawer.classList.remove("is-open");
+  document.removeEventListener("keydown", drawerEscHandler);
+  window.setTimeout(() => { drawer.hidden = true; }, 300);
+}
+
+function drawerEscHandler(event) {
+  if (event.key === "Escape") closeDayDrawer();
+}
+
+// ─── Gráfico interativo do semestre ─────────────────────────────────────────
+
+const CHART_MONTH_SHORT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const chartSeries = { income: true, expense: true, net: true };
+
+function formatMoneyCompact(value) {
+  const format = Math.abs(value) >= 1000
+    ? { notation: "compact", maximumFractionDigits: 1 }
+    : { maximumFractionDigits: 0 };
+  return `R$ ${new Intl.NumberFormat("pt-BR", format).format(value || 0)}`;
+}
+
+// Passo "redondo" (1, 2, 2.5, 5, 10 × potência de 10) para a escala do eixo Y.
+function niceStep(range, steps) {
+  const raw = range / steps;
+  if (raw <= 0) return 1;
+  const power = Math.pow(10, Math.floor(Math.log10(raw)));
+  const unit = raw / power;
+  const nice = unit <= 1 ? 1 : unit <= 2 ? 2 : unit <= 2.5 ? 2.5 : unit <= 5 ? 5 : 10;
+  return nice * power;
+}
+
+// Totais dos 6 meses que terminam no mês aberto no calendário.
+function semesterData() {
+  const months = [];
+  for (let offset = 5; offset >= 0; offset -= 1) {
+    const ref = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() - offset, 1);
+    let income = 0;
+    let expense = 0;
+    state.transactions.forEach((transaction) => {
+      const date = transactionDate(transaction);
+      if (date.getFullYear() !== ref.getFullYear() || date.getMonth() !== ref.getMonth()) return;
+      const amount = Number(transaction.amount) || 0;
+      if (transaction.type === "income") income += amount;
+      else expense += amount;
+    });
+    months.push({
+      year: ref.getFullYear(),
+      month: ref.getMonth(),
+      label: `${CHART_MONTH_SHORT[ref.getMonth()]}/${String(ref.getFullYear()).slice(2)}`,
+      fullLabel: `${CAL_MONTHS[ref.getMonth()]} de ${ref.getFullYear()}`,
+      income,
+      expense,
+      net: income - expense,
+      isCurrent: offset === 0
+    });
+  }
+  return months;
+}
+
+function renderSemesterChart() {
+  const container = document.querySelector("#semesterChart");
+  if (!container || appShell.classList.contains("is-hidden")) return;
+  const width = container.clientWidth;
+  if (!width) return;
+
+  const data = semesterData();
+  const height = 260;
+  const padT = 18;
+  const padB = 34;
+  const padL = 62;
+  const padR = 14;
+  const plotW = width - padL - padR;
+  const plotH = height - padT - padB;
+
+  const values = [0];
+  data.forEach((month) => {
+    if (chartSeries.income) values.push(month.income);
+    if (chartSeries.expense) values.push(month.expense);
+    if (chartSeries.net) values.push(month.net);
+  });
+  const hasData = values.some((value) => value !== 0);
+  const step = niceStep(Math.max(Math.max(...values) - Math.min(...values), 1), 4);
+  const yMax = Math.max(Math.ceil(Math.max(...values) / step) * step, step);
+  const yMin = Math.min(Math.floor(Math.min(...values) / step) * step, 0);
+  const span = yMax - yMin || 1;
+  const yFor = (value) => padT + plotH - ((value - yMin) / span) * plotH;
+  const zeroY = yFor(0);
+
+  const slotW = plotW / data.length;
+  const barW = Math.max(6, Math.min(26, (slotW - 26) / 2));
+
+  let grid = "";
+  for (let value = yMin; value <= yMax + step / 2; value += step) {
+    const y = yFor(value);
+    const isZero = Math.abs(value) < step / 1000;
+    grid += `<line class="chart__gridline${isZero ? " chart__gridline--zero" : ""}" x1="${padL}" y1="${y}" x2="${width - padR}" y2="${y}" />`;
+    grid += `<text class="chart__ylabel" x="${padL - 12}" y="${y}">${escapeHtml(formatMoneyCompact(value))}</text>`;
+  }
+
+  const columns = data.map((month, index) => {
+    const center = padL + slotW * index + slotW / 2;
+    let bars = "";
+
+    if (chartSeries.income && month.income > 0) {
+      const y = yFor(month.income);
+      bars += `<rect class="chart__bar chart__bar--in" x="${center - barW - 2}" y="${y}" width="${barW}" height="${Math.max(zeroY - y, 1)}" rx="3"
+        style="transform-origin:${center - barW - 2}px ${zeroY}px; animation-delay:${index * 55}ms" />`;
+    }
+    if (chartSeries.expense && month.expense > 0) {
+      const y = yFor(month.expense);
+      bars += `<rect class="chart__bar chart__bar--out" x="${center + 2}" y="${y}" width="${barW}" height="${Math.max(zeroY - y, 1)}" rx="3"
+        style="transform-origin:${center + 2}px ${zeroY}px; animation-delay:${index * 55 + 25}ms" />`;
+    }
+
+    const aria = `${month.fullLabel}: ganhos ${formatMoney(month.income)}, despesas ${formatMoney(month.expense)}, saldo ${formatMoney(month.net)}`;
+    return `
+      <g class="chart__col${month.isCurrent ? " is-current" : ""}" data-index="${index}" tabindex="0" role="button" aria-label="${escapeHtml(aria)}">
+        <rect class="chart__band" x="${padL + slotW * index}" y="${padT}" width="${slotW}" height="${plotH}" rx="6" />
+        ${bars}
+      </g>`;
+  }).join("");
+
+  let netLayer = "";
+  if (chartSeries.net) {
+    const points = data.map((month, index) => `${padL + slotW * index + slotW / 2},${yFor(month.net)}`).join(" ");
+    const dots = data.map((month, index) => {
+      const center = padL + slotW * index + slotW / 2;
+      return `<circle class="chart__dot" data-dot="${index}" cx="${center}" cy="${yFor(month.net)}" r="4" />`;
+    }).join("");
+    netLayer = `<g class="chart__net"><polyline class="chart__netline" points="${points}" />${dots}</g>`;
+  }
+
+  const xLabels = data.map((month, index) => {
+    const center = padL + slotW * index + slotW / 2;
+    return `<text class="chart__xlabel${month.isCurrent ? " is-current" : ""}" data-label="${index}" x="${center}" y="${height - 12}">${escapeHtml(month.label)}</text>`;
+  }).join("");
+
+  const empty = hasData ? "" :
+    `<text class="chart__empty" x="${padL + plotW / 2}" y="${padT + plotH / 2}">Sem movimentações neste período.</text>`;
+
+  const tooltip = document.querySelector("#chartTooltip");
+  container.querySelector(".chart__svg")?.remove();
+  container.insertAdjacentHTML("beforeend", `
+    <svg class="chart__svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img"
+      aria-label="Ganhos, despesas e saldo dos últimos seis meses">
+      <g class="chart__grid">${grid}</g>
+      <g class="chart__cols">${columns}</g>
+      ${netLayer}
+      <g class="chart__xaxis">${xLabels}</g>
+      ${empty}
+    </svg>
+  `);
+
+  const svg = container.querySelector(".chart__svg");
+  svg.querySelectorAll(".chart__col").forEach((col) => {
+    const index = Number(col.dataset.index);
+    const focus = () => focusChartMonth(index, { center: padL + slotW * index + slotW / 2, top: padT });
+    col.addEventListener("mouseenter", focus);
+    col.addEventListener("focus", focus);
+    col.addEventListener("mouseleave", () => focusChartMonth(null));
+    col.addEventListener("blur", () => focusChartMonth(null));
+    col.addEventListener("click", () => goToChartMonth(index));
+    col.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        goToChartMonth(index);
+      }
+    });
+  });
+
+  if (tooltip) tooltip.hidden = true;
+  updateChartReadout(null);
+}
+
+function focusChartMonth(index, position) {
+  const container = document.querySelector("#semesterChart");
+  const tooltip = document.querySelector("#chartTooltip");
+  if (!container || !tooltip) return;
+
+  container.querySelectorAll(".chart__col").forEach((col) => {
+    col.classList.toggle("is-focused", Number(col.dataset.index) === index);
+  });
+  container.querySelectorAll(".chart__dot, .chart__xlabel").forEach((el) => {
+    const key = el.dataset.dot ?? el.dataset.label;
+    el.classList.toggle("is-focused", Number(key) === index);
+  });
+
+  if (index === null) {
+    tooltip.hidden = true;
+    updateChartReadout(null);
+    return;
+  }
+
+  const month = semesterData()[index];
+  tooltip.innerHTML = `
+    <strong>${escapeHtml(month.fullLabel)}</strong>
+    <span><i class="chart-legend__dot chart-legend__dot--in"></i>Ganhos<b class="value-currency value-positive">${formatMoney(month.income)}</b></span>
+    <span><i class="chart-legend__dot chart-legend__dot--out"></i>Despesas<b class="value-currency value-negative">${formatMoney(month.expense)}</b></span>
+    <span><i class="chart-legend__dot chart-legend__dot--net"></i>Saldo<b class="value-currency ${month.net >= 0 ? "value-positive" : "value-negative"}">${formatMoney(month.net)}</b></span>
+  `;
+  tooltip.hidden = false;
+  const left = Math.min(Math.max(position.center, 96), container.clientWidth - 96);
+  tooltip.style.transform = `translate(${left}px, ${position.top}px) translateX(-50%)`;
+  updateChartReadout(index);
+}
+
+function updateChartReadout(index) {
+  const label = document.querySelector("#readoutLabel");
+  if (!label) return;
+  const data = semesterData();
+  const source = index === null
+    ? data.reduce((acc, month) => ({
+        income: acc.income + month.income,
+        expense: acc.expense + month.expense,
+        net: acc.net + month.net
+      }), { income: 0, expense: 0, net: 0 })
+    : data[index];
+
+  label.textContent = index === null ? "Últimos 6 meses" : data[index].fullLabel;
+  document.querySelector("#readoutIncome").textContent = formatMoney(source.income);
+  document.querySelector("#readoutExpense").textContent = formatMoney(source.expense);
+  const netEl = document.querySelector("#readoutNet");
+  netEl.textContent = formatMoney(source.net);
+  netEl.classList.toggle("value-positive", source.net >= 0);
+  netEl.classList.toggle("value-negative", source.net < 0);
+}
+
+// Clicar num mês do gráfico abre esse mês no calendário e nos cards.
+function goToChartMonth(index) {
+  const month = semesterData()[index];
+  calendarCursor = new Date(month.year, month.month, 1);
+  renderSummary();
+  renderCalendar();
+  renderSemesterChart();
+  document.querySelector("#calGrid")?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function renderTransactions() {
@@ -671,24 +1093,6 @@ async function loadPayments() {
   }
 }
 
-async function loadReceivables() {
-  const panel = document.querySelector("#receivablesPanel");
-  if (!panel || !canAccessFinance()) return;
-  try {
-    const s = await apiRequest("/payments/summary/");
-    document.querySelector("#rec-month").textContent = formatMoney(s.received_this_month);
-    document.querySelector("#rec-pending").textContent = formatMoney(s.pending_total);
-    document.querySelector("#rec-total").textContent = formatMoney(s.received_total);
-    document.querySelector("#rec-pending-count").textContent =
-      s.pending_count ? `${s.pending_count} cobrança(s) aguardando` : "Nada pendente";
-    document.querySelector("#rec-paid-count").textContent =
-      s.paid_count ? `${s.paid_count} cobrança(s) paga(s)` : "Nenhuma paga ainda";
-    panel.hidden = false;
-  } catch {
-    panel.hidden = true;
-  }
-}
-
 function renderPaymentList() {
   const container = document.querySelector("#paymentsList");
   if (!container) return;
@@ -754,112 +1158,6 @@ function renderPaymentList() {
       }
     });
   });
-}
-
-function renderInsights() {
-  const container = document.querySelector("#insights");
-  const income = sumByType("income");
-  const expense = sumByType("expense");
-  const lowStock = state.products.filter((product) => product.stock <= 8).length;
-  const bestMargin = [...state.products].sort((a, b) => (b.price - b.cost) - (a.price - a.cost))[0];
-
-  const insights = [
-    {
-      title: "Saúde financeira",
-      text: income > expense
-        ? `Positivo em ${formatMoney(income - expense)}.`
-        : income === 0
-        ? "Nenhuma entrada registrada ainda."
-        : "Saídas acima das entradas."
-    },
-    {
-      title: "Estoque",
-      text: lowStock ? `${lowStock} produto(s) precisam de reposição.` : "Todos os produtos com estoque ok."
-    },
-    {
-      title: "Melhor margem",
-      text: bestMargin
-        ? `${bestMargin.name}: ${formatMoney(bestMargin.price - bestMargin.cost)} por unidade.`
-        : "Cadastre produtos para ver a margem."
-    }
-  ];
-
-  renderInsightList(insights);
-}
-
-function renderInsightList(insights) {
-  const container = document.querySelector("#insights");
-  if (!container) return;
-  container.innerHTML = insights.map((item) => `
-    <article>
-      <strong>${escapeHtml(item.title)}</strong>
-      <span>${escapeHtml(item.text)}</span>
-    </article>
-  `).join("");
-}
-
-async function loadAiInsights() {
-  const btn = document.querySelector("#genInsightsBtn");
-  if (!btn) return;
-  btn.disabled = true;
-  btn.textContent = "Gerando...";
-  try {
-    const data = await apiRequest("/finance/insights/");
-    if (data.insights?.length) renderInsightList(data.insights);
-    btn.textContent = "Atualizar insights ✨";
-  } catch {
-    btn.textContent = "Erro — tentar de novo";
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-function drawChart() {
-  const canvas = document.querySelector("#overviewChart");
-  if (!canvas || appShell.classList.contains("is-hidden")) return;
-  const ctx = canvas.getContext("2d");
-  const rect = canvas.getBoundingClientRect();
-  const scale = window.devicePixelRatio || 1;
-  canvas.width = Math.max(320, rect.width * scale);
-  canvas.height = 260 * scale;
-  ctx.scale(scale, scale);
-  const width = rect.width;
-  const height = 260;
-  ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = "#fffdf8";
-  ctx.fillRect(0, 0, width, height);
-  const values = [
-    { label: "Entradas", value: sumByType("income"), color: "#6f9877" },
-    { label: "Saídas", value: sumByType("expense"), color: "#c19075" },
-    { label: "Lucro", value: Math.max(sumByType("income") - sumByType("expense"), 0), color: "#284737" }
-  ];
-  const max = Math.max(...values.map((item) => item.value), 1);
-  const barWidth = Math.min(120, (width - 90) / values.length - 18);
-  const baseY = height - 48;
-  values.forEach((item, index) => {
-    const x = 34 + index * ((width - 70) / values.length);
-    const barHeight = (item.value / max) * 150;
-    ctx.fillStyle = item.color;
-    roundedRect(ctx, x, baseY - barHeight, barWidth, barHeight, 8);
-    ctx.fill();
-    ctx.fillStyle = "#172018";
-    ctx.font = "700 13px Space Grotesk, Arial";
-    ctx.fillText(item.label, x, baseY + 24);
-    ctx.fillStyle = "#657064";
-    ctx.font = "600 12px Space Grotesk, Arial";
-    ctx.fillText(formatMoney(item.value), x, baseY - barHeight - 10);
-  });
-}
-
-function roundedRect(ctx, x, y, width, height, radius) {
-  const r = Math.min(radius, width / 2, height / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + width, y, x + width, y + height, r);
-  ctx.arcTo(x + width, y + height, x, y + height, r);
-  ctx.arcTo(x, y + height, x, y, r);
-  ctx.arcTo(x, y, x + width, y, r);
-  ctx.closePath();
 }
 
 // ─── Marketing AI ─────────────────────────────────────────────────────────────
@@ -985,12 +1283,6 @@ async function apiRequest(path, options = {}) {
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
-function sumByType(type) {
-  return state.transactions
-    .filter((t) => t.type === type)
-    .reduce((total, t) => total + Number(t.amount), 0);
-}
-
 function formatMoney(value) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
 }
@@ -1021,6 +1313,13 @@ function escapeHtml(value) {
 function uid() {
   if (window.crypto && typeof window.crypto.randomUUID === "function") return window.crypto.randomUUID();
   return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function daysAgoISO(days) {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  date.setHours(12, 0, 0, 0);
+  return date.toISOString();
 }
 
 function clone(value) {
