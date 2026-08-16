@@ -8,6 +8,7 @@ from rest_framework.response import Response
 
 from apps.accounts.permissions import IsAdminRole
 from apps.businesses.models import Business
+from apps.finance.models import Transaction
 from .models import Payment, PaymentEvent
 from .serializers import PaymentSerializer, PixChargeCreateSerializer
 from .services import AbacatePayClient, AbacatePayError
@@ -145,8 +146,10 @@ def apply_payment_event(event_type, data):
 
     if event_type in {"checkout.completed", "transparent.completed"}:
         payment.status = Payment.Status.PAID
+        record_finance_income(payment)
     elif event_type in {"checkout.refunded", "transparent.refunded"}:
         payment.status = Payment.Status.REFUNDED
+        record_finance_refund(payment)
     elif event_type in {"checkout.disputed", "transparent.disputed", "transparent.lost"}:
         payment.status = Payment.Status.FAILED
     else:
@@ -154,3 +157,37 @@ def apply_payment_event(event_type, data):
 
     payment.metadata = {**payment.metadata, "last_webhook": data}
     payment.save(update_fields=["status", "metadata", "updated_at"])
+
+
+def record_finance_income(payment):
+    """Concilia o PIX pago com o financeiro criando a entrada correspondente.
+
+    Idempotente: o id da transação criada fica em payment.metadata, então um
+    webhook reenviado não duplica o lançamento.
+    """
+    if not payment.business or payment.metadata.get("finance_transaction_id"):
+        return
+    description = payment.metadata.get("description") or "Cobrança PIX"
+    transaction = Transaction.objects.create(
+        business=payment.business,
+        description=f"PIX recebido: {description}"[:180],
+        type=Transaction.TransactionType.INCOME,
+        amount=payment.amount,
+    )
+    payment.metadata = {**payment.metadata, "finance_transaction_id": str(transaction.id)}
+
+
+def record_finance_refund(payment):
+    """Registra a saída de estorno quando um PIX já conciliado é reembolsado."""
+    if not payment.business:
+        return
+    if not payment.metadata.get("finance_transaction_id") or payment.metadata.get("refund_transaction_id"):
+        return
+    description = payment.metadata.get("description") or "Cobrança PIX"
+    transaction = Transaction.objects.create(
+        business=payment.business,
+        description=f"Estorno PIX: {description}"[:180],
+        type=Transaction.TransactionType.EXPENSE,
+        amount=payment.amount,
+    )
+    payment.metadata = {**payment.metadata, "refund_transaction_id": str(transaction.id)}
