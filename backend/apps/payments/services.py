@@ -10,11 +10,32 @@ class AbacatePayClient:
     base_url = "https://api.abacatepay.com/v2"
 
     def __init__(self, api_key=None):
-        self.api_key = api_key or settings.ABACATE_PAY_API_KEY
+        # strip(): espaco ou quebra de linha no fim da variavel de ambiente e
+        # um erro comum de copiar/colar e quebraria o cabecalho Authorization.
+        self.api_key = (api_key or settings.ABACATE_PAY_API_KEY or "").strip()
 
-    def create_pix_charge(self, *, amount_cents, description="", customer=None, metadata=None, expires_in=3600):
+    def _validate_api_key(self):
+        """Garante que a chave pode ir num cabecalho HTTP.
+
+        Cabecalhos sao codificados em latin-1 pelo http.client. Uma chave com
+        caractere fora de ASCII (tipico quando um hifen '-' vira travessao '—'
+        ao copiar de um documento) estoura UnicodeEncodeError la no fundo da
+        pilha do requests, sem indicar a causa. Melhor falhar aqui, claro.
+        """
         if not self.api_key:
             raise AbacatePayError("ABACATE_PAY_API_KEY nao configurada.")
+
+        invalid = [(i, c) for i, c in enumerate(self.api_key) if not c.isascii()]
+        if invalid:
+            position, char = invalid[0]
+            raise AbacatePayError(
+                f"ABACATE_PAY_API_KEY contem caractere invalido {char!r} "
+                f"(U+{ord(char):04X}) na posicao {position}. "
+                "Confira se algum hifen '-' virou travessao ao copiar a chave."
+            )
+
+    def create_pix_charge(self, *, amount_cents, description="", customer=None, metadata=None, expires_in=3600):
+        self._validate_api_key()
 
         payload = {
             "method": "PIX",
