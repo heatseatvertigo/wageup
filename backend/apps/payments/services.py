@@ -28,15 +28,23 @@ class AbacatePayClient:
         if customer:
             payload["data"]["customer"] = customer
 
-        response = requests.post(
-            f"{self.base_url}/transparents/create",
-            json=payload,
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
-            timeout=20,
-        )
+        # Falhas de rede (timeout, DNS, conexao recusada) precisam virar
+        # AbacatePayError: a view trata esse erro e responde 502. Sem isso a
+        # excecao do requests escapa e o cliente recebe um 500 sem explicacao.
+        try:
+            response = requests.post(
+                f"{self.base_url}/transparents/create",
+                json=payload,
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                timeout=20,
+            )
+        except requests.Timeout as exc:
+            raise AbacatePayError("A Abacate Pay nao respondeu em tempo. Tente novamente.") from exc
+        except requests.RequestException as exc:
+            raise AbacatePayError(f"Falha de conexao com a Abacate Pay: {exc}") from exc
 
         try:
             body = response.json()

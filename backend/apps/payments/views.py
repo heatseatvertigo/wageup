@@ -1,3 +1,5 @@
+import logging
+
 from django.conf import settings
 from django.db.models import Sum
 from django.utils import timezone
@@ -12,6 +14,8 @@ from apps.finance.models import Transaction
 from .models import Payment, PaymentEvent
 from .serializers import PaymentSerializer, PixChargeCreateSerializer
 from .services import AbacatePayClient, AbacatePayError
+
+logger = logging.getLogger(__name__)
 
 
 class PaymentViewSet(viewsets.ModelViewSet):
@@ -73,6 +77,18 @@ class PaymentViewSet(viewsets.ModelViewSet):
             payment.metadata = {**payment.metadata, "error": str(exc)}
             payment.save(update_fields=["status", "metadata", "updated_at"])
             return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+        except Exception as exc:  # noqa: BLE001 - rede de seguranca da integracao
+            # Falha inesperada ao falar com o provedor: registra o traceback
+            # completo (visivel nos logs do servidor) e devolve uma mensagem
+            # utilizavel, em vez de um 500 sem explicacao para o usuario.
+            logger.exception("Erro inesperado ao gerar cobranca PIX (payment=%s)", payment.id)
+            payment.status = Payment.Status.FAILED
+            payment.metadata = {**payment.metadata, "error": f"{type(exc).__name__}: {exc}"}
+            payment.save(update_fields=["status", "metadata", "updated_at"])
+            return Response(
+                {"detail": "Nao foi possivel gerar a cobranca agora. Tente novamente em instantes."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
 
         payment.provider_payment_id = charge.get("id", "")
         payment.metadata = {
