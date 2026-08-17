@@ -52,6 +52,32 @@ class PaymentViewSet(viewsets.ModelViewSet):
             "pending_count": pending.count(),
         })
 
+    @action(detail=True, methods=["post"])
+    def check(self, request, pk=None):
+        """Consulta o status da cobranca na Abacate Pay e sincroniza o nosso.
+
+        E o que sustenta a tela que acompanha o pagamento: o webhook pode
+        nao chegar (nao existe em desenvolvimento, e em producao depende de
+        configuracao), entao perguntar ao provedor e o caminho confiavel.
+        """
+        payment = self.get_object()
+        if not payment.provider_payment_id:
+            return Response(PaymentSerializer(payment).data)
+
+        try:
+            data = AbacatePayClient().check_pix_charge(payment.provider_payment_id)
+        except AbacatePayError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+        except Exception:  # noqa: BLE001 - rede de seguranca da integracao
+            logger.exception("Erro inesperado ao checar cobranca PIX (payment=%s)", payment.id)
+            return Response(
+                {"detail": "Nao foi possivel consultar a cobranca agora."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        sync_payment_status(payment, data)
+        return Response(PaymentSerializer(payment).data)
+
     def create(self, request, *args, **kwargs):
         serializer = PixChargeCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -182,6 +208,44 @@ def apply_payment_event(event_type, data):
         return
 
     payment.metadata = {**payment.metadata, "last_webhook": data}
+    payment.save(update_fields=["status", "metadata", "updated_at"])
+
+
+# Status da Abacate Pay -> status do nosso Payment.
+PROVIDER_STATUS = {
+    "PENDING": Payment.Status.PENDING,
+    "PAID": Payment.Status.PAID,
+    "EXPIRED": Payment.Status.EXPIRED,
+    "CANCELLED": Payment.Status.CANCELED,
+    "CANCELED": Payment.Status.CANCELED,
+    "REFUNDED": Payment.Status.REFUNDED,
+}
+
+# Uma cobranca paga nao volta a ser pendente/expirada: o dinheiro entrou e ja
+# virou lancamento no financeiro. Só estorno altera uma cobranca paga.
+STATUS_AFTER_PAID = {Payment.Status.REFUNDED}
+
+
+def sync_payment_status(payment, data):
+    """Aplica no nosso Payment o status informado pelo provedor."""
+    mapped = PROVIDER_STATUS.get(str(data.get("status") or "").upper())
+    if not mapped:
+        return
+
+    if payment.status == Payment.Status.PAID and mapped not in STATUS_AFTER_PAID:
+        return
+
+    if mapped == Payment.Status.PAID:
+        record_finance_income(payment)
+    elif mapped == Payment.Status.REFUNDED:
+        record_finance_refund(payment)
+
+    payment.status = mapped
+    payment.metadata = {
+        **payment.metadata,
+        "expiresAt": data.get("expiresAt") or payment.metadata.get("expiresAt"),
+        "last_check": data,
+    }
     payment.save(update_fields=["status", "metadata", "updated_at"])
 
 
