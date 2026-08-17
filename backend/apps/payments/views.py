@@ -58,11 +58,21 @@ class PaymentViewSet(viewsets.ModelViewSet):
         data = serializer.validated_data
 
         business = Business.objects.filter(owner=request.user).first()
+        # Os dados do cliente sao enviados ao provedor, mas tambem ficam
+        # guardados aqui: sem isso a tela de detalhes nao tem como mostrar
+        # para quem a cobranca foi feita.
+        customer = {
+            key: (data.get(f"customer_{key}") or "").strip()
+            for key in ("name", "email", "tax_id", "cellphone")
+        }
         payment = Payment.objects.create(
             business=business,
             amount=data["amount"],
             status=Payment.Status.PENDING,
-            metadata={"description": data.get("description", "")},
+            metadata={
+                "description": data.get("description", ""),
+                "customer": {k: v for k, v in customer.items() if v},
+            },
         )
 
         try:

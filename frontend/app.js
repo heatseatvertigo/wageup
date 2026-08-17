@@ -316,6 +316,21 @@ document.querySelector("#campaignForm").addEventListener("submit", async (event)
 
 document.querySelector("#refreshPaymentsBtn").addEventListener("click", () => loadPayments());
 
+// Filtro por status das cobranças
+document.querySelectorAll("[data-status-filter]").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    chargeFilter = chip.dataset.statusFilter;
+    document.querySelectorAll("[data-status-filter]").forEach((other) => {
+      other.classList.toggle("is-active", other === chip);
+    });
+    renderPaymentList();
+  });
+});
+
+document.querySelectorAll("[data-close-charge]").forEach((el) =>
+  el.addEventListener("click", closeChargeDrawer)
+);
+
 document.querySelector("#paymentForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const formEl = event.currentTarget;
@@ -763,15 +778,15 @@ function openDayDrawer(key) {
 
   const list = document.querySelector("#drawerList");
   if (!info.items.length) {
-    list.innerHTML = `<p class="day-drawer__empty">Nenhuma movimentação registrada neste dia.</p>`;
+    list.innerHTML = `<p class="drawer__empty">Nenhuma movimentação registrada neste dia.</p>`;
   } else {
     list.innerHTML = info.items.map((transaction) => {
       const isIncome = transaction.type === "income";
       return `
-        <div class="day-drawer__item">
-          <div class="day-drawer__item-info">
+        <div class="drawer__item">
+          <div class="drawer__item-info">
             <strong>${escapeHtml(transaction.description)}</strong>
-            <span class="day-drawer__item-type day-drawer__item-type--${isIncome ? "in" : "out"}">
+            <span class="drawer__item-type drawer__item-type--${isIncome ? "in" : "out"}">
               ${isIncome ? "Entrada" : "Saída"}
             </span>
           </div>
@@ -1147,71 +1162,195 @@ async function loadPayments() {
   }
 }
 
+// ─── Cobranças PIX: lista, filtro e detalhes ────────────────────────────────
+
+const CHARGE_STATUS = {
+  pending: { label: "Pendente", tone: "warning" },
+  paid: { label: "Pago", tone: "positive" },
+  failed: { label: "Falhou", tone: "negative" },
+  refunded: { label: "Reembolsado", tone: "neutral" },
+  canceled: { label: "Cancelado", tone: "neutral" }
+};
+
+let chargeFilter = "all";
+
+function chargeStatusInfo(status) {
+  return CHARGE_STATUS[status] || { label: status || "—", tone: "neutral" };
+}
+
+function formatDateTime(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString("pt-BR", {
+    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
+  });
+}
+
+function visiblePayments() {
+  if (chargeFilter === "all") return currentPayments;
+  if (chargeFilter === "other") {
+    return currentPayments.filter((payment) => !["pending", "paid"].includes(payment.status));
+  }
+  return currentPayments.filter((payment) => payment.status === chargeFilter);
+}
+
 function renderPaymentList() {
   const container = document.querySelector("#paymentsList");
   if (!container) return;
 
-  if (!currentPayments.length) {
-    container.innerHTML = `<p class="empty-state">Nenhuma cobrança gerada ainda.</p>`;
+  const list = visiblePayments();
+  if (!list.length) {
+    container.innerHTML = `<p class="empty-state">${
+      currentPayments.length
+        ? "Nenhuma cobrança com esse status."
+        : "Nenhuma cobrança gerada ainda."
+    }</p>`;
     return;
   }
 
-  const statusLabel = { pending: "Pendente", paid: "Pago", failed: "Falhou", refunded: "Reembolsado", canceled: "Cancelado" };
+  container.innerHTML = list.map((payment) => {
+    const info = chargeStatusInfo(payment.status);
+    const description = payment.metadata?.description || "Cobrança PIX";
+    const customer = payment.metadata?.customer?.name;
+    const when = formatDateTime(payment.created_at) || "—";
+    return `
+      <button class="charge-row" type="button" data-charge="${escapeHtml(payment.id)}">
+        <span class="charge-row__main">
+          <strong>${escapeHtml(description)}</strong>
+          <small>${escapeHtml(customer || "Sem cliente informado")} · ${escapeHtml(when)}</small>
+        </span>
+        <span class="charge-row__side">
+          <span class="value-currency charge-row__amount">${formatMoney(payment.amount)}</span>
+          <span class="status-badge status-badge--${info.tone}">${escapeHtml(info.label)}</span>
+        </span>
+        <span class="charge-row__chevron material-symbols-rounded" aria-hidden="true">chevron_right</span>
+      </button>`;
+  }).join("");
 
-  container.innerHTML = `
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Descrição</th>
-            <th>Valor</th>
-            <th>Status</th>
-            <th>Data</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          ${currentPayments.map((p) => `
-            <tr>
-              <td>${escapeHtml(p.metadata?.description || "—")}</td>
-              <td><span class="value-currency">${formatMoney(p.amount)}</span></td>
-              <td><span class="payment-status status--${escapeHtml(p.status)}">${statusLabel[p.status] || escapeHtml(p.status)}</span></td>
-              <td>${new Date(p.created_at).toLocaleDateString("pt-BR")}</td>
-              <td class="payment-list__actions">
-                ${p.metadata?.brCode ? `<button class="ghost-button" data-list-show-pix="${escapeHtml(p.id)}">Ver QR</button>` : ""}
-                <button class="ghost-button" data-list-refresh="${escapeHtml(p.id)}">↻</button>
-              </td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
+  container.querySelectorAll("[data-charge]").forEach((row) => {
+    row.addEventListener("click", () => openChargeDrawer(row.dataset.charge));
+  });
+}
 
-  container.querySelectorAll("[data-list-show-pix]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const payment = currentPayments.find((p) => p.id === btn.dataset.listShowPix);
-      if (payment) {
-        renderPaymentResult(payment);
-        document.querySelector("#paymentResult").scrollIntoView({ behavior: "smooth", block: "nearest" });
-      }
-    });
+function drawerRows(title, rows) {
+  const visible = rows.filter(([, value]) => value);
+  if (!visible.length) return "";
+  return `
+    <section class="drawer__section">
+      <h4 class="drawer__section-title">${escapeHtml(title)}</h4>
+      <dl class="drawer__rows">
+        ${visible.map(([label, value]) => `
+          <div class="drawer__row">
+            <dt>${escapeHtml(label)}</dt>
+            <dd>${escapeHtml(String(value))}</dd>
+          </div>`).join("")}
+      </dl>
+    </section>`;
+}
+
+function openChargeDrawer(id) {
+  const drawer = document.querySelector("#chargeDrawer");
+  const payment = currentPayments.find((item) => item.id === id);
+  if (!drawer || !payment) return;
+
+  const info = chargeStatusInfo(payment.status);
+  const provider = payment.metadata?.abacatepay || {};
+  const customer = payment.metadata?.customer || {};
+
+  document.querySelector("#chargeDrawerTitle").textContent =
+    payment.metadata?.description || "Cobrança PIX";
+  const statusEl = document.querySelector("#chargeDrawerStatus");
+  statusEl.textContent = info.label;
+  statusEl.className = `drawer__weekday status-text--${info.tone}`;
+
+  const brCode = payment.metadata?.brCode;
+  const qr = payment.metadata?.brCodeBase64;
+  const isOpen = payment.status === "pending";
+
+  const body = [
+    `<div class="drawer__amount">
+       <span>Valor da cobrança</span>
+       <strong class="value-currency status-text--${info.tone}">${formatMoney(payment.amount)}</strong>
+     </div>`,
+
+    drawerRows("Cobrança", [
+      ["Status", info.label],
+      ["Criada em", formatDateTime(payment.created_at)],
+      ["Expira em", formatDateTime(payment.metadata?.expiresAt)],
+      payment.status === "paid" ? ["Confirmada em", formatDateTime(payment.updated_at)] : ["", ""],
+      typeof provider.platformFee === "number"
+        ? ["Taxa da plataforma", formatMoney(provider.platformFee / 100)]
+        : ["", ""]
+    ]),
+
+    drawerRows("Cliente", [
+      ["Nome", customer.name],
+      ["E-mail", customer.email],
+      ["CPF/CNPJ", customer.tax_id],
+      ["Celular", customer.cellphone]
+    ]) || `<section class="drawer__section">
+             <h4 class="drawer__section-title">Cliente</h4>
+             <p class="drawer__empty">Cobrança gerada sem dados do cliente.</p>
+           </section>`,
+
+    drawerRows("Identificação", [
+      ["ID na Abacate Pay", payment.provider_payment_id],
+      ["ID interno", payment.id]
+    ]),
+
+    isOpen && qr
+      ? `<section class="drawer__section">
+           <h4 class="drawer__section-title">QR Code</h4>
+           <img class="drawer__qr" src="${escapeHtml(qr)}" alt="QR Code para pagamento" />
+         </section>`
+      : "",
+
+    isOpen && brCode
+      ? `<section class="drawer__section">
+           <h4 class="drawer__section-title">Copia e cola</h4>
+           <p class="drawer__code">${escapeHtml(brCode)}</p>
+           <button class="ghost-button" type="button" data-copy-brcode="${escapeHtml(brCode)}">Copiar código</button>
+         </section>`
+      : "",
+
+    provider.receiptUrl
+      ? `<section class="drawer__section">
+           <a class="ghost-button" href="${escapeHtml(provider.receiptUrl)}" target="_blank" rel="noopener">Ver recibo</a>
+         </section>`
+      : "",
+
+    `<p class="drawer__note">Todas as cobranças são recebidas na conta única da plataforma configurada na Abacate Pay.</p>`
+  ].join("");
+
+  document.querySelector("#chargeDrawerBody").innerHTML = body;
+
+  const copyBtn = drawer.querySelector("[data-copy-brcode]");
+  copyBtn?.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(copyBtn.dataset.copyBrcode);
+      copyBtn.textContent = "Copiado!";
+      window.setTimeout(() => { copyBtn.textContent = "Copiar código"; }, 2000);
+    } catch {
+      copyBtn.textContent = "Não foi possível copiar";
+    }
   });
 
-  container.querySelectorAll("[data-list-refresh]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const id = btn.dataset.listRefresh;
-      btn.textContent = "...";
-      try {
-        const updated = await apiRequest(`/payments/${id}/`);
-        const idx = currentPayments.findIndex((p) => p.id === id);
-        if (idx !== -1) currentPayments[idx] = updated;
-        renderPaymentList();
-      } catch {
-        btn.textContent = "↻";
-      }
-    });
-  });
+  drawer.hidden = false;
+  requestAnimationFrame(() => drawer.classList.add("is-open"));
+  document.addEventListener("keydown", chargeDrawerEscHandler);
+}
+
+function closeChargeDrawer() {
+  const drawer = document.querySelector("#chargeDrawer");
+  if (!drawer) return;
+  drawer.classList.remove("is-open");
+  document.removeEventListener("keydown", chargeDrawerEscHandler);
+  window.setTimeout(() => { drawer.hidden = true; }, 300);
+}
+
+function chargeDrawerEscHandler(event) {
+  if (event.key === "Escape") closeChargeDrawer();
 }
 
 // ─── Marketing AI ─────────────────────────────────────────────────────────────

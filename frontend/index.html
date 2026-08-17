@@ -685,31 +685,31 @@
           </aside>
 
           <!-- Painel lateral do dia -->
-          <div class="day-drawer" id="dayDrawer" hidden>
-            <div class="day-drawer__overlay" data-close-drawer></div>
-            <aside class="day-drawer__panel" role="dialog" aria-modal="true" aria-labelledby="drawerDate">
-              <header class="day-drawer__head">
+          <div class="drawer" id="dayDrawer" hidden>
+            <div class="drawer__overlay" data-close-drawer></div>
+            <aside class="drawer__panel" role="dialog" aria-modal="true" aria-labelledby="drawerDate">
+              <header class="drawer__head">
                 <div>
-                  <p class="day-drawer__date" id="drawerDate">—</p>
-                  <span class="day-drawer__weekday" id="drawerWeekday"></span>
+                  <p class="drawer__date" id="drawerDate">—</p>
+                  <span class="drawer__weekday" id="drawerWeekday"></span>
                 </div>
-                <button class="day-drawer__close" type="button" data-close-drawer aria-label="Fechar">✕</button>
+                <button class="drawer__close" type="button" data-close-drawer aria-label="Fechar">✕</button>
               </header>
-              <div class="day-drawer__summary">
-                <div class="day-drawer__stat">
+              <div class="drawer__summary">
+                <div class="drawer__stat">
                   <span>Ganhos</span>
                   <strong id="drawerIncome" class="value-currency value-positive">R$ 0,00</strong>
                 </div>
-                <div class="day-drawer__stat">
+                <div class="drawer__stat">
                   <span>Despesas</span>
                   <strong id="drawerExpense" class="value-currency value-negative">R$ 0,00</strong>
                 </div>
-                <div class="day-drawer__stat">
+                <div class="drawer__stat">
                   <span>Saldo do dia</span>
                   <strong id="drawerNet" class="value-currency">R$ 0,00</strong>
                 </div>
               </div>
-              <div class="day-drawer__list" id="drawerList"></div>
+              <div class="drawer__list" id="drawerList"></div>
             </aside>
           </div>
         </section>
@@ -765,9 +765,34 @@
           <div class="work-panel">
             <div class="panel-heading">
               <h3>Cobranças recentes</h3>
-              <button class="ghost-button" id="refreshPaymentsBtn" type="button">Atualizar</button>
+              <button class="ghost-button" id="refreshPaymentsBtn" type="button">
+                <span class="material-symbols-rounded" aria-hidden="true">refresh</span>Atualizar
+              </button>
             </div>
-            <div id="paymentsList"></div>
+
+            <div class="charge-filters" id="chargeFilters" role="group" aria-label="Filtrar por status">
+              <button class="chip is-active" type="button" data-status-filter="all">Todas</button>
+              <button class="chip" type="button" data-status-filter="pending">Pendentes</button>
+              <button class="chip" type="button" data-status-filter="paid">Pagas</button>
+              <button class="chip" type="button" data-status-filter="other">Outras</button>
+            </div>
+
+            <div class="charge-list" id="paymentsList"></div>
+          </div>
+
+          <!-- Detalhes da cobrança -->
+          <div class="drawer" id="chargeDrawer" hidden>
+            <div class="drawer__overlay" data-close-charge></div>
+            <aside class="drawer__panel" role="dialog" aria-modal="true" aria-labelledby="chargeDrawerTitle">
+              <header class="drawer__head">
+                <div>
+                  <p class="drawer__date" id="chargeDrawerTitle">Cobrança</p>
+                  <span class="drawer__weekday" id="chargeDrawerStatus"></span>
+                </div>
+                <button class="drawer__close" type="button" data-close-charge aria-label="Fechar">✕</button>
+              </header>
+              <div class="drawer__body" id="chargeDrawerBody"></div>
+            </aside>
           </div>
         </section>
 
