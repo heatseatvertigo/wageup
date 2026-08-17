@@ -35,7 +35,7 @@
         <section class="lp-hero">
           <div class="lp-hero__copy">
             <p class="lp-eyebrow">Gestão financeira para o seu negócio</p>
-            <h1 class="lp-hero__title">Seu negócio <em>subindo</em>, um PIX de cada vez.</h1>
+            <h1 class="lp-hero__title">A primeira plataforma financeira para MEs do Brasil</h1>
             <p class="lp-hero__sub">Cobre por PIX, controle o caixa e receba insights com IA. Tudo em um só lugar, feito para o microempreendedor brasileiro.</p>
             <div class="lp-hero__actions">
               <button class="lp-btn lp-btn--primary lp-btn--lg" data-open-app>Começar agora</button>
@@ -584,8 +584,20 @@
         </div>
         <nav class="side-nav" aria-label="Módulos da plataforma">
           <button class="active" data-view="overview"><span class="material-symbols-rounded">home</span>Visão geral</button>
-          <button data-view="finance" data-admin-only><span class="material-symbols-rounded">payments</span>Financeiro</button>
-          <button data-view="payments" data-admin-only><span class="material-symbols-rounded">qr_code_2</span>PIX</button>
+
+          <div class="nav-group" data-nav-group data-admin-only>
+            <button class="nav-group__toggle" type="button" aria-expanded="false" aria-controls="financeSubmenu">
+              <span class="material-symbols-rounded">payments</span>
+              Financeiro
+              <span class="nav-group__chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+            </button>
+            <div class="nav-group__submenu" id="financeSubmenu" role="group" aria-label="Módulos financeiros">
+              <button data-view="finance"><span class="material-symbols-rounded">receipt_long</span>Movimentações</button>
+              <button data-view="payments"><span class="material-symbols-rounded">qr_code_2</span>PIX</button>
+              <button data-view="finance-assistant"><span class="material-symbols-rounded">smart_toy</span>Assistente de IA</button>
+            </div>
+          </div>
+
           <button data-view="products"><span class="material-symbols-rounded">inventory_2</span>Produtos</button>
           <button data-view="app-marketing"><span class="material-symbols-rounded">auto_awesome</span>Marketing</button>
         </nav>
@@ -809,6 +821,21 @@
                 <div id="imagePreview">Kit Festa<br>fim de semana</div>
                 <small>Visualização da ideia de imagem gerada pela IA.</small>
               </aside>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="finance-assistant">
+          <div class="work-panel">
+            <div class="panel-heading">
+              <h3>Assistente de IA</h3>
+              <span>Métricas e finanças do seu negócio</span>
+            </div>
+            <div class="assistant-placeholder">
+              <span class="assistant-placeholder__icon material-symbols-rounded" aria-hidden="true">smart_toy</span>
+              <strong>Em construção</strong>
+              <p>Aqui você vai poder conversar com uma IA sobre o seu negócio: entender para onde o dinheiro está indo, comparar meses, descobrir quais produtos dão mais margem e o que fazer com isso.</p>
+              <p class="assistant-placeholder__note">Por enquanto, acompanhe seus números na <button class="text-link" type="button" data-view="overview">Visão geral</button> e nas <button class="text-link" type="button" data-view="finance">Movimentações</button>.</p>
             </div>
           </div>
         </section>

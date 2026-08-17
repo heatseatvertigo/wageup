@@ -1606,6 +1606,108 @@ select:focus {
   flex-shrink: 0;
 }
 
+/* ─── Grupo de navegação (Financeiro) ─── */
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.side-nav .nav-group__toggle {
+  gap: var(--space-3);
+}
+
+.nav-group__chevron {
+  margin-left: auto;
+  font-size: 1rem;
+  color: var(--color-text-disabled);
+  transition: transform var(--duration-normal) var(--ease-default);
+}
+
+.nav-group.is-open .nav-group__chevron { transform: rotate(180deg); }
+
+/* Destaque discreto quando alguma view do grupo está ativa */
+.side-nav .nav-group.has-active .nav-group__toggle { color: var(--color-text-primary); }
+
+.nav-group__submenu {
+  display: none;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-left: var(--space-5);
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--color-border);
+}
+
+.nav-group.is-open .nav-group__submenu {
+  display: flex;
+  animation: navSubmenuIn var(--duration-normal) var(--ease-out) both;
+}
+
+.side-nav .nav-group__submenu button {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.side-nav .nav-group__submenu .material-symbols-rounded { font-size: 1rem; }
+
+@keyframes navSubmenuIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-group.is-open .nav-group__submenu { animation: none; }
+  .nav-group__chevron { transition: none; }
+}
+
+/* ─── Placeholder do assistente de IA ─── */
+
+.assistant-placeholder {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+}
+
+.assistant-placeholder__icon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radius-full);
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-mid);
+  font-size: 1.5rem;
+}
+
+.assistant-placeholder strong {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.assistant-placeholder p {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+.assistant-placeholder__note { color: var(--color-text-disabled); }
+
+.assistant-placeholder .text-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--color-brand-mid);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .side-footer {
   display: flex;
   flex-direction: column;

@@ -43,12 +43,16 @@ const sidebar = document.querySelector(".sidebar");
 const title = document.querySelector("#view-title");
 const viewTitles = {
   overview: "Visão geral",
-  finance: "Financeiro",
+  finance: "Movimentações",
   payments: "PIX",
+  "finance-assistant": "Assistente de IA",
   products: "Produtos",
   "app-marketing": "Marketing",
   help: "Ajuda"
 };
+
+// Views que vivem dentro do grupo "Financeiro" na navegação lateral.
+const FINANCE_VIEWS = ["finance", "payments", "finance-assistant"];
 
 const demoContent = {
   overview: {
@@ -162,6 +166,36 @@ document.querySelectorAll("[data-view]").forEach((button) => {
     if (button.dataset.adminOnly !== undefined && !canAccessFinance()) return;
     setView(button.dataset.view);
     sidebar.classList.remove("open");
+  });
+});
+
+// ─── Grupo "Financeiro" na navegação lateral ────────────────────────────────
+// O item não abre view nenhuma: passar o mouse revela os módulos financeiros
+// em cascata e o clique apenas abre/recolhe essa cascata.
+
+function setNavGroupOpen(group, open) {
+  group.classList.toggle("is-open", open);
+  group.querySelector(".nav-group__toggle")?.setAttribute("aria-expanded", String(open));
+}
+
+document.querySelectorAll("[data-nav-group]").forEach((group) => {
+  const toggle = group.querySelector(".nav-group__toggle");
+
+  toggle?.addEventListener("click", () => {
+    setNavGroupOpen(group, !group.classList.contains("is-open"));
+  });
+
+  // Hover abre; ao sair, só recolhe se nenhuma view do grupo estiver ativa.
+  group.addEventListener("mouseenter", () => setNavGroupOpen(group, true));
+  group.addEventListener("mouseleave", () => {
+    if (!group.classList.contains("has-active")) setNavGroupOpen(group, false);
+  });
+
+  // Teclado: abre ao focar qualquer item e recolhe ao sair do grupo.
+  group.addEventListener("focusin", () => setNavGroupOpen(group, true));
+  group.addEventListener("focusout", (event) => {
+    if (group.contains(event.relatedTarget)) return;
+    if (!group.classList.contains("has-active")) setNavGroupOpen(group, false);
   });
 });
 
@@ -522,7 +556,7 @@ function canAccessFinance() {
 }
 
 function setView(viewName) {
-  if ((viewName === "finance" || viewName === "payments") && !canAccessFinance()) {
+  if (FINANCE_VIEWS.includes(viewName) && !canAccessFinance()) {
     viewName = "products";
   }
   document.querySelectorAll(".view").forEach((view) => {
@@ -531,6 +565,16 @@ function setView(viewName) {
   document.querySelectorAll(".side-nav button").forEach((button) => {
     button.classList.toggle("active", button.dataset.view === viewName);
   });
+
+  // O grupo Financeiro fica aberto e destacado enquanto uma de suas views
+  // estiver ativa, para o usuário não perder de vista onde está.
+  const group = document.querySelector("[data-nav-group]");
+  if (group) {
+    const insideGroup = FINANCE_VIEWS.includes(viewName);
+    group.classList.toggle("has-active", insideGroup);
+    if (insideGroup) setNavGroupOpen(group, true);
+  }
+
   title.textContent = viewTitles[viewName] || "Wage Up";
   if (viewName === "overview") { renderSummary(); renderCalendar(); renderSemesterChart(); }
   if (viewName === "payments") loadPayments();
