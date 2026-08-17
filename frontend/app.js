@@ -196,7 +196,9 @@ document.querySelector("#onboardingForm").addEventListener("submit", async (even
 
 document.querySelector("#transactionForm").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const form = new FormData(event.currentTarget);
+  // Guardar o elemento agora: depois de um await, event.currentTarget e null.
+  const formEl = event.currentTarget;
+  const form = new FormData(formEl);
   const payload = {
     description: form.get("description").trim(),
     type: form.get("type"),
@@ -213,7 +215,7 @@ document.querySelector("#transactionForm").addEventListener("submit", async (eve
     : { id: uid(), occurred_at: new Date().toISOString(), ...payload };
 
   state.transactions.unshift(transaction);
-  event.currentTarget.reset();
+  formEl.reset();
   prefillTransactionDate();
   persist();
   render();
@@ -227,7 +229,8 @@ prefillTransactionDate();
 
 document.querySelector("#productForm").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const form = new FormData(event.currentTarget);
+  const formEl = event.currentTarget;
+  const form = new FormData(formEl);
   const payload = {
     name: form.get("name").trim(),
     category: form.get("category").trim(),
@@ -241,14 +244,15 @@ document.querySelector("#productForm").addEventListener("submit", async (event) 
     : { id: uid(), ...payload };
 
   state.products.unshift(product);
-  event.currentTarget.reset();
+  formEl.reset();
   persist();
   render();
 });
 
 document.querySelector("#campaignForm").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const form = new FormData(event.currentTarget);
+  const formEl = event.currentTarget;
+  const form = new FormData(formEl);
   const product = state.products.find((item) => item.id === form.get("product")) || state.products[0];
   const goal = form.get("goal");
   const channel = form.get("channel");
@@ -271,7 +275,7 @@ document.querySelector("#campaignForm").addEventListener("submit", async (event)
   output.insertAdjacentHTML("beforeend", `<article class="assistant-message">${answer.html}</article>`);
 
   preview.innerHTML = answer.imageLabel;
-  event.currentTarget.reset();
+  formEl.reset();
   renderCampaignOptions();
   output.scrollTop = output.scrollHeight;
 });
@@ -280,12 +284,14 @@ document.querySelector("#refreshPaymentsBtn").addEventListener("click", () => lo
 
 document.querySelector("#paymentForm").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const form = new FormData(event.currentTarget);
+  const formEl = event.currentTarget;
+  const form = new FormData(formEl);
   const result = document.querySelector("#paymentResult");
   result.innerHTML = `<strong>Gerando cobrança...</strong><span>Conectando com a Abacate Pay.</span>`;
 
+  let payment;
   try {
-    const payment = await apiRequest("/payments/", {
+    payment = await apiRequest("/payments/", {
       method: "POST",
       body: JSON.stringify({
         description: form.get("description").trim(),
@@ -296,13 +302,17 @@ document.querySelector("#paymentForm").addEventListener("submit", async (event) 
         customer_cellphone: form.get("customer_cellphone").trim()
       })
     });
-    currentPayments.unshift(payment);
-    renderPaymentResult(payment);
-    renderPaymentList();
-    event.currentTarget.reset();
   } catch (error) {
     result.innerHTML = `<strong>Não foi possível gerar o PIX</strong><span>${escapeHtml(error.message)}</span>`;
+    return;
   }
+
+  // A cobrança existe a partir daqui. Uma falha ao renderizar não pode virar
+  // "não foi possível gerar o PIX" — isso esconderia um PIX já criado.
+  currentPayments.unshift(payment);
+  renderPaymentResult(payment);
+  renderPaymentList();
+  formEl.reset();
 });
 
 // ─── Calendário (visão geral) ───────────────────────────────────────────────
