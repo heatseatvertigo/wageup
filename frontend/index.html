@@ -35,7 +35,7 @@
         <section class="lp-hero">
           <div class="lp-hero__copy">
             <p class="lp-eyebrow">Gestão financeira para o seu negócio</p>
-            <h1 class="lp-hero__title">Seu negócio <em>subindo</em>, um PIX de cada vez.</h1>
+            <h1 class="lp-hero__title">A primeira plataforma financeira para MEs do Brasil</h1>
             <p class="lp-hero__sub">Cobre por PIX, controle o caixa e receba insights com IA. Tudo em um só lugar, feito para o microempreendedor brasileiro.</p>
             <div class="lp-hero__actions">
               <button class="lp-btn lp-btn--primary lp-btn--lg" data-open-app>Começar agora</button>
@@ -584,8 +584,20 @@
         </div>
         <nav class="side-nav" aria-label="Módulos da plataforma">
           <button class="active" data-view="overview"><span class="material-symbols-rounded">home</span>Visão geral</button>
-          <button data-view="finance" data-admin-only><span class="material-symbols-rounded">payments</span>Financeiro</button>
-          <button data-view="payments" data-admin-only><span class="material-symbols-rounded">qr_code_2</span>PIX</button>
+
+          <div class="nav-group" data-nav-group data-admin-only>
+            <button class="nav-group__toggle" type="button" aria-expanded="false" aria-controls="financeSubmenu">
+              <span class="material-symbols-rounded">payments</span>
+              Financeiro
+              <span class="nav-group__chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+            </button>
+            <div class="nav-group__submenu" id="financeSubmenu" role="group" aria-label="Módulos financeiros">
+              <button data-view="finance"><span class="material-symbols-rounded">receipt_long</span>Movimentações</button>
+              <button data-view="payments"><span class="material-symbols-rounded">qr_code_2</span>PIX</button>
+              <button data-view="finance-assistant"><span class="material-symbols-rounded">smart_toy</span>Assistente de IA</button>
+            </div>
+          </div>
+
           <button data-view="products"><span class="material-symbols-rounded">inventory_2</span>Produtos</button>
           <button data-view="app-marketing"><span class="material-symbols-rounded">auto_awesome</span>Marketing</button>
         </nav>
@@ -673,31 +685,31 @@
           </aside>
 
           <!-- Painel lateral do dia -->
-          <div class="day-drawer" id="dayDrawer" hidden>
-            <div class="day-drawer__overlay" data-close-drawer></div>
-            <aside class="day-drawer__panel" role="dialog" aria-modal="true" aria-labelledby="drawerDate">
-              <header class="day-drawer__head">
+          <div class="drawer" id="dayDrawer" hidden>
+            <div class="drawer__overlay" data-close-drawer></div>
+            <aside class="drawer__panel" role="dialog" aria-modal="true" aria-labelledby="drawerDate">
+              <header class="drawer__head">
                 <div>
-                  <p class="day-drawer__date" id="drawerDate">—</p>
-                  <span class="day-drawer__weekday" id="drawerWeekday"></span>
+                  <p class="drawer__date" id="drawerDate">—</p>
+                  <span class="drawer__weekday" id="drawerWeekday"></span>
                 </div>
-                <button class="day-drawer__close" type="button" data-close-drawer aria-label="Fechar">✕</button>
+                <button class="drawer__close" type="button" data-close-drawer aria-label="Fechar">✕</button>
               </header>
-              <div class="day-drawer__summary">
-                <div class="day-drawer__stat">
+              <div class="drawer__summary">
+                <div class="drawer__stat">
                   <span>Ganhos</span>
                   <strong id="drawerIncome" class="value-currency value-positive">R$ 0,00</strong>
                 </div>
-                <div class="day-drawer__stat">
+                <div class="drawer__stat">
                   <span>Despesas</span>
                   <strong id="drawerExpense" class="value-currency value-negative">R$ 0,00</strong>
                 </div>
-                <div class="day-drawer__stat">
+                <div class="drawer__stat">
                   <span>Saldo do dia</span>
                   <strong id="drawerNet" class="value-currency">R$ 0,00</strong>
                 </div>
               </div>
-              <div class="day-drawer__list" id="drawerList"></div>
+              <div class="drawer__list" id="drawerList"></div>
             </aside>
           </div>
         </section>
@@ -753,9 +765,34 @@
           <div class="work-panel">
             <div class="panel-heading">
               <h3>Cobranças recentes</h3>
-              <button class="ghost-button" id="refreshPaymentsBtn" type="button">Atualizar</button>
+              <button class="ghost-button" id="refreshPaymentsBtn" type="button">
+                <span class="material-symbols-rounded" aria-hidden="true">refresh</span>Atualizar
+              </button>
             </div>
-            <div id="paymentsList"></div>
+
+            <div class="charge-filters" id="chargeFilters" role="group" aria-label="Filtrar por status">
+              <button class="chip is-active" type="button" data-status-filter="all">Todas</button>
+              <button class="chip" type="button" data-status-filter="pending">Pendentes</button>
+              <button class="chip" type="button" data-status-filter="paid">Pagas</button>
+              <button class="chip" type="button" data-status-filter="other">Outras</button>
+            </div>
+
+            <div class="charge-list" id="paymentsList"></div>
+          </div>
+
+          <!-- Detalhes da cobrança -->
+          <div class="drawer" id="chargeDrawer" hidden>
+            <div class="drawer__overlay" data-close-charge></div>
+            <aside class="drawer__panel" role="dialog" aria-modal="true" aria-labelledby="chargeDrawerTitle">
+              <header class="drawer__head">
+                <div>
+                  <p class="drawer__date" id="chargeDrawerTitle">Cobrança</p>
+                  <span class="drawer__weekday" id="chargeDrawerStatus"></span>
+                </div>
+                <button class="drawer__close" type="button" data-close-charge aria-label="Fechar">✕</button>
+              </header>
+              <div class="drawer__body" id="chargeDrawerBody"></div>
+            </aside>
           </div>
         </section>
 
@@ -809,6 +846,21 @@
                 <div id="imagePreview">Kit Festa<br>fim de semana</div>
                 <small>Visualização da ideia de imagem gerada pela IA.</small>
               </aside>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="finance-assistant">
+          <div class="work-panel">
+            <div class="panel-heading">
+              <h3>Assistente de IA</h3>
+              <span>Métricas e finanças do seu negócio</span>
+            </div>
+            <div class="assistant-placeholder">
+              <span class="assistant-placeholder__icon material-symbols-rounded" aria-hidden="true">smart_toy</span>
+              <strong>Em construção</strong>
+              <p>Aqui você vai poder conversar com uma IA sobre o seu negócio: entender para onde o dinheiro está indo, comparar meses, descobrir quais produtos dão mais margem e o que fazer com isso.</p>
+              <p class="assistant-placeholder__note">Por enquanto, acompanhe seus números na <button class="text-link" type="button" data-view="overview">Visão geral</button> e nas <button class="text-link" type="button" data-view="finance">Movimentações</button>.</p>
             </div>
           </div>
         </section>
