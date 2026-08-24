@@ -1547,21 +1547,30 @@ function chargeDrawerEscHandler(event) {
 
 // ─── Assistente financeiro ──────────────────────────────────────────────────
 
+const ASSISTANT_GREETING =
+  "Olá! Eu analiso os números do seu negócio. Posso explicar para onde o " +
+  "dinheiro está indo, comparar meses, apontar quais produtos rendem mais e " +
+  "quais cobranças PIX estão em aberto.";
+
 // Histórico enviado ao backend a cada pergunta, para o assistente manter o fio
-// da conversa. A mensagem inicial é só da interface e não entra aqui.
+// da conversa. A saudação é só da interface e não entra aqui.
 let assistantHistory = [];
 let assistantBusy = false;
+let suggestionIndex = -1;
 
-function appendAssistantMessage(role, text, options = {}) {
-  const thread = document.querySelector("#assistantThread");
+function assistantThread() {
+  return document.querySelector("#assistantThread");
+}
+
+function appendAssistantMessage(role, text, variant) {
+  const thread = assistantThread();
   if (!thread) return null;
 
   const article = document.createElement("article");
-  article.className = `assistant__msg assistant__msg--${role === "user" ? "user" : "bot"}`;
-  if (options.pending) article.classList.add("is-pending");
-  if (options.error) article.classList.add("is-error");
+  article.className = `msg msg--${role === "user" ? "user" : "bot"}`;
+  if (variant) article.classList.add(`msg--${variant}`);
 
-  // Quebras de linha viram parágrafos; o conteúdo entra como texto, nunca HTML.
+  // Parágrafos entram como texto, nunca como HTML.
   String(text).split(/\n{2,}/).forEach((paragraph) => {
     const p = document.createElement("p");
     p.textContent = paragraph.replace(/\n/g, " ").trim();
@@ -1573,14 +1582,42 @@ function appendAssistantMessage(role, text, options = {}) {
   return article;
 }
 
+function resetAssistant() {
+  const thread = assistantThread();
+  if (!thread) return;
+  assistantHistory = [];
+  thread.innerHTML = "";
+  appendAssistantMessage("bot", ASSISTANT_GREETING);
+  setSuggestionsVisible(true);
+  highlightSuggestion(-1);
+  document.querySelector("#assistantInput")?.focus();
+}
+
+function setSuggestionsVisible(visible) {
+  document.querySelector("#assistantSuggestions")?.classList.toggle("is-hidden", !visible);
+  if (!visible) highlightSuggestion(-1);
+}
+
+function suggestionButtons() {
+  return [...document.querySelectorAll("#assistantSuggestionList .suggestion")];
+}
+
+function highlightSuggestion(index) {
+  const items = suggestionButtons();
+  suggestionIndex = index;
+  items.forEach((item, i) => {
+    const active = i === index;
+    item.classList.toggle("is-active", active);
+    item.setAttribute("aria-selected", String(active));
+    if (active) item.scrollIntoView({ block: "nearest" });
+  });
+}
+
 function setAssistantBusy(busy) {
   assistantBusy = busy;
   const send = document.querySelector("#assistantSend");
   const input = document.querySelector("#assistantInput");
-  if (send) {
-    send.disabled = busy;
-    send.textContent = busy ? "Pensando..." : "Enviar";
-  }
+  if (send) send.disabled = busy;
   if (input) input.disabled = busy;
 }
 
@@ -1588,11 +1625,11 @@ async function askAssistant(question) {
   const text = String(question || "").trim();
   if (!text || assistantBusy) return;
 
-  document.querySelector("#assistantSuggestions")?.classList.add("is-hidden");
+  setSuggestionsVisible(false);
   appendAssistantMessage("user", text);
   assistantHistory.push({ role: "user", content: text });
 
-  const pending = appendAssistantMessage("bot", "Analisando seus números…", { pending: true });
+  const pending = appendAssistantMessage("bot", "Analisando seus números…", "pending");
   setAssistantBusy(true);
 
   try {
@@ -1605,7 +1642,7 @@ async function askAssistant(question) {
     assistantHistory.push({ role: "assistant", content: data.message });
   } catch (error) {
     pending?.remove();
-    appendAssistantMessage("bot", error.message, { error: true });
+    appendAssistantMessage("bot", error.message, "error");
     // A pergunta sai do histórico: sem resposta, ela deixaria a conversa torta.
     assistantHistory.pop();
   } finally {
@@ -1622,9 +1659,33 @@ document.querySelector("#assistantForm")?.addEventListener("submit", (event) => 
   askAssistant(question);
 });
 
-document.querySelectorAll("[data-ask]").forEach((chip) => {
-  chip.addEventListener("click", () => askAssistant(chip.dataset.ask));
+document.querySelector("#assistantNew")?.addEventListener("click", () => resetAssistant());
+
+suggestionButtons().forEach((item) => {
+  item.addEventListener("click", () => askAssistant(item.dataset.ask));
 });
+
+// Teclado no campo: setas navegam as sugestões, Enter escolhe a destacada
+// (ou envia o que foi digitado) e Esc fecha a lista.
+document.querySelector("#assistantInput")?.addEventListener("keydown", (event) => {
+  const items = suggestionButtons();
+  const visible = !document.querySelector("#assistantSuggestions")?.classList.contains("is-hidden");
+
+  if (event.key === "ArrowDown" && visible && items.length) {
+    event.preventDefault();
+    highlightSuggestion((suggestionIndex + 1) % items.length);
+  } else if (event.key === "ArrowUp" && visible && items.length) {
+    event.preventDefault();
+    highlightSuggestion(suggestionIndex <= 0 ? items.length - 1 : suggestionIndex - 1);
+  } else if (event.key === "Enter" && visible && suggestionIndex >= 0) {
+    event.preventDefault();
+    askAssistant(items[suggestionIndex].dataset.ask);
+  } else if (event.key === "Escape" && visible) {
+    setSuggestionsVisible(false);
+  }
+});
+
+resetAssistant();
 
 // ─── Marketing AI ─────────────────────────────────────────────────────────────
 
