@@ -921,22 +921,31 @@
         </section>
 
         <section class="view view--full" id="finance-assistant">
-          <div class="assistant-layout">
+          <div class="chatbox">
 
-            <aside class="chat-history" id="chatHistory">
-              <div class="chat-history__head">
-                <span>Conversas</span>
-                <button class="chatbox__icon-btn" type="button" id="assistantNew"
-                        title="Nova conversa" aria-label="Começar nova conversa">
+            <header class="chatbox__bar">
+              <p class="chatbox__conversation" id="assistantTitle">Nova conversa</p>
+              <div class="chatbox__tools">
+                <button class="icon-btn" type="button" id="assistantNew" title="Nova conversa" aria-label="Começar nova conversa">
                   <span class="material-symbols-rounded" aria-hidden="true">edit_square</span>
                 </button>
+                <div class="menu" id="historyMenu">
+                  <button class="icon-btn" type="button" id="historyTrigger"
+                          aria-haspopup="true" aria-expanded="false" aria-controls="historyPanel"
+                          title="Conversas" aria-label="Ver conversas anteriores">
+                    <span class="material-symbols-rounded" aria-hidden="true">more_horiz</span>
+                  </button>
+                  <div class="menu__panel" id="historyPanel" role="menu" hidden>
+                    <p class="menu__label">Conversas</p>
+                    <div class="menu__list" id="chatHistoryList"></div>
+                  </div>
+                </div>
               </div>
-              <div class="chat-history__list" id="chatHistoryList"></div>
-            </aside>
+            </header>
 
-            <div class="chatbox">
-              <div class="chatbox__thread" id="assistantThread" role="log" aria-live="polite" aria-label="Conversa com o assistente"></div>
+            <div class="chatbox__thread" id="assistantThread" role="log" aria-live="polite" aria-label="Conversa com o assistente"></div>
 
+            <div class="chatbox__foot">
               <div class="chatbox__suggestions" id="assistantSuggestions">
                 <div class="chatbox__suggestion-list" id="assistantSuggestionList" role="listbox" aria-label="Perguntas sugeridas">
                   <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="Como está a saúde financeira do meu negócio?">

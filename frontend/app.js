@@ -1621,29 +1621,46 @@ async function loadConversations() {
   try {
     conversas = await apiRequest("/finance/assistant/conversations/");
   } catch {
-    list.innerHTML = `<p class="chat-history__empty">Não foi possível carregar as conversas.</p>`;
+    list.innerHTML = `<p class="menu__empty">Não foi possível carregar as conversas.</p>`;
     return;
   }
 
   if (!conversas.length) {
-    list.innerHTML = `<p class="chat-history__empty">Suas conversas aparecem aqui depois da primeira pergunta.</p>`;
+    list.innerHTML = `<p class="menu__empty">Suas conversas aparecem aqui depois da primeira pergunta.</p>`;
     return;
   }
 
   list.innerHTML = conversas.map((conversa) => `
-    <div class="chat-history__item${conversa.id === currentConversationId ? " is-active" : ""}" data-conversa="${escapeHtml(conversa.id)}">
-      <button class="chat-history__title" type="button" data-abrir="${escapeHtml(conversa.id)}">${escapeHtml(conversa.title || "Nova conversa")}</button>
-      <button class="chat-history__delete" type="button" data-apagar="${escapeHtml(conversa.id)}" aria-label="Apagar conversa">
+    <div class="chat-item${conversa.id === currentConversationId ? " is-active" : ""}" role="none">
+      <button class="chat-item__open" type="button" role="menuitem" data-abrir="${escapeHtml(conversa.id)}">${escapeHtml(conversa.title || "Nova conversa")}</button>
+      <button class="chat-item__delete" type="button" data-apagar="${escapeHtml(conversa.id)}" aria-label="Apagar conversa">
         <span class="material-symbols-rounded" aria-hidden="true">delete</span>
       </button>
     </div>`).join("");
 
   list.querySelectorAll("[data-abrir]").forEach((botao) => {
-    botao.addEventListener("click", () => openConversation(botao.dataset.abrir));
+    botao.addEventListener("click", () => {
+      openConversation(botao.dataset.abrir);
+      setHistoryOpen(false);
+    });
   });
   list.querySelectorAll("[data-apagar]").forEach((botao) => {
     botao.addEventListener("click", () => deleteConversation(botao.dataset.apagar));
   });
+}
+
+// A cascata do histórico abre pelos três pontos e fecha ao clicar fora ou Esc.
+function setHistoryOpen(open) {
+  const panel = document.querySelector("#historyPanel");
+  const trigger = document.querySelector("#historyTrigger");
+  if (!panel || !trigger) return;
+  panel.hidden = !open;
+  trigger.setAttribute("aria-expanded", String(open));
+}
+
+function setAssistantTitle(texto) {
+  const el = document.querySelector("#assistantTitle");
+  if (el) el.textContent = texto || "Nova conversa";
 }
 
 async function openConversation(id) {
@@ -1653,6 +1670,7 @@ async function openConversation(id) {
   try {
     const conversa = await apiRequest(`/finance/assistant/conversations/${id}/`);
     currentConversationId = conversa.id;
+    setAssistantTitle(conversa.title);
     thread.innerHTML = "";
     conversa.messages.forEach((m) => appendAssistantMessage(m.role, m.content));
     setSuggestionsVisible(conversa.messages.length === 0);
@@ -1676,6 +1694,7 @@ function startNewConversation() {
   const thread = assistantThread();
   if (!thread) return;
   currentConversationId = null;
+  setAssistantTitle(null);
   thread.innerHTML = "";
   appendAssistantMessage("bot", ASSISTANT_GREETING);
   setSuggestionsVisible(true);
@@ -1704,6 +1723,7 @@ async function askAssistant(question) {
     pending?.remove();
     appendAssistantMessage("bot", data.message);
     currentConversationId = data.conversation.id;
+    setAssistantTitle(data.conversation.title);
     loadConversations();
   } catch (error) {
     pending?.remove();
@@ -1723,6 +1743,21 @@ document.querySelector("#assistantForm")?.addEventListener("submit", (event) => 
 });
 
 document.querySelector("#assistantNew")?.addEventListener("click", () => startNewConversation());
+
+document.querySelector("#historyTrigger")?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  const aberto = document.querySelector("#historyPanel")?.hidden === false;
+  if (!aberto) loadConversations();
+  setHistoryOpen(!aberto);
+});
+
+document.addEventListener("click", (event) => {
+  if (!document.querySelector("#historyMenu")?.contains(event.target)) setHistoryOpen(false);
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") setHistoryOpen(false);
+});
 
 suggestionButtons().forEach((item) => {
   item.addEventListener("click", () => askAssistant(item.dataset.ask));
