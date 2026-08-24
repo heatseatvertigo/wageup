@@ -1680,51 +1680,79 @@ select:focus {
   .nav-group__chevron { transition: none; }
 }
 
-/* ─── Placeholder do assistente de IA ─── */
+/* ─── Assistente financeiro ─── */
 
-.assistant-placeholder {
+.assistant {
   display: grid;
-  justify-items: center;
+  gap: var(--space-4);
+}
+
+.assistant__thread {
+  display: grid;
   gap: var(--space-3);
-  max-width: 34rem;
-  margin: 0 auto;
-  padding: var(--space-10) var(--space-6);
-  text-align: center;
+  align-content: start;
+  min-height: 18rem;
+  max-height: 55vh;
+  overflow-y: auto;
+  padding: var(--space-4);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
 }
 
-.assistant-placeholder__icon {
+.assistant__msg {
   display: grid;
-  place-items: center;
-  width: 3rem;
-  height: 3rem;
-  border-radius: var(--radius-full);
-  background: var(--color-brand-subtle);
-  color: var(--color-brand-mid);
-  font-size: 1.5rem;
+  gap: var(--space-2);
+  max-width: 85%;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+  animation: fadeUp var(--duration-slow) var(--ease-out) both;
 }
 
-.assistant-placeholder strong {
-  font-size: var(--text-lg);
-  font-weight: var(--weight-semibold);
+.assistant__msg--bot {
+  justify-self: start;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   color: var(--color-text-primary);
 }
 
-.assistant-placeholder p {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-  line-height: var(--leading-relaxed);
+.assistant__msg--user {
+  justify-self: end;
+  background: var(--color-brand-subtle);
+  border: 1px solid var(--color-brand-light);
+  color: var(--color-text-primary);
 }
 
-.assistant-placeholder__note { color: var(--color-text-disabled); }
+.assistant__msg.is-pending { color: var(--color-text-secondary); }
 
-.assistant-placeholder .text-link {
-  background: none;
-  border: none;
-  padding: 0;
-  font: inherit;
-  color: var(--color-brand-mid);
-  text-decoration: underline;
-  cursor: pointer;
+.assistant__msg.is-error {
+  background: #FBEDED;
+  border-color: var(--color-negative);
+  color: var(--color-negative);
+}
+
+.assistant__suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.assistant__form {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.assistant__form input { flex: 1; }
+
+.assistant__note {
+  font-size: var(--text-xs);
+  color: var(--color-text-disabled);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant__msg { animation: none; }
 }
 
 .side-footer {

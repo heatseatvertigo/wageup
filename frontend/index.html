@@ -36,7 +36,7 @@
           <div class="lp-hero__copy">
             <p class="lp-eyebrow">Gestão financeira para o seu negócio</p>
             <h1 class="lp-hero__title">A primeira plataforma financeira para MEs do Brasil</h1>
-            <p class="lp-hero__sub">Cobre por PIX, controle o caixa e receba insights com IA. Tudo em um só lugar, feito para o microempreendedor brasileiro.</p>
+            <p class="lp-hero__sub">Cobre por PIX, controle o caixa e receba insights com IA. Tudo em um só lugar.</p>
             <div class="lp-hero__actions">
               <button class="lp-btn lp-btn--primary lp-btn--lg" data-open-app>Começar agora</button>
               <a class="lp-btn lp-btn--quiet" href="#recursos">Ver recursos →</a>
@@ -926,11 +926,26 @@
               <h3>Assistente de IA</h3>
               <span>Métricas e finanças do seu negócio</span>
             </div>
-            <div class="assistant-placeholder">
-              <span class="assistant-placeholder__icon material-symbols-rounded" aria-hidden="true">smart_toy</span>
-              <strong>Em construção</strong>
-              <p>Aqui você vai poder conversar com uma IA sobre o seu negócio: entender para onde o dinheiro está indo, comparar meses, descobrir quais produtos dão mais margem e o que fazer com isso.</p>
-              <p class="assistant-placeholder__note">Por enquanto, acompanhe seus números na <button class="text-link" type="button" data-view="overview">Visão geral</button> e nas <button class="text-link" type="button" data-view="finance">Movimentações</button>.</p>
+            <div class="assistant">
+              <div class="assistant__thread" id="assistantThread" role="log" aria-live="polite" aria-label="Conversa com o assistente">
+                <article class="assistant__msg assistant__msg--bot">
+                  <p>Olá! Eu analiso os números do seu negócio. Posso explicar para onde o dinheiro está indo, comparar meses e apontar quais produtos rendem mais.</p>
+                </article>
+              </div>
+
+              <div class="assistant__suggestions" id="assistantSuggestions">
+                <button class="chip" type="button" data-ask="Como está a saúde financeira do meu negócio?">Saúde do negócio</button>
+                <button class="chip" type="button" data-ask="Meu lucro melhorou ou piorou nos últimos meses?">Evolução do lucro</button>
+                <button class="chip" type="button" data-ask="Qual produto me dá mais margem e o que devo priorizar?">Melhor margem</button>
+                <button class="chip" type="button" data-ask="Onde estou gastando mais e o que dá para cortar?">Onde estou gastando</button>
+              </div>
+
+              <form class="assistant__form" id="assistantForm">
+                <input id="assistantInput" name="message" autocomplete="off" required
+                       placeholder="Pergunte sobre suas finanças…" aria-label="Sua pergunta" />
+                <button class="primary-button" type="submit" id="assistantSend">Enviar</button>
+              </form>
+              <p class="assistant__note">O assistente usa apenas os dados registrados na plataforma. Ele não substitui um contador.</p>
             </div>
           </div>
         </section>

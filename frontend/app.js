@@ -1545,6 +1545,87 @@ function chargeDrawerEscHandler(event) {
   if (event.key === "Escape") closeChargeDrawer();
 }
 
+// ─── Assistente financeiro ──────────────────────────────────────────────────
+
+// Histórico enviado ao backend a cada pergunta, para o assistente manter o fio
+// da conversa. A mensagem inicial é só da interface e não entra aqui.
+let assistantHistory = [];
+let assistantBusy = false;
+
+function appendAssistantMessage(role, text, options = {}) {
+  const thread = document.querySelector("#assistantThread");
+  if (!thread) return null;
+
+  const article = document.createElement("article");
+  article.className = `assistant__msg assistant__msg--${role === "user" ? "user" : "bot"}`;
+  if (options.pending) article.classList.add("is-pending");
+  if (options.error) article.classList.add("is-error");
+
+  // Quebras de linha viram parágrafos; o conteúdo entra como texto, nunca HTML.
+  String(text).split(/\n{2,}/).forEach((paragraph) => {
+    const p = document.createElement("p");
+    p.textContent = paragraph.replace(/\n/g, " ").trim();
+    article.appendChild(p);
+  });
+
+  thread.appendChild(article);
+  thread.scrollTop = thread.scrollHeight;
+  return article;
+}
+
+function setAssistantBusy(busy) {
+  assistantBusy = busy;
+  const send = document.querySelector("#assistantSend");
+  const input = document.querySelector("#assistantInput");
+  if (send) {
+    send.disabled = busy;
+    send.textContent = busy ? "Pensando..." : "Enviar";
+  }
+  if (input) input.disabled = busy;
+}
+
+async function askAssistant(question) {
+  const text = String(question || "").trim();
+  if (!text || assistantBusy) return;
+
+  document.querySelector("#assistantSuggestions")?.classList.add("is-hidden");
+  appendAssistantMessage("user", text);
+  assistantHistory.push({ role: "user", content: text });
+
+  const pending = appendAssistantMessage("bot", "Analisando seus números…", { pending: true });
+  setAssistantBusy(true);
+
+  try {
+    const data = await apiRequest("/finance/assistant/", {
+      method: "POST",
+      body: JSON.stringify({ messages: assistantHistory })
+    });
+    pending?.remove();
+    appendAssistantMessage("bot", data.message);
+    assistantHistory.push({ role: "assistant", content: data.message });
+  } catch (error) {
+    pending?.remove();
+    appendAssistantMessage("bot", error.message, { error: true });
+    // A pergunta sai do histórico: sem resposta, ela deixaria a conversa torta.
+    assistantHistory.pop();
+  } finally {
+    setAssistantBusy(false);
+    document.querySelector("#assistantInput")?.focus();
+  }
+}
+
+document.querySelector("#assistantForm")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const input = document.querySelector("#assistantInput");
+  const question = input.value;
+  input.value = "";
+  askAssistant(question);
+});
+
+document.querySelectorAll("[data-ask]").forEach((chip) => {
+  chip.addEventListener("click", () => askAssistant(chip.dataset.ask));
+});
+
 // ─── Marketing AI ─────────────────────────────────────────────────────────────
 
 function campaignHeadline(goal, productName) {
