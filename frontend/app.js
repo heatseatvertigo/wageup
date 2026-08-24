@@ -637,6 +637,8 @@ function setView(viewName) {
   }
 
   title.textContent = viewTitles[viewName] || "Wage Up";
+  // A tela do assistente esconde o título da página: a barra do chat basta.
+  document.querySelector(".dashboard")?.classList.toggle("is-chat", viewName === "finance-assistant");
   if (viewName === "overview") { renderSummary(); renderCalendar(); renderSemesterChart(); }
   if (viewName === "payments") loadPayments();
   // A conversa vive no servidor: ao abrir a tela, restaura o histórico.

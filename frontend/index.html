@@ -924,23 +924,21 @@
           <div class="chatbox">
 
             <header class="chatbox__bar">
-              <p class="chatbox__conversation" id="assistantTitle">Nova conversa</p>
-              <div class="chatbox__tools">
-                <button class="icon-btn" type="button" id="assistantNew" title="Nova conversa" aria-label="Começar nova conversa">
-                  <span class="material-symbols-rounded" aria-hidden="true">edit_square</span>
+              <div class="menu" id="historyMenu">
+                <button class="icon-btn" type="button" id="historyTrigger"
+                        aria-haspopup="true" aria-expanded="false" aria-controls="historyPanel"
+                        title="Conversas" aria-label="Ver conversas anteriores">
+                  <span class="material-symbols-rounded" aria-hidden="true">menu</span>
                 </button>
-                <div class="menu" id="historyMenu">
-                  <button class="icon-btn" type="button" id="historyTrigger"
-                          aria-haspopup="true" aria-expanded="false" aria-controls="historyPanel"
-                          title="Conversas" aria-label="Ver conversas anteriores">
-                    <span class="material-symbols-rounded" aria-hidden="true">more_horiz</span>
-                  </button>
-                  <div class="menu__panel" id="historyPanel" role="menu" hidden>
-                    <p class="menu__label">Conversas</p>
-                    <div class="menu__list" id="chatHistoryList"></div>
-                  </div>
+                <div class="menu__panel" id="historyPanel" role="menu" hidden>
+                  <p class="menu__label">Conversas</p>
+                  <div class="menu__list" id="chatHistoryList"></div>
                 </div>
               </div>
+              <p class="chatbox__conversation" id="assistantTitle">Nova conversa</p>
+              <button class="icon-btn" type="button" id="assistantNew" title="Nova conversa" aria-label="Começar nova conversa">
+                <span class="material-symbols-rounded" aria-hidden="true">edit_square</span>
+              </button>
             </header>
 
             <div class="chatbox__thread" id="assistantThread" role="log" aria-live="polite" aria-label="Conversa com o assistente"></div>
