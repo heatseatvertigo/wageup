@@ -14,3 +14,9 @@ staticfiles/
 
 # Skills de design instaladas localmente (tooling, não é código da aplicação)
 .claude/skills/
+
+# Saída do graphify (derivada — pode ser regerada)
+graphify-out/
+
+# Apresentação do TCC — fica só na máquina
+docs/
