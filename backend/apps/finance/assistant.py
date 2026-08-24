@@ -12,11 +12,13 @@ from datetime import date
 
 import requests
 from django.conf import settings
-from django.db.models import Sum
+from django.db.models import Count, Sum
 from django.db.models.functions import TruncMonth
+from django.utils import timezone
 
 from apps.finance.insights import brl, gather_metrics
 from apps.finance.models import Transaction
+from apps.payments.models import Payment
 from apps.products.models import Product
 
 MONTHS_PT = [
@@ -27,6 +29,7 @@ MONTHS_PT = [
 MAX_HISTORY = 12          # mensagens da conversa enviadas ao modelo
 MAX_MESSAGE_CHARS = 2000  # tamanho máximo de cada mensagem do usuário
 RECENT_LIMIT = 15         # movimentações recentes incluídas no contexto
+CHARGES_LIMIT = 10        # cobranças PIX recentes incluídas no contexto
 
 SYSTEM_PROMPT = (
     "Você é o assistente financeiro do WageUp, uma plataforma para "
@@ -89,6 +92,46 @@ def monthly_series(business, months=6):
     return series
 
 
+CHARGE_STATUS_PT = {
+    "pending": "pendente",
+    "paid": "paga",
+    "expired": "expirada",
+    "canceled": "cancelada",
+    "refunded": "reembolsada",
+    "failed": "falhou",
+}
+
+
+def pix_charges(business):
+    """Cobranças PIX do negócio: totais por status e as mais recentes.
+
+    Só o nome do cliente entra no contexto. CPF, e-mail e celular ficam de
+    fora: não ajudam na análise e não há motivo para enviá-los ao provedor.
+    """
+    charges = Payment.objects.filter(business=business).order_by("-created_at")
+
+    by_status = {}
+    for row in charges.values("status").annotate(total=Sum("amount"), count=Count("id")):
+        by_status[row["status"]] = {
+            "count": row["count"],
+            "total": float(row["total"] or 0),
+        }
+
+    recent = []
+    for charge in charges[:CHARGES_LIMIT]:
+        metadata = charge.metadata or {}
+        created = timezone.localtime(charge.created_at) if charge.created_at else None
+        recent.append({
+            "description": metadata.get("description") or "Cobrança PIX",
+            "amount": float(charge.amount),
+            "status": CHARGE_STATUS_PT.get(charge.status, charge.status),
+            "datetime": created.strftime("%d/%m/%Y às %H:%M") if created else "",
+            "customer": (metadata.get("customer") or {}).get("name") or "",
+        })
+
+    return {"by_status": by_status, "recent": recent, "total_count": charges.count()}
+
+
 def build_context(business):
     """Reúne o retrato financeiro do negócio que vai no prompt."""
     metrics = gather_metrics(business)
@@ -106,6 +149,7 @@ def build_context(business):
         "business_name": business.name,
         "metrics": metrics,
         "series": series,
+        "pix": pix_charges(business),
         "top_products": [
             {
                 "name": item.name,
@@ -148,6 +192,31 @@ def format_context(context):
             f"- {item['label']}: entradas {brl(item['income'])}, "
             f"saídas {brl(item['expense'])}, lucro {brl(item['profit'])}"
         )
+
+    pix = context["pix"]
+    lines.append("")
+    lines.append(
+        "COBRANÇAS PIX — atenção: uma cobrança paga vira automaticamente uma "
+        "entrada no financeiro, então o valor recebido via PIX JÁ ESTÁ contado "
+        "dentro das entradas acima. Nunca some os dois."
+    )
+    lines.append(f"Total de cobranças: {pix['total_count']}")
+    if pix["by_status"]:
+        for status_key, data in pix["by_status"].items():
+            rotulo = CHARGE_STATUS_PT.get(status_key, status_key)
+            lines.append(f"- {rotulo}: {data['count']} cobrança(s), {brl(data['total'])}")
+    else:
+        lines.append("- Nenhuma cobrança gerada ainda.")
+
+    if pix["recent"]:
+        lines.append("")
+        lines.append("COBRANÇAS PIX RECENTES (data e hora de criação):")
+        for item in pix["recent"]:
+            cliente = f", cliente {item['customer']}" if item["customer"] else ", sem cliente informado"
+            lines.append(
+                f"- {item['datetime']}: {item['description']} — {brl(item['amount'])}, "
+                f"{item['status']}{cliente}"
+            )
 
     lines.append("")
     lines.append(
