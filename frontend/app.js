@@ -331,12 +331,54 @@ document.querySelectorAll("[data-close-charge]").forEach((el) =>
   el.addEventListener("click", closeChargeDrawer)
 );
 
-document.querySelector("#paymentForm").addEventListener("submit", async (event) => {
+// ─── Cobrança PIX: abrir modal, criar e acompanhar ──────────────────────────
+
+document.querySelector("#openChargeModal")?.addEventListener("click", () => openChargeModal());
+
+document.querySelectorAll("[data-close-charge-modal]").forEach((el) =>
+  el.addEventListener("click", closeChargeModal)
+);
+
+document.querySelector("#chargeProduct")?.addEventListener("change", (event) => {
+  applyProductToCharge(event.target.value);
+});
+
+// Máscara de moeda: reescreve o campo a cada tecla, sempre no formato R$.
+document.querySelector("#chargeAmount")?.addEventListener("input", (event) => {
+  const input = event.target;
+  input.value = centsFromMasked(input.value) ? maskMoney(input.value) : "";
+});
+
+document.querySelector("#pixScreenBack")?.addEventListener("click", () => closePixScreen());
+
+document.querySelector("#pixCopyBtn")?.addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  try {
+    await navigator.clipboard.writeText(document.querySelector("#pixBrCode").textContent);
+    button.textContent = "Copiado!";
+    window.setTimeout(() => { button.textContent = "Copiar código"; }, 2000);
+  } catch {
+    button.textContent = "Não foi possível copiar";
+  }
+});
+
+document.querySelector("#chargeForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formEl = event.currentTarget;
   const form = new FormData(formEl);
-  const result = document.querySelector("#paymentResult");
-  result.innerHTML = `<strong>Gerando cobrança...</strong><span>Conectando com a Abacate Pay.</span>`;
+  const error = document.querySelector("#chargeFormError");
+  const submit = document.querySelector("#chargeSubmit");
+
+  const cents = centsFromMasked(form.get("amount"));
+  if (cents <= 0) {
+    error.textContent = "Informe um valor maior que zero.";
+    error.hidden = false;
+    return;
+  }
+
+  error.hidden = true;
+  submit.disabled = true;
+  submit.textContent = "Gerando...";
 
   let payment;
   try {
@@ -344,24 +386,28 @@ document.querySelector("#paymentForm").addEventListener("submit", async (event) 
       method: "POST",
       body: JSON.stringify({
         description: form.get("description").trim(),
-        amount: Number(form.get("amount")),
-        customer_name: form.get("customer_name").trim(),
-        customer_email: form.get("customer_email").trim(),
-        customer_tax_id: form.get("customer_tax_id").trim(),
-        customer_cellphone: form.get("customer_cellphone").trim()
+        amount: cents / 100,
+        customer_name: (form.get("customer_name") || "").trim(),
+        customer_email: (form.get("customer_email") || "").trim(),
+        customer_tax_id: (form.get("customer_tax_id") || "").trim(),
+        customer_cellphone: (form.get("customer_cellphone") || "").trim()
       })
     });
-  } catch (error) {
-    result.innerHTML = `<strong>Não foi possível gerar o PIX</strong><span>${escapeHtml(error.message)}</span>`;
+  } catch (requestError) {
+    error.textContent = requestError.message;
+    error.hidden = false;
     return;
+  } finally {
+    submit.disabled = false;
+    submit.textContent = "Gerar PIX";
   }
 
-  // A cobrança existe a partir daqui. Uma falha ao renderizar não pode virar
-  // "não foi possível gerar o PIX" — isso esconderia um PIX já criado.
+  // A cobrança existe a partir daqui: um erro de renderização não pode ser
+  // reportado como falha na geração.
   currentPayments.unshift(payment);
-  renderPaymentResult(payment);
   renderPaymentList();
-  formEl.reset();
+  closeChargeModal();
+  openPixScreen(payment);
 });
 
 // ─── Calendário (visão geral) ───────────────────────────────────────────────
@@ -1106,50 +1152,196 @@ function renderCampaignOptions() {
   });
 }
 
-function renderPaymentResult(payment) {
-  const result = document.querySelector("#paymentResult");
+// ─── Criar cobrança e acompanhar o pagamento ────────────────────────────────
+
+const PIX_POLL_MS = 3000;
+let pixPollTimer = null;
+let pixCountdownTimer = null;
+let pixCurrentPayment = null;
+
+// O valor é digitado em centavos e reescrito como moeda a cada tecla, para o
+// usuário nunca ter que pensar em ponto ou vírgula.
+function centsFromMasked(value) {
+  const digits = String(value).replace(/\D/g, "");
+  return digits ? parseInt(digits, 10) : 0;
+}
+
+function maskMoney(value) {
+  const cents = centsFromMasked(value);
+  return formatMoney(cents / 100);
+}
+
+function openChargeModal() {
+  const modal = document.querySelector("#chargeModal");
+  if (!modal) return;
+
+  const form = document.querySelector("#chargeForm");
+  form.reset();
+  document.querySelector("#chargeAmount").value = "";
+  const error = document.querySelector("#chargeFormError");
+  error.hidden = true;
+  error.textContent = "";
+
+  renderChargeProducts();
+
+  modal.hidden = false;
+  requestAnimationFrame(() => modal.classList.add("is-open"));
+  document.addEventListener("keydown", chargeModalEscHandler);
+  document.querySelector("#chargeDescription")?.focus();
+}
+
+function closeChargeModal() {
+  const modal = document.querySelector("#chargeModal");
+  if (!modal) return;
+  modal.classList.remove("is-open");
+  document.removeEventListener("keydown", chargeModalEscHandler);
+  window.setTimeout(() => { modal.hidden = true; }, 300);
+}
+
+function chargeModalEscHandler(event) {
+  if (event.key === "Escape") closeChargeModal();
+}
+
+// A cobrança pode partir de um produto já cadastrado: escolher o produto
+// preenche descrição e valor com o que está no catálogo.
+function renderChargeProducts() {
+  const select = document.querySelector("#chargeProduct");
+  if (!select) return;
+  select.innerHTML = `<option value="">Cobrança avulsa</option>`;
+  state.products.forEach((product) => {
+    const option = document.createElement("option");
+    option.value = product.id;
+    option.textContent = `${product.name} — ${formatMoney(product.price)}`;
+    select.appendChild(option);
+  });
+}
+
+function applyProductToCharge(productId) {
+  const product = state.products.find((item) => String(item.id) === String(productId));
+  if (!product) return;
+  document.querySelector("#chargeDescription").value = product.name;
+  const cents = Math.round(Number(product.price) * 100);
+  document.querySelector("#chargeAmount").value = formatMoney(cents / 100);
+}
+
+// ─── Tela do QR Code ────────────────────────────────────────────────────────
+
+function openPixScreen(payment) {
+  const screen = document.querySelector("#pixScreen");
+  if (!screen) return;
+
+  pixCurrentPayment = payment;
+  document.querySelector("#pixDescription").textContent =
+    payment.metadata?.description || "Cobrança PIX";
+  document.querySelector("#pixAmount").textContent = formatMoney(payment.amount);
+
+  const qr = payment.metadata?.brCodeBase64;
+  const qrImg = document.querySelector("#pixQr");
+  document.querySelector("#pixQrWrap").hidden = !qr;
+  if (qr) qrImg.src = qr;
+
   const brCode = payment.metadata?.brCode || "";
-  const qrCode = payment.metadata?.brCodeBase64 || "";
-  const expiresAt = payment.metadata?.expiresAt;
-  const expiryText = expiresAt
-    ? `<span class="payment-result__expiry">Válido até ${new Date(expiresAt).toLocaleString("pt-BR")}</span>`
-    : "";
-  const statusLabel = { pending: "Pendente", paid: "Pago", failed: "Falhou", refunded: "Reembolsado", canceled: "Cancelado" };
-  result.innerHTML = `
-    <strong>PIX gerado</strong>
-    ${qrCode ? `<img src="${qrCode}" alt="QR Code PIX" />` : ""}
-    ${brCode ? `<code>${escapeHtml(brCode)}</code>` : "<span>Código PIX não retornado pela Abacate Pay.</span>"}
-    <span class="payment-result__status payment-status status--${escapeHtml(payment.status)}">${statusLabel[payment.status] || escapeHtml(payment.status)}</span>
-    ${expiryText}
-    <div class="payment-result__actions">
-      ${brCode ? `<button class="secondary-button" type="button" data-copy-pix>Copiar código</button>` : ""}
-      <button class="ghost-button" type="button" data-refresh-pix="${escapeHtml(payment.id)}">Verificar pagamento ↻</button>
-    </div>
-  `;
-  const copyButton = result.querySelector("[data-copy-pix]");
-  if (copyButton) {
-    copyButton.addEventListener("click", async () => {
-      await navigator.clipboard.writeText(brCode);
-      copyButton.textContent = "Código copiado!";
-    });
+  document.querySelector("#pixBrCode").textContent = brCode;
+  document.querySelector("#pixCodeBlock").hidden = !brCode;
+
+  setPixState("pending", "Aguardando pagamento…");
+  screen.hidden = false;
+  requestAnimationFrame(() => screen.classList.add("is-open"));
+
+  startPixPolling();
+  startPixCountdown();
+}
+
+function closePixScreen() {
+  const screen = document.querySelector("#pixScreen");
+  if (!screen) return;
+  stopPixWatchers();
+  screen.classList.remove("is-open");
+  window.setTimeout(() => { screen.hidden = true; }, 300);
+  pixCurrentPayment = null;
+}
+
+function stopPixWatchers() {
+  window.clearInterval(pixPollTimer);
+  window.clearInterval(pixCountdownTimer);
+  pixPollTimer = null;
+  pixCountdownTimer = null;
+}
+
+function setPixState(state, text) {
+  const card = document.querySelector("#pixScreenCard");
+  const status = document.querySelector("#pixStatus");
+  document.querySelector("#pixStatusText").textContent = text;
+  card.dataset.state = state;
+  status.dataset.state = state;
+}
+
+// Consulta o provedor a cada 3s. O webhook é o caminho rápido, mas não chega
+// em desenvolvimento e depende de configuração em produção — perguntar é o
+// que torna esta tela confiável.
+function startPixPolling() {
+  stopPixWatchers();
+  pixPollTimer = window.setInterval(checkPixOnce, PIX_POLL_MS);
+}
+
+async function checkPixOnce() {
+  if (!pixCurrentPayment) return;
+  try {
+    const updated = await apiRequest(`/payments/${pixCurrentPayment.id}/check/`, { method: "POST" });
+    pixCurrentPayment = updated;
+
+    const index = currentPayments.findIndex((item) => item.id === updated.id);
+    if (index !== -1) currentPayments[index] = updated;
+    renderPaymentList();
+
+    if (updated.status === "paid") {
+      stopPixWatchers();
+      setPixState("paid", "Pagamento confirmado!");
+      document.querySelector("#pixTimer").textContent = "O valor já entrou no seu financeiro.";
+      document.querySelector("#pixCodeBlock").hidden = true;
+      document.querySelector("#pixQrWrap").hidden = true;
+    } else if (["expired", "canceled", "failed"].includes(updated.status)) {
+      stopPixWatchers();
+      const labels = {
+        expired: "Esta cobrança expirou.",
+        canceled: "Esta cobrança foi cancelada.",
+        failed: "Esta cobrança falhou."
+      };
+      setPixState("expired", labels[updated.status]);
+      document.querySelector("#pixTimer").textContent = "Gere uma nova cobrança para receber.";
+      document.querySelector("#pixCodeBlock").hidden = true;
+      document.querySelector("#pixQrWrap").hidden = true;
+    }
+  } catch (error) {
+    // Uma falha isolada de rede não deve derrubar a tela: avisa e segue
+    // tentando, já que a próxima consulta pode dar certo.
+    setPixState("error", `Sem conexão com a Abacate Pay. Tentando de novo… (${error.message})`);
   }
-  const refreshBtn = result.querySelector("[data-refresh-pix]");
-  if (refreshBtn) {
-    refreshBtn.addEventListener("click", async () => {
-      refreshBtn.textContent = "Verificando...";
-      refreshBtn.disabled = true;
-      try {
-        const updated = await apiRequest(`/payments/${refreshBtn.dataset.refreshPix}/`);
-        const idx = currentPayments.findIndex((p) => p.id === updated.id);
-        if (idx !== -1) currentPayments[idx] = updated;
-        renderPaymentResult(updated);
-        renderPaymentList();
-      } catch {
-        refreshBtn.textContent = "Erro ao verificar";
-        refreshBtn.disabled = false;
-      }
-    });
+}
+
+function startPixCountdown() {
+  const timer = document.querySelector("#pixTimer");
+  const expiresAt = pixCurrentPayment?.metadata?.expiresAt;
+  if (!expiresAt) {
+    timer.textContent = "";
+    return;
   }
+
+  const tick = () => {
+    const remaining = new Date(expiresAt).getTime() - Date.now();
+    if (remaining <= 0) {
+      timer.textContent = "Tempo esgotado. Confirmando com a Abacate Pay…";
+      window.clearInterval(pixCountdownTimer);
+      checkPixOnce();
+      return;
+    }
+    const minutes = Math.floor(remaining / 60000);
+    const seconds = Math.floor((remaining % 60000) / 1000);
+    timer.textContent = `Expira em ${minutes}:${String(seconds).padStart(2, "0")}`;
+  };
+
+  tick();
+  pixCountdownTimer = window.setInterval(tick, 1000);
 }
 
 async function loadPayments() {

@@ -9,6 +9,7 @@ class Payment(models.Model):
         FAILED = "failed", "Falhou"
         REFUNDED = "refunded", "Reembolsado"
         CANCELED = "canceled", "Cancelado"
+        EXPIRED = "expired", "Expirado"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     business = models.ForeignKey(
