@@ -747,19 +747,14 @@
               <h3>Cobrança PIX</h3>
               <span>via Abacate Pay</span>
             </div>
-            <form class="inline-form" id="paymentForm">
-              <input name="description" placeholder="Descrição da cobrança" required aria-label="Descrição da cobrança" />
-              <input name="amount" type="number" min="0.01" step="0.01" placeholder="Valor (R$)" required aria-label="Valor da cobrança (R$)" />
-              <input name="customer_name" placeholder="Nome do cliente" aria-label="Nome do cliente (opcional)" />
-              <input name="customer_email" type="email" placeholder="E-mail do cliente" aria-label="E-mail do cliente (opcional)" />
-              <input name="customer_tax_id" placeholder="CPF/CNPJ do cliente" aria-label="CPF ou CNPJ do cliente (opcional)" />
-              <input name="customer_cellphone" placeholder="Celular do cliente ex: (11) 99999-9999" aria-label="Celular do cliente, ex: (11) 99999-9999 (opcional)" />
-              <button class="primary-button" type="submit">Gerar PIX</button>
-            </form>
-            <p class="form-hint">Dados do cliente são opcionais. Se preencher, informe CPF/CNPJ e celular juntos.</p>
-            <div class="payment-result" id="paymentResult">
-              <strong>Pronto para cobrar</strong>
-              <span>Preencha os dados acima e clique em Gerar PIX.</span>
+            <div class="pix-cta">
+              <div>
+                <strong>Receba por PIX em segundos</strong>
+                <p>Gere um QR Code e acompanhe o pagamento em tempo real.</p>
+              </div>
+              <button class="primary-button primary-button--lg" type="button" id="openChargeModal">
+                <span class="material-symbols-rounded" aria-hidden="true">add</span>Criar cobrança
+              </button>
             </div>
           </div>
           <div class="work-panel">
@@ -793,6 +788,81 @@
               </header>
               <div class="drawer__body" id="chargeDrawerBody"></div>
             </aside>
+          </div>
+
+          <!-- Criar cobrança -->
+          <div class="modal" id="chargeModal" hidden>
+            <div class="modal__overlay" data-close-charge-modal></div>
+            <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="chargeModalTitle">
+              <header class="modal__head">
+                <h3 id="chargeModalTitle">Nova cobrança</h3>
+                <button class="drawer__close" type="button" data-close-charge-modal aria-label="Fechar">✕</button>
+              </header>
+
+              <form class="modal__form" id="chargeForm">
+                <label class="field">
+                  <span class="field__label">Produto <small>(opcional)</small></span>
+                  <select name="product" id="chargeProduct">
+                    <option value="">Cobrança avulsa</option>
+                  </select>
+                  <small class="field__hint">Escolher um produto preenche a descrição e o valor.</small>
+                </label>
+
+                <label class="field">
+                  <span class="field__label">Descrição</span>
+                  <input name="description" id="chargeDescription" required placeholder="Ex.: Cachorro quente" />
+                </label>
+
+                <label class="field">
+                  <span class="field__label">Valor</span>
+                  <input name="amount" id="chargeAmount" inputmode="numeric" required placeholder="R$ 0,00" autocomplete="off" />
+                </label>
+
+                <fieldset class="field field--group">
+                  <legend class="field__label">Cliente <small>(opcional)</small></legend>
+                  <input name="customer_name" placeholder="Nome" aria-label="Nome do cliente" />
+                  <input name="customer_email" type="email" placeholder="E-mail" aria-label="E-mail do cliente" />
+                  <input name="customer_tax_id" placeholder="CPF/CNPJ" aria-label="CPF ou CNPJ do cliente" />
+                  <input name="customer_cellphone" placeholder="Celular (11) 99999-9999" aria-label="Celular do cliente" />
+                  <small class="field__hint">Se preencher, informe CPF/CNPJ e celular juntos.</small>
+                </fieldset>
+
+                <p class="modal__error" id="chargeFormError" role="alert" hidden></p>
+
+                <div class="modal__actions">
+                  <button class="ghost-button" type="button" data-close-charge-modal>Cancelar</button>
+                  <button class="primary-button" type="submit" id="chargeSubmit">Gerar PIX</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Tela do QR Code, com acompanhamento em tempo real -->
+          <div class="pix-screen" id="pixScreen" hidden>
+            <div class="pix-screen__inner">
+              <button class="ghost-button pix-screen__back" type="button" id="pixScreenBack">← Voltar</button>
+
+              <div class="pix-screen__card" id="pixScreenCard">
+                <p class="pix-screen__label" id="pixDescription">Cobrança</p>
+                <strong class="pix-screen__amount value-currency" id="pixAmount">R$ 0,00</strong>
+
+                <div class="pix-screen__qr-wrap" id="pixQrWrap">
+                  <img class="pix-screen__qr" id="pixQr" alt="QR Code para pagamento PIX" />
+                </div>
+
+                <div class="pix-screen__status" id="pixStatus">
+                  <span class="pix-screen__pulse" aria-hidden="true"></span>
+                  <span id="pixStatusText">Aguardando pagamento…</span>
+                </div>
+
+                <p class="pix-screen__timer" id="pixTimer"></p>
+
+                <div class="pix-screen__code" id="pixCodeBlock">
+                  <p class="drawer__code" id="pixBrCode"></p>
+                  <button class="ghost-button" type="button" id="pixCopyBtn">Copiar código</button>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
