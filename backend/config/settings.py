@@ -159,6 +159,12 @@ ABACATE_PAY_API_KEY = env("ABACATE_PAY_API_KEY", default="")
 ABACATE_PAY_WEBHOOK_SECRET = env("ABACATE_PAY_WEBHOOK_SECRET", default="")
 WAGEUP_ADMIN_EMAILS = env("WAGEUP_ADMIN_EMAILS", default="")
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
+
+# Assistente financeiro. Sem chave, o endpoint responde localmente em vez
+# de quebrar — mesmo padrao usado pelo marketing.
+DEEPSEEK_API_KEY = env("DEEPSEEK_API_KEY", default="")
+DEEPSEEK_BASE_URL = env("DEEPSEEK_BASE_URL", default="https://api.deepseek.com")
+DEEPSEEK_MODEL = env("DEEPSEEK_MODEL", default="deepseek-chat")
 GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID", default="")
 
 CUSTOM_DOMAIN = env("CUSTOM_DOMAIN", default="")

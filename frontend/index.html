@@ -36,7 +36,7 @@
           <div class="lp-hero__copy">
             <p class="lp-eyebrow">Gestão financeira para o seu negócio</p>
             <h1 class="lp-hero__title">A primeira plataforma financeira para MEs do Brasil</h1>
-            <p class="lp-hero__sub">Cobre por PIX, controle o caixa e receba insights com IA. Tudo em um só lugar, feito para o microempreendedor brasileiro.</p>
+            <p class="lp-hero__sub">Cobre por PIX, controle o caixa e receba insights com IA. Tudo em um só lugar.</p>
             <div class="lp-hero__actions">
               <button class="lp-btn lp-btn--primary lp-btn--lg" data-open-app>Começar agora</button>
               <a class="lp-btn lp-btn--quiet" href="#recursos">Ver recursos →</a>
@@ -921,17 +921,58 @@
         </section>
 
         <section class="view" id="finance-assistant">
-          <div class="work-panel">
-            <div class="panel-heading">
-              <h3>Assistente de IA</h3>
-              <span>Métricas e finanças do seu negócio</span>
+          <div class="chatbox">
+            <header class="chatbox__head">
+              <span class="chatbox__avatar material-symbols-rounded" aria-hidden="true">smart_toy</span>
+              <div class="chatbox__title">
+                <strong>Assistente financeiro</strong>
+                <small>Analisa os números do seu negócio</small>
+              </div>
+              <button class="chatbox__icon-btn" type="button" id="assistantNew"
+                      title="Nova conversa" aria-label="Começar nova conversa">
+                <span class="material-symbols-rounded" aria-hidden="true">edit_square</span>
+              </button>
+            </header>
+
+            <div class="chatbox__thread" id="assistantThread" role="log" aria-live="polite" aria-label="Conversa com o assistente"></div>
+
+            <div class="chatbox__suggestions" id="assistantSuggestions">
+              <div class="chatbox__suggestion-list" id="assistantSuggestionList" role="listbox" aria-label="Perguntas sugeridas">
+                <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="Como está a saúde financeira do meu negócio?">
+                  <span class="suggestion__arrow" aria-hidden="true">→</span>Como está a saúde financeira do meu negócio?
+                </button>
+                <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="Meu lucro melhorou ou piorou nos últimos meses?">
+                  <span class="suggestion__arrow" aria-hidden="true">→</span>Meu lucro melhorou ou piorou nos últimos meses?
+                </button>
+                <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="Qual produto me dá mais margem e o que devo priorizar?">
+                  <span class="suggestion__arrow" aria-hidden="true">→</span>Qual produto me dá mais margem?
+                </button>
+                <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="Quais cobranças PIX estão pendentes e de quem são?">
+                  <span class="suggestion__arrow" aria-hidden="true">→</span>Quais cobranças PIX estão pendentes?
+                </button>
+              </div>
+              <div class="chatbox__hint">
+                <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
+                <span><kbd>↵</kbd> selecionar</span>
+                <span><kbd>esc</kbd> fechar</span>
+              </div>
             </div>
-            <div class="assistant-placeholder">
-              <span class="assistant-placeholder__icon material-symbols-rounded" aria-hidden="true">smart_toy</span>
-              <strong>Em construção</strong>
-              <p>Aqui você vai poder conversar com uma IA sobre o seu negócio: entender para onde o dinheiro está indo, comparar meses, descobrir quais produtos dão mais margem e o que fazer com isso.</p>
-              <p class="assistant-placeholder__note">Por enquanto, acompanhe seus números na <button class="text-link" type="button" data-view="overview">Visão geral</button> e nas <button class="text-link" type="button" data-view="finance">Movimentações</button>.</p>
-            </div>
+
+            <form class="chatbox__composer" id="assistantForm">
+              <input id="assistantInput" name="message" autocomplete="off" required
+                     placeholder="Pergunte sobre suas finanças…" aria-label="Sua pergunta"
+                     aria-controls="assistantSuggestionList" />
+              <div class="chatbox__composer-row">
+                <span class="chatbox__provider" id="assistantProvider">
+                  <i class="chatbox__dot" aria-hidden="true"></i>Assistente financeiro
+                </span>
+                <button class="chatbox__send" type="submit" id="assistantSend" aria-label="Enviar pergunta">
+                  <span class="material-symbols-rounded" aria-hidden="true">arrow_upward</span>
+                </button>
+              </div>
+            </form>
+
+            <p class="chatbox__note">O assistente usa apenas os dados registrados na plataforma e não substitui um contador.</p>
           </div>
         </section>
 
