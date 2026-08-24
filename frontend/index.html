@@ -920,59 +920,60 @@
           </div>
         </section>
 
-        <section class="view" id="finance-assistant">
-          <div class="chatbox">
-            <header class="chatbox__head">
-              <span class="chatbox__avatar material-symbols-rounded" aria-hidden="true">smart_toy</span>
-              <div class="chatbox__title">
-                <strong>Assistente financeiro</strong>
-                <small>Analisa os números do seu negócio</small>
-              </div>
-              <button class="chatbox__icon-btn" type="button" id="assistantNew"
-                      title="Nova conversa" aria-label="Começar nova conversa">
-                <span class="material-symbols-rounded" aria-hidden="true">edit_square</span>
-              </button>
-            </header>
+        <section class="view view--full" id="finance-assistant">
+          <div class="assistant-layout">
 
-            <div class="chatbox__thread" id="assistantThread" role="log" aria-live="polite" aria-label="Conversa com o assistente"></div>
+            <aside class="chat-history" id="chatHistory">
+              <div class="chat-history__head">
+                <span>Conversas</span>
+                <button class="chatbox__icon-btn" type="button" id="assistantNew"
+                        title="Nova conversa" aria-label="Começar nova conversa">
+                  <span class="material-symbols-rounded" aria-hidden="true">edit_square</span>
+                </button>
+              </div>
+              <div class="chat-history__list" id="chatHistoryList"></div>
+            </aside>
 
-            <div class="chatbox__suggestions" id="assistantSuggestions">
-              <div class="chatbox__suggestion-list" id="assistantSuggestionList" role="listbox" aria-label="Perguntas sugeridas">
-                <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="Como está a saúde financeira do meu negócio?">
-                  <span class="suggestion__arrow" aria-hidden="true">→</span>Como está a saúde financeira do meu negócio?
-                </button>
-                <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="Meu lucro melhorou ou piorou nos últimos meses?">
-                  <span class="suggestion__arrow" aria-hidden="true">→</span>Meu lucro melhorou ou piorou nos últimos meses?
-                </button>
-                <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="Qual produto me dá mais margem e o que devo priorizar?">
-                  <span class="suggestion__arrow" aria-hidden="true">→</span>Qual produto me dá mais margem?
-                </button>
-                <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="Quais cobranças PIX estão pendentes e de quem são?">
-                  <span class="suggestion__arrow" aria-hidden="true">→</span>Quais cobranças PIX estão pendentes?
-                </button>
+            <div class="chatbox">
+              <div class="chatbox__thread" id="assistantThread" role="log" aria-live="polite" aria-label="Conversa com o assistente"></div>
+
+              <div class="chatbox__suggestions" id="assistantSuggestions">
+                <div class="chatbox__suggestion-list" id="assistantSuggestionList" role="listbox" aria-label="Perguntas sugeridas">
+                  <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="Como está a saúde financeira do meu negócio?">
+                    <span class="suggestion__arrow" aria-hidden="true">→</span>Como está a saúde financeira do meu negócio?
+                  </button>
+                  <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="Meu lucro melhorou ou piorou nos últimos meses?">
+                    <span class="suggestion__arrow" aria-hidden="true">→</span>Meu lucro melhorou ou piorou nos últimos meses?
+                  </button>
+                  <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="Qual produto me dá mais margem e o que devo priorizar?">
+                    <span class="suggestion__arrow" aria-hidden="true">→</span>Qual produto me dá mais margem?
+                  </button>
+                  <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="Quais cobranças PIX estão pendentes e de quem são?">
+                    <span class="suggestion__arrow" aria-hidden="true">→</span>Quais cobranças PIX estão pendentes?
+                  </button>
+                </div>
+                <div class="chatbox__hint">
+                  <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
+                  <span><kbd>↵</kbd> selecionar</span>
+                  <span><kbd>esc</kbd> fechar</span>
+                </div>
               </div>
-              <div class="chatbox__hint">
-                <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
-                <span><kbd>↵</kbd> selecionar</span>
-                <span><kbd>esc</kbd> fechar</span>
-              </div>
+
+              <form class="chatbox__composer" id="assistantForm">
+                <input id="assistantInput" name="message" autocomplete="off" required
+                       placeholder="Pergunte sobre suas finanças…" aria-label="Sua pergunta"
+                       aria-controls="assistantSuggestionList" />
+                <div class="chatbox__composer-row">
+                  <span class="chatbox__provider">
+                    <i class="chatbox__dot" aria-hidden="true"></i>Usa apenas os dados da plataforma
+                  </span>
+                  <button class="chatbox__send" type="submit" id="assistantSend" aria-label="Enviar pergunta">
+                    <span class="material-symbols-rounded" aria-hidden="true">arrow_upward</span>
+                  </button>
+                </div>
+              </form>
             </div>
 
-            <form class="chatbox__composer" id="assistantForm">
-              <input id="assistantInput" name="message" autocomplete="off" required
-                     placeholder="Pergunte sobre suas finanças…" aria-label="Sua pergunta"
-                     aria-controls="assistantSuggestionList" />
-              <div class="chatbox__composer-row">
-                <span class="chatbox__provider" id="assistantProvider">
-                  <i class="chatbox__dot" aria-hidden="true"></i>Assistente financeiro
-                </span>
-                <button class="chatbox__send" type="submit" id="assistantSend" aria-label="Enviar pergunta">
-                  <span class="material-symbols-rounded" aria-hidden="true">arrow_upward</span>
-                </button>
-              </div>
-            </form>
-
-            <p class="chatbox__note">O assistente usa apenas os dados registrados na plataforma e não substitui um contador.</p>
           </div>
         </section>
 

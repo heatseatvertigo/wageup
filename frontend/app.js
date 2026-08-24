@@ -639,6 +639,8 @@ function setView(viewName) {
   title.textContent = viewTitles[viewName] || "Wage Up";
   if (viewName === "overview") { renderSummary(); renderCalendar(); renderSemesterChart(); }
   if (viewName === "payments") loadPayments();
+  // A conversa vive no servidor: ao abrir a tela, restaura o histórico.
+  if (viewName === "finance-assistant" && !currentConversationId) startNewConversation();
 }
 
 function setDemoView(viewName) {
@@ -1548,13 +1550,12 @@ function chargeDrawerEscHandler(event) {
 // ─── Assistente financeiro ──────────────────────────────────────────────────
 
 const ASSISTANT_GREETING =
-  "Olá! Eu analiso os números do seu negócio. Posso explicar para onde o " +
-  "dinheiro está indo, comparar meses, apontar quais produtos rendem mais e " +
-  "quais cobranças PIX estão em aberto.";
+  "Oi! Eu leio os números do seu negócio e explico em português claro. " +
+  "Posso dizer quanto sobrou no mês, comparar com os anteriores, apontar " +
+  "qual produto rende mais e quais cobranças ainda não foram pagas.";
 
-// Histórico enviado ao backend a cada pergunta, para o assistente manter o fio
-// da conversa. A saudação é só da interface e não entra aqui.
-let assistantHistory = [];
+// A conversa mora no servidor: aqui guardamos só qual está aberta.
+let currentConversationId = null;
 let assistantBusy = false;
 let suggestionIndex = -1;
 
@@ -1580,17 +1581,6 @@ function appendAssistantMessage(role, text, variant) {
   thread.appendChild(article);
   thread.scrollTop = thread.scrollHeight;
   return article;
-}
-
-function resetAssistant() {
-  const thread = assistantThread();
-  if (!thread) return;
-  assistantHistory = [];
-  thread.innerHTML = "";
-  appendAssistantMessage("bot", ASSISTANT_GREETING);
-  setSuggestionsVisible(true);
-  highlightSuggestion(-1);
-  document.querySelector("#assistantInput")?.focus();
 }
 
 function setSuggestionsVisible(visible) {
@@ -1621,13 +1611,87 @@ function setAssistantBusy(busy) {
   if (input) input.disabled = busy;
 }
 
+// ─── Histórico de conversas ─────────────────────────────────────────────────
+
+async function loadConversations() {
+  const list = document.querySelector("#chatHistoryList");
+  if (!list) return;
+
+  let conversas = [];
+  try {
+    conversas = await apiRequest("/finance/assistant/conversations/");
+  } catch {
+    list.innerHTML = `<p class="chat-history__empty">Não foi possível carregar as conversas.</p>`;
+    return;
+  }
+
+  if (!conversas.length) {
+    list.innerHTML = `<p class="chat-history__empty">Suas conversas aparecem aqui depois da primeira pergunta.</p>`;
+    return;
+  }
+
+  list.innerHTML = conversas.map((conversa) => `
+    <div class="chat-history__item${conversa.id === currentConversationId ? " is-active" : ""}" data-conversa="${escapeHtml(conversa.id)}">
+      <button class="chat-history__title" type="button" data-abrir="${escapeHtml(conversa.id)}">${escapeHtml(conversa.title || "Nova conversa")}</button>
+      <button class="chat-history__delete" type="button" data-apagar="${escapeHtml(conversa.id)}" aria-label="Apagar conversa">
+        <span class="material-symbols-rounded" aria-hidden="true">delete</span>
+      </button>
+    </div>`).join("");
+
+  list.querySelectorAll("[data-abrir]").forEach((botao) => {
+    botao.addEventListener("click", () => openConversation(botao.dataset.abrir));
+  });
+  list.querySelectorAll("[data-apagar]").forEach((botao) => {
+    botao.addEventListener("click", () => deleteConversation(botao.dataset.apagar));
+  });
+}
+
+async function openConversation(id) {
+  const thread = assistantThread();
+  if (!thread) return;
+
+  try {
+    const conversa = await apiRequest(`/finance/assistant/conversations/${id}/`);
+    currentConversationId = conversa.id;
+    thread.innerHTML = "";
+    conversa.messages.forEach((m) => appendAssistantMessage(m.role, m.content));
+    setSuggestionsVisible(conversa.messages.length === 0);
+    loadConversations();
+  } catch {
+    appendAssistantMessage("bot", "Não foi possível abrir essa conversa.", "error");
+  }
+}
+
+async function deleteConversation(id) {
+  try {
+    await apiRequest(`/finance/assistant/conversations/${id}/`, { method: "DELETE" });
+  } catch {
+    return;
+  }
+  if (id === currentConversationId) startNewConversation();
+  else loadConversations();
+}
+
+function startNewConversation() {
+  const thread = assistantThread();
+  if (!thread) return;
+  currentConversationId = null;
+  thread.innerHTML = "";
+  appendAssistantMessage("bot", ASSISTANT_GREETING);
+  setSuggestionsVisible(true);
+  highlightSuggestion(-1);
+  loadConversations();
+  document.querySelector("#assistantInput")?.focus();
+}
+
+// ─── Perguntar ──────────────────────────────────────────────────────────────
+
 async function askAssistant(question) {
   const text = String(question || "").trim();
   if (!text || assistantBusy) return;
 
   setSuggestionsVisible(false);
   appendAssistantMessage("user", text);
-  assistantHistory.push({ role: "user", content: text });
 
   const pending = appendAssistantMessage("bot", "Analisando seus números…", "pending");
   setAssistantBusy(true);
@@ -1635,16 +1699,15 @@ async function askAssistant(question) {
   try {
     const data = await apiRequest("/finance/assistant/", {
       method: "POST",
-      body: JSON.stringify({ messages: assistantHistory })
+      body: JSON.stringify({ message: text, conversation_id: currentConversationId })
     });
     pending?.remove();
     appendAssistantMessage("bot", data.message);
-    assistantHistory.push({ role: "assistant", content: data.message });
+    currentConversationId = data.conversation.id;
+    loadConversations();
   } catch (error) {
     pending?.remove();
     appendAssistantMessage("bot", error.message, "error");
-    // A pergunta sai do histórico: sem resposta, ela deixaria a conversa torta.
-    assistantHistory.pop();
   } finally {
     setAssistantBusy(false);
     document.querySelector("#assistantInput")?.focus();
@@ -1659,7 +1722,7 @@ document.querySelector("#assistantForm")?.addEventListener("submit", (event) => 
   askAssistant(question);
 });
 
-document.querySelector("#assistantNew")?.addEventListener("click", () => resetAssistant());
+document.querySelector("#assistantNew")?.addEventListener("click", () => startNewConversation());
 
 suggestionButtons().forEach((item) => {
   item.addEventListener("click", () => askAssistant(item.dataset.ask));
@@ -1684,8 +1747,6 @@ document.querySelector("#assistantInput")?.addEventListener("keydown", (event) =
     setSuggestionsVisible(false);
   }
 });
-
-resetAssistant();
 
 // ─── Marketing AI ─────────────────────────────────────────────────────────────
 
