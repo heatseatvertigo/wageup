@@ -639,6 +639,8 @@ function setView(viewName) {
   title.textContent = viewTitles[viewName] || "Wage Up";
   // A tela do assistente esconde o título da página: a barra do chat basta.
   document.querySelector(".dashboard")?.classList.toggle("is-chat", viewName === "finance-assistant");
+  // A navegação vira uma trilha de ícones no chat, liberando largura.
+  appShell.classList.toggle("is-rail", viewName === "finance-assistant");
   if (viewName === "overview") { renderSummary(); renderCalendar(); renderSemesterChart(); }
   if (viewName === "payments") loadPayments();
   // A conversa vive no servidor: ao abrir a tela, restaura o histórico.
@@ -1615,6 +1617,23 @@ function setAssistantBusy(busy) {
 
 // ─── Histórico de conversas ─────────────────────────────────────────────────
 
+// Agrupa por quando a conversa foi mexida pela última vez: saber "quando"
+// ajuda a reencontrar uma conversa tanto quanto o título.
+function conversationGroup(updatedAt) {
+  const data = new Date(updatedAt);
+  if (Number.isNaN(data.getTime())) return "Anteriores";
+
+  const hoje = new Date();
+  const inicioDeHoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  const dias = Math.floor((inicioDeHoje - new Date(data.getFullYear(), data.getMonth(), data.getDate())) / 86400000);
+
+  if (dias <= 0) return "Hoje";
+  if (dias === 1) return "Ontem";
+  if (dias <= 7) return "Últimos 7 dias";
+  if (dias <= 30) return "Últimos 30 dias";
+  return "Anteriores";
+}
+
 async function loadConversations() {
   const list = document.querySelector("#chatHistoryList");
   if (!list) return;
@@ -1623,27 +1642,40 @@ async function loadConversations() {
   try {
     conversas = await apiRequest("/finance/assistant/conversations/");
   } catch {
-    list.innerHTML = `<p class="menu__empty">Não foi possível carregar as conversas.</p>`;
+    list.innerHTML = `<p class="chat-aside__empty">Não foi possível carregar as conversas.</p>`;
     return;
   }
 
   if (!conversas.length) {
-    list.innerHTML = `<p class="menu__empty">Suas conversas aparecem aqui depois da primeira pergunta.</p>`;
+    list.innerHTML = `<p class="chat-aside__empty">Suas conversas aparecem aqui depois da primeira pergunta.</p>`;
     return;
   }
 
-  list.innerHTML = conversas.map((conversa) => `
-    <div class="chat-item${conversa.id === currentConversationId ? " is-active" : ""}" role="none">
-      <button class="chat-item__open" type="button" role="menuitem" data-abrir="${escapeHtml(conversa.id)}">${escapeHtml(conversa.title || "Nova conversa")}</button>
-      <button class="chat-item__delete" type="button" data-apagar="${escapeHtml(conversa.id)}" aria-label="Apagar conversa">
-        <span class="material-symbols-rounded" aria-hidden="true">delete</span>
-      </button>
+  const grupos = new Map();
+  conversas.forEach((conversa) => {
+    const chave = conversationGroup(conversa.updated_at);
+    if (!grupos.has(chave)) grupos.set(chave, []);
+    grupos.get(chave).push(conversa);
+  });
+
+  list.innerHTML = [...grupos.entries()].map(([rotulo, itens]) => `
+    <div class="chat-group">
+      <p class="chat-group__label">${escapeHtml(rotulo)}</p>
+      ${itens.map((conversa) => `
+        <div class="chat-item${conversa.id === currentConversationId ? " is-active" : ""}">
+          <button class="chat-item__open" type="button" data-abrir="${escapeHtml(conversa.id)}"
+                  title="${escapeHtml(conversa.title || "Nova conversa")}">${escapeHtml(conversa.title || "Nova conversa")}</button>
+          <button class="chat-item__delete" type="button" data-apagar="${escapeHtml(conversa.id)}" aria-label="Apagar conversa">
+            <span class="material-symbols-rounded" aria-hidden="true">delete</span>
+          </button>
+        </div>`).join("")}
     </div>`).join("");
 
   list.querySelectorAll("[data-abrir]").forEach((botao) => {
     botao.addEventListener("click", () => {
       openConversation(botao.dataset.abrir);
-      setHistoryOpen(false);
+      // No celular a lista cobre o chat: escolher uma conversa recolhe.
+      if (window.matchMedia("(max-width: 768px)").matches) setAsideOpen(false);
     });
   });
   list.querySelectorAll("[data-apagar]").forEach((botao) => {
@@ -1651,13 +1683,12 @@ async function loadConversations() {
   });
 }
 
-// A cascata do histórico abre pelos três pontos e fecha ao clicar fora ou Esc.
-function setHistoryOpen(open) {
-  const panel = document.querySelector("#historyPanel");
-  const trigger = document.querySelector("#historyTrigger");
-  if (!panel || !trigger) return;
-  panel.hidden = !open;
-  trigger.setAttribute("aria-expanded", String(open));
+function setAsideOpen(open) {
+  const shell = document.querySelector("#assistantShell");
+  const toggle = document.querySelector("#asideToggle");
+  if (!shell) return;
+  shell.classList.toggle("is-collapsed", !open);
+  toggle?.setAttribute("aria-expanded", String(open));
 }
 
 function setAssistantTitle(texto) {
@@ -1746,20 +1777,11 @@ document.querySelector("#assistantForm")?.addEventListener("submit", (event) => 
 
 document.querySelector("#assistantNew")?.addEventListener("click", () => startNewConversation());
 
-document.querySelector("#historyTrigger")?.addEventListener("click", (event) => {
-  event.stopPropagation();
-  const aberto = document.querySelector("#historyPanel")?.hidden === false;
-  if (!aberto) loadConversations();
-  setHistoryOpen(!aberto);
+document.querySelector("#asideToggle")?.addEventListener("click", () => {
+  const recolhida = document.querySelector("#assistantShell")?.classList.contains("is-collapsed");
+  setAsideOpen(recolhida);
 });
 
-document.addEventListener("click", (event) => {
-  if (!document.querySelector("#historyMenu")?.contains(event.target)) setHistoryOpen(false);
-});
-
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") setHistoryOpen(false);
-});
 
 suggestionButtons().forEach((item) => {
   item.addEventListener("click", () => askAssistant(item.dataset.ask));
