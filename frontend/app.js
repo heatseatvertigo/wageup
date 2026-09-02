@@ -285,8 +285,21 @@ document.querySelector("#txRangeNext")?.addEventListener("click", () => {
 document.querySelector("#txRangeApply")?.addEventListener("click", () => applyRange());
 document.querySelector("#txRangeClear")?.addEventListener("click", () => clearRange());
 
+document.querySelector("#txRangeGrid")?.addEventListener("click", (event) => {
+  const celula = event.target.closest("[data-dia]");
+  if (celula) pickRangeDay(celula.dataset.dia);
+});
+
 document.addEventListener("click", (event) => {
-  if (!document.querySelector("#txRangeMenu")?.contains(event.target)) setRangeMenuOpen(false);
+  const menu = document.querySelector("#txRangeMenu");
+  if (!menu) return;
+  // Escolher um dia redesenha o calendário: quando este listener roda, o botão
+  // clicado já saiu do DOM e `contains` responderia "foi fora do menu",
+  // fechando o painel no meio da seleção. O caminho do evento é capturado no
+  // disparo e continua íntegro.
+  const caminho = typeof event.composedPath === "function" ? event.composedPath() : [];
+  if (caminho.includes(menu) || menu.contains(event.target)) return;
+  setRangeMenuOpen(false);
 });
 
 document.addEventListener("keydown", (event) => {
@@ -1359,10 +1372,6 @@ function renderRangeCalendar() {
         data-dia="${chave}" aria-label="${data.toLocaleDateString("pt-BR")}">${dia}</button>`;
   }
   grid.innerHTML = celulas;
-
-  grid.querySelectorAll("[data-dia]").forEach((celula) => {
-    celula.addEventListener("click", () => pickRangeDay(celula.dataset.dia));
-  });
 }
 
 function pickRangeDay(chave) {
