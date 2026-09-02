@@ -1722,14 +1722,17 @@ select:focus {
   .app-shell.is-rail .side-nav .material-symbols-rounded,
   .app-shell.is-rail .side-footer .material-symbols-rounded { font-size: 1.3rem; }
 
-  /* Ao passar o mouse a barra volta inteira, por cima do conteúdo. */
+  /* Ao passar o mouse a barra volta inteira e EMPURRA o conteúdo. Cobrir o
+     conteúdo escondia parte da tela — o calendário perdia as primeiras
+     colunas atrás da barra, o que lia como bug. */
+  .app-shell.is-rail:has(.sidebar:hover),
+  .app-shell.is-rail:has(.sidebar:focus-within) {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+
   .app-shell.is-rail .sidebar:hover,
   .app-shell.is-rail .sidebar:focus-within {
-    position: fixed;
-    width: 240px;
     padding: var(--space-6) var(--space-4);
-    z-index: 60;
-    box-shadow: var(--shadow-lg);
   }
 
   .app-shell.is-rail .sidebar:hover .account-chip div,
