@@ -583,27 +583,27 @@
           </div>
         </div>
         <nav class="side-nav" aria-label="Módulos da plataforma">
-          <button class="active" data-view="overview"><span class="material-symbols-rounded">home</span>Visão geral</button>
+          <button class="active" data-view="overview" title="Visão geral"><span class="material-symbols-rounded" aria-hidden="true">home</span>Visão geral</button>
 
           <div class="nav-group" data-nav-group data-admin-only>
-            <button class="nav-group__toggle" type="button" aria-expanded="false" aria-controls="financeSubmenu">
-              <span class="material-symbols-rounded">payments</span>
+            <button class="nav-group__toggle" type="button" title="Financeiro" aria-expanded="false" aria-controls="financeSubmenu">
+              <span class="material-symbols-rounded" aria-hidden="true">payments</span>
               Financeiro
               <span class="nav-group__chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
             </button>
             <div class="nav-group__submenu" id="financeSubmenu" role="group" aria-label="Módulos financeiros">
-              <button data-view="finance"><span class="material-symbols-rounded">receipt_long</span>Movimentações</button>
-              <button data-view="payments"><span class="material-symbols-rounded">qr_code_2</span>PIX</button>
-              <button data-view="finance-assistant"><span class="material-symbols-rounded">smart_toy</span>Assistente de IA</button>
+              <button data-view="finance" title="Movimentações"><span class="material-symbols-rounded" aria-hidden="true">receipt_long</span>Movimentações</button>
+              <button data-view="payments" title="PIX"><span class="material-symbols-rounded" aria-hidden="true">qr_code_2</span>PIX</button>
+              <button data-view="finance-assistant" title="Assistente de IA"><span class="material-symbols-rounded" aria-hidden="true">smart_toy</span>Assistente de IA</button>
             </div>
           </div>
 
-          <button data-view="products"><span class="material-symbols-rounded">inventory_2</span>Produtos</button>
-          <button data-view="app-marketing"><span class="material-symbols-rounded">auto_awesome</span>Marketing</button>
+          <button data-view="products" title="Produtos"><span class="material-symbols-rounded" aria-hidden="true">inventory_2</span>Produtos</button>
+          <button data-view="app-marketing" title="Marketing"><span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>Marketing</button>
         </nav>
         <div class="side-footer">
-          <button data-view="help"><span class="material-symbols-rounded">help</span>Ajuda</button>
-          <button data-logout><span class="material-symbols-rounded">logout</span>Sair</button>
+          <button data-view="help" title="Ajuda"><span class="material-symbols-rounded" aria-hidden="true">help</span>Ajuda</button>
+          <button data-logout title="Sair"><span class="material-symbols-rounded" aria-hidden="true">logout</span>Sair</button>
         </div>
       </aside>
 
@@ -920,59 +920,71 @@
           </div>
         </section>
 
-        <section class="view" id="finance-assistant">
-          <div class="chatbox">
-            <header class="chatbox__head">
-              <span class="chatbox__avatar material-symbols-rounded" aria-hidden="true">smart_toy</span>
-              <div class="chatbox__title">
-                <strong>Assistente financeiro</strong>
-                <small>Analisa os números do seu negócio</small>
-              </div>
-              <button class="chatbox__icon-btn" type="button" id="assistantNew"
-                      title="Nova conversa" aria-label="Começar nova conversa">
-                <span class="material-symbols-rounded" aria-hidden="true">edit_square</span>
-              </button>
-            </header>
+        <section class="view view--full" id="finance-assistant">
+          <div class="assistant-shell" id="assistantShell">
 
-            <div class="chatbox__thread" id="assistantThread" role="log" aria-live="polite" aria-label="Conversa com o assistente"></div>
-
-            <div class="chatbox__suggestions" id="assistantSuggestions">
-              <div class="chatbox__suggestion-list" id="assistantSuggestionList" role="listbox" aria-label="Perguntas sugeridas">
-                <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="Como está a saúde financeira do meu negócio?">
-                  <span class="suggestion__arrow" aria-hidden="true">→</span>Como está a saúde financeira do meu negócio?
-                </button>
-                <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="Meu lucro melhorou ou piorou nos últimos meses?">
-                  <span class="suggestion__arrow" aria-hidden="true">→</span>Meu lucro melhorou ou piorou nos últimos meses?
-                </button>
-                <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="Qual produto me dá mais margem e o que devo priorizar?">
-                  <span class="suggestion__arrow" aria-hidden="true">→</span>Qual produto me dá mais margem?
-                </button>
-                <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="Quais cobranças PIX estão pendentes e de quem são?">
-                  <span class="suggestion__arrow" aria-hidden="true">→</span>Quais cobranças PIX estão pendentes?
+            <aside class="chat-aside" id="chatAside" aria-label="Conversas anteriores">
+              <div class="chat-aside__head">
+                <span class="chat-aside__label">Conversas</span>
+                <button class="icon-btn icon-btn--sm" type="button" id="assistantNew"
+                        title="Nova conversa" aria-label="Começar nova conversa">
+                  <span class="material-symbols-rounded" aria-hidden="true">edit_square</span>
                 </button>
               </div>
-              <div class="chatbox__hint">
-                <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
-                <span><kbd>↵</kbd> selecionar</span>
-                <span><kbd>esc</kbd> fechar</span>
+              <div class="chat-aside__list" id="chatHistoryList"></div>
+            </aside>
+
+            <div class="chatbox">
+              <header class="chatbox__bar">
+                <button class="icon-btn" type="button" id="asideToggle"
+                        aria-expanded="true" aria-controls="chatAside"
+                        title="Mostrar ou esconder conversas" aria-label="Mostrar ou esconder conversas">
+                  <span class="material-symbols-rounded" aria-hidden="true">menu</span>
+                </button>
+                <p class="chatbox__conversation" id="assistantTitle">Nova conversa</p>
+              </header>
+
+              <div class="chatbox__thread" id="assistantThread" role="log" aria-live="polite" aria-label="Conversa com o assistente"></div>
+
+              <div class="chatbox__foot">
+                <div class="chatbox__suggestions" id="assistantSuggestions">
+                  <div class="chatbox__suggestion-list" id="assistantSuggestionList" role="listbox" aria-label="Perguntas sugeridas">
+                    <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="Como está a saúde financeira do meu negócio?">
+                      <span class="suggestion__arrow" aria-hidden="true">→</span>Como está a saúde financeira do meu negócio?
+                    </button>
+                    <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="Meu lucro melhorou ou piorou nos últimos meses?">
+                      <span class="suggestion__arrow" aria-hidden="true">→</span>Meu lucro melhorou ou piorou nos últimos meses?
+                    </button>
+                    <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="Qual produto me dá mais margem e o que devo priorizar?">
+                      <span class="suggestion__arrow" aria-hidden="true">→</span>Qual produto me dá mais margem?
+                    </button>
+                    <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="Quais cobranças PIX estão pendentes e de quem são?">
+                      <span class="suggestion__arrow" aria-hidden="true">→</span>Quais cobranças PIX estão pendentes?
+                    </button>
+                  </div>
+                  <div class="chatbox__hint">
+                    <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
+                    <span><kbd>↵</kbd> selecionar</span>
+                    <span><kbd>esc</kbd> fechar</span>
+                  </div>
+                </div>
+
+                <form class="chatbox__composer" id="assistantForm">
+                  <input id="assistantInput" name="message" autocomplete="off" required
+                         placeholder="Pergunte sobre suas finanças…" aria-label="Sua pergunta"
+                         aria-controls="assistantSuggestionList" />
+                  <div class="chatbox__composer-row">
+                    <span class="chatbox__provider">
+                      <i class="chatbox__dot" aria-hidden="true"></i>Usa apenas os dados da plataforma
+                    </span>
+                    <button class="chatbox__send" type="submit" id="assistantSend" aria-label="Enviar pergunta">
+                      <span class="material-symbols-rounded" aria-hidden="true">arrow_upward</span>
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
 
-            <form class="chatbox__composer" id="assistantForm">
-              <input id="assistantInput" name="message" autocomplete="off" required
-                     placeholder="Pergunte sobre suas finanças…" aria-label="Sua pergunta"
-                     aria-controls="assistantSuggestionList" />
-              <div class="chatbox__composer-row">
-                <span class="chatbox__provider" id="assistantProvider">
-                  <i class="chatbox__dot" aria-hidden="true"></i>Assistente financeiro
-                </span>
-                <button class="chatbox__send" type="submit" id="assistantSend" aria-label="Enviar pergunta">
-                  <span class="material-symbols-rounded" aria-hidden="true">arrow_upward</span>
-                </button>
-              </div>
-            </form>
-
-            <p class="chatbox__note">O assistente usa apenas os dados registrados na plataforma e não substitui um contador.</p>
           </div>
         </section>
 

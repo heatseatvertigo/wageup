@@ -32,3 +32,47 @@ class Transaction(models.Model):
         return f"{self.description} - {self.amount}"
 
 # Create your models here.
+
+
+class AssistantConversation(models.Model):
+    """Uma conversa com o assistente financeiro.
+
+    Antes o histórico vivia só na memória do navegador e sumia ao recarregar.
+    Persistir aqui também deixa o servidor dono da conversa: o cliente manda
+    apenas a nova pergunta, sem poder forjar o que foi dito antes.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    business = models.ForeignKey(
+        "businesses.Business",
+        on_delete=models.CASCADE,
+        related_name="assistant_conversations",
+    )
+    title = models.CharField(max_length=120, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return self.title or f"Conversa {self.id}"
+
+
+class AssistantMessage(models.Model):
+    class Role(models.TextChoices):
+        USER = "user", "Usuario"
+        ASSISTANT = "assistant", "Assistente"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    conversation = models.ForeignKey(
+        AssistantConversation,
+        on_delete=models.CASCADE,
+        related_name="messages",
+    )
+    role = models.CharField(max_length=16, choices=Role.choices)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
