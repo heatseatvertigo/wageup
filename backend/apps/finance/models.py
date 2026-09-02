@@ -8,6 +8,10 @@ class Transaction(models.Model):
         INCOME = "income", "Entrada"
         EXPENSE = "expense", "Saida"
 
+    class Source(models.TextChoices):
+        MANUAL = "manual", "Lancamento manual"
+        PIX = "pix", "Cobranca PIX"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     business = models.ForeignKey(
         "businesses.Business",
@@ -19,6 +23,14 @@ class Transaction(models.Model):
     description = models.CharField(max_length=180)
     type = models.CharField(max_length=16, choices=TransactionType.choices)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
+    # De onde veio o lancamento. Sem isto, uma entrada conciliada do PIX fica
+    # indistinguivel de uma digitada a mao, e o usuario nao sabe o que pode
+    # editar com seguranca.
+    source = models.CharField(
+        max_length=16,
+        choices=Source.choices,
+        default=Source.MANUAL,
+    )
     # Data do lançamento. Por padrão captura o momento da criação, mas é
     # editável para permitir lançar movimentações retroativas (ex.: um
     # pagamento recebido em outro dia).

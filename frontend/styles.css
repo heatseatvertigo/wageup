@@ -1766,6 +1766,53 @@ select:focus {
   .app-shell.is-rail .sidebar { transition: none; }
 }
 
+/* ─── Movimentações ─── */
+
+.summary-grid--trio { grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); max-width: 52rem; }
+
+.record-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.record-filters__month {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.record-filters__label {
+  min-width: 9.5rem;
+  text-align: center;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-primary);
+}
+
+.drawer__actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.ghost-button--danger {
+  color: var(--color-negative);
+  border-color: var(--color-border);
+}
+
+.ghost-button--danger:hover {
+  background: #FBEDED;
+  border-color: var(--color-negative);
+  color: var(--color-negative);
+}
+
+@media (max-width: 768px) {
+  .record-filters { flex-direction: column; align-items: stretch; }
+  .record-filters__month { justify-content: space-between; }
+}
+
 /* ─── Assistente financeiro (chat) ─── */
 
 /* A tela do chat dispensa o título da página: a barra do próprio chat já diz

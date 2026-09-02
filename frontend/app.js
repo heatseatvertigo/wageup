@@ -35,6 +35,17 @@ const CAL_MONTHS = [
 const CAL_WEEKDAYS = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
 let calendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
+// Estado da tela de Movimentações. Fica aqui em cima porque render() roda no
+// topo do arquivo: declarado mais abaixo, cairia na zona morta temporal.
+const TX_SOURCE = {
+  pix: { label: "Cobrança PIX", tone: "positive" },
+  manual: { label: "Lançamento manual", tone: "neutral" }
+};
+let txFilter = "all";
+let txMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let txAllPeriods = false;
+let txEditingId = null;
+
 const siteShell = document.querySelector(".site-shell");
 const authShell = document.querySelector("#auth");
 const onboardingShell = document.querySelector("#onboarding");
@@ -228,38 +239,95 @@ document.querySelector("#onboardingForm").addEventListener("submit", async (even
   await openApp();
 });
 
-document.querySelector("#transactionForm").addEventListener("submit", async (event) => {
+// ─── Movimentações: criar, editar e filtrar ─────────────────────────────────
+
+document.querySelector("#openTxModal")?.addEventListener("click", () => openTxModal(null));
+
+document.querySelectorAll("[data-close-tx-modal]").forEach((el) =>
+  el.addEventListener("click", closeTxModal)
+);
+
+document.querySelectorAll("[data-close-tx]").forEach((el) =>
+  el.addEventListener("click", closeTxDrawer)
+);
+
+document.querySelector("#txAmount")?.addEventListener("input", (event) => {
+  const input = event.target;
+  input.value = centsFromMasked(input.value) ? maskMoney(input.value) : "";
+});
+
+document.querySelectorAll("[data-tx-filter]").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    txFilter = chip.dataset.txFilter;
+    document.querySelectorAll("[data-tx-filter]").forEach((outro) => {
+      outro.classList.toggle("is-active", outro === chip);
+    });
+    renderTransactions();
+  });
+});
+
+document.querySelector("#txPrevMonth")?.addEventListener("click", () => shiftTxMonth(-1));
+document.querySelector("#txNextMonth")?.addEventListener("click", () => shiftTxMonth(1));
+
+document.querySelector("#txAllPeriods")?.addEventListener("click", (event) => {
+  txAllPeriods = !txAllPeriods;
+  event.currentTarget.classList.toggle("is-active", txAllPeriods);
+  renderTransactions();
+});
+
+document.querySelector("#transactionForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
-  // Guardar o elemento agora: depois de um await, event.currentTarget e null.
   const formEl = event.currentTarget;
   const form = new FormData(formEl);
+  const erro = document.querySelector("#txFormError");
+  const submit = document.querySelector("#txSubmit");
+
+  const centavos = centsFromMasked(form.get("amount"));
+  if (centavos <= 0) {
+    erro.textContent = "Informe um valor maior que zero.";
+    erro.hidden = false;
+    return;
+  }
+
   const payload = {
     description: form.get("description").trim(),
     type: form.get("type"),
-    amount: Number(form.get("amount"))
+    amount: centavos / 100
   };
+  const data = form.get("occurred_at");
+  if (data) payload.occurred_at = `${data}T12:00:00`;
 
-  // Data opcional: se informada, envia como meio-dia local (evita virada de dia
-  // por fuso). Se vazia, o backend grava o momento da criação automaticamente.
-  const chosenDate = form.get("occurred_at");
-  if (chosenDate) payload.occurred_at = `${chosenDate}T12:00:00`;
+  erro.hidden = true;
+  submit.disabled = true;
+  const rotulo = submit.textContent;
+  submit.textContent = "Salvando...";
 
-  const transaction = apiAvailable
-    ? await createTransaction(payload)
-    : { id: uid(), occurred_at: new Date().toISOString(), ...payload };
+  try {
+    if (txEditingId) {
+      const atualizada = apiAvailable
+        ? await updateTransaction(txEditingId, payload)
+        : { id: txEditingId, source: "manual", ...payload };
+      const i = state.transactions.findIndex((t) => String(t.id) === String(txEditingId));
+      if (i !== -1) state.transactions[i] = atualizada;
+    } else {
+      const criada = apiAvailable
+        ? await createTransaction(payload)
+        : { id: uid(), source: "manual", occurred_at: new Date().toISOString(), ...payload };
+      state.transactions.unshift(criada);
+    }
+  } catch (requestError) {
+    erro.textContent = requestError.message;
+    erro.hidden = false;
+    return;
+  } finally {
+    submit.disabled = false;
+    submit.textContent = rotulo;
+  }
 
-  state.transactions.unshift(transaction);
-  formEl.reset();
-  prefillTransactionDate();
+  closeTxModal();
   persist();
   render();
 });
-
-function prefillTransactionDate() {
-  const input = document.querySelector('#transactionForm input[name="occurred_at"]');
-  if (input) input.value = dateKey(new Date());
-}
-prefillTransactionDate();
 
 document.querySelector("#productForm").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -1095,31 +1163,208 @@ function goToChartMonth(index) {
   document.querySelector("#calGrid")?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
+// ─── Movimentações ──────────────────────────────────────────────────────────
+
+function txSourceInfo(source) {
+  return TX_SOURCE[source] || TX_SOURCE.manual;
+}
+
+// Recorte atual: tipo + mês (ou tudo, quando o usuário abre o período inteiro).
+function visibleTransactions() {
+  return state.transactions.filter((item) => {
+    if (txFilter !== "all" && item.type !== txFilter) return false;
+    if (txAllPeriods) return true;
+    const date = transactionDate(item);
+    return date.getFullYear() === txMonth.getFullYear() && date.getMonth() === txMonth.getMonth();
+  });
+}
+
+function renderTransactionTotals(lista) {
+  let entrou = 0;
+  let saiu = 0;
+  lista.forEach((item) => {
+    const valor = Number(item.amount) || 0;
+    if (item.type === "income") entrou += valor;
+    else saiu += valor;
+  });
+
+  const saldo = entrou - saiu;
+  document.querySelector("#txIncome").textContent = formatMoney(entrou);
+  document.querySelector("#txExpense").textContent = formatMoney(saiu);
+  const saldoEl = document.querySelector("#txBalance");
+  saldoEl.textContent = formatMoney(saldo);
+  saldoEl.classList.toggle("value-positive", saldo >= 0);
+  saldoEl.classList.toggle("value-negative", saldo < 0);
+}
+
 function renderTransactions() {
-  const rows = document.querySelector("#transactionRows");
-  rows.innerHTML = "";
-  if (!state.transactions.length) {
-    rows.innerHTML = `<tr class="empty-row"><td colspan="4">Nenhuma movimentação ainda — registre a primeira entrada ou saída acima.</td></tr>`;
+  const container = document.querySelector("#transactionRows");
+  if (!container) return;
+
+  const rotulo = document.querySelector("#txMonthLabel");
+  if (rotulo) {
+    rotulo.textContent = txAllPeriods
+      ? "Todo o período"
+      : `${CAL_MONTHS[txMonth.getMonth()]} de ${txMonth.getFullYear()}`;
+  }
+
+  const lista = visibleTransactions()
+    .slice()
+    .sort((a, b) => transactionDate(b) - transactionDate(a));
+
+  renderTransactionTotals(lista);
+
+  if (!lista.length) {
+    container.innerHTML = `<p class="empty-state">${
+      state.transactions.length
+        ? "Nenhuma movimentação neste recorte."
+        : "Nenhuma movimentação ainda — registre a primeira entrada ou saída."
+    }</p>`;
     return;
   }
-  state.transactions.forEach((transaction) => {
-    const row = document.createElement("tr");
-    row.innerHTML = `
-      <td>${escapeHtml(transaction.description)}</td>
-      <td>${transaction.type === "income" ? "Entrada" : "Saída"}</td>
-      <td>${formatMoney(transaction.amount)}</td>
-      <td><button class="delete-button" aria-label="Excluir" data-delete-transaction="${transaction.id}">×</button></td>
-    `;
-    rows.appendChild(row);
+
+  container.innerHTML = lista.map((item) => {
+    const entrada = item.type === "income";
+    const origem = txSourceInfo(item.source);
+    const quando = transactionDate(item).toLocaleDateString("pt-BR");
+    return `
+      <button class="charge-row" type="button" data-tx="${escapeHtml(item.id)}">
+        <span class="charge-row__main">
+          <strong>${escapeHtml(item.description)}</strong>
+          <small>${escapeHtml(quando)} · ${escapeHtml(origem.label)}</small>
+        </span>
+        <span class="charge-row__side">
+          <span class="value-currency charge-row__amount ${entrada ? "value-positive" : "value-negative"}">
+            ${entrada ? "+" : "−"} ${formatMoney(item.amount)}
+          </span>
+          <span class="status-badge status-badge--${entrada ? "positive" : "negative"}">${entrada ? "Entrada" : "Saída"}</span>
+        </span>
+        <span class="charge-row__chevron material-symbols-rounded" aria-hidden="true">chevron_right</span>
+      </button>`;
+  }).join("");
+
+  container.querySelectorAll("[data-tx]").forEach((linha) => {
+    linha.addEventListener("click", () => openTxDrawer(linha.dataset.tx));
   });
-  rows.querySelectorAll("[data-delete-transaction]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      if (apiAvailable) await deleteTransaction(button.dataset.deleteTransaction);
-      state.transactions = state.transactions.filter((item) => item.id !== button.dataset.deleteTransaction);
-      persist();
-      render();
+}
+
+function shiftTxMonth(delta) {
+  txAllPeriods = false;
+  txMonth = new Date(txMonth.getFullYear(), txMonth.getMonth() + delta, 1);
+  document.querySelector("#txAllPeriods")?.classList.remove("is-active");
+  renderTransactions();
+}
+
+// ─── Detalhes ───────────────────────────────────────────────────────────────
+
+function openTxDrawer(id) {
+  const drawer = document.querySelector("#txDrawer");
+  const item = state.transactions.find((t) => String(t.id) === String(id));
+  if (!drawer || !item) return;
+
+  const entrada = item.type === "income";
+  const origem = txSourceInfo(item.source);
+  const doPix = item.source === "pix";
+
+  document.querySelector("#txDrawerTitle").textContent = item.description;
+  const kind = document.querySelector("#txDrawerKind");
+  kind.textContent = entrada ? "Entrada" : "Saída";
+  kind.className = `drawer__weekday ${entrada ? "status-text--positive" : "status-text--negative"}`;
+
+  document.querySelector("#txDrawerBody").innerHTML = `
+    <div class="drawer__amount">
+      <span>Valor</span>
+      <strong class="value-currency ${entrada ? "status-text--positive" : "status-text--negative"}">${formatMoney(item.amount)}</strong>
+    </div>
+    ${drawerRows("Movimentação", [
+      ["Tipo", entrada ? "Entrada" : "Saída"],
+      ["Data", transactionDate(item).toLocaleDateString("pt-BR")],
+      ["Origem", origem.label],
+      ["Registrada em", formatDateTime(item.created_at)]
+    ])}
+    ${doPix
+      ? `<p class="drawer__note">Esta entrada foi criada automaticamente quando a cobrança PIX foi paga. Editar aqui faria o financeiro divergir da cobrança, então ela é somente leitura.</p>`
+      : `<div class="drawer__actions">
+           <button class="ghost-button" type="button" id="txEdit">Editar</button>
+           <button class="ghost-button ghost-button--danger" type="button" id="txDelete">Excluir</button>
+         </div>`}
+  `;
+
+  if (!doPix) {
+    document.querySelector("#txEdit")?.addEventListener("click", () => {
+      closeTxDrawer();
+      openTxModal(item);
     });
-  });
+    document.querySelector("#txDelete")?.addEventListener("click", () => removeTransaction(item.id));
+  }
+
+  drawer.hidden = false;
+  requestAnimationFrame(() => drawer.classList.add("is-open"));
+  document.addEventListener("keydown", txDrawerEscHandler);
+}
+
+function closeTxDrawer() {
+  const drawer = document.querySelector("#txDrawer");
+  if (!drawer) return;
+  drawer.classList.remove("is-open");
+  document.removeEventListener("keydown", txDrawerEscHandler);
+  window.setTimeout(() => { drawer.hidden = true; }, 300);
+}
+
+function txDrawerEscHandler(event) {
+  if (event.key === "Escape") closeTxDrawer();
+}
+
+async function removeTransaction(id) {
+  if (apiAvailable) {
+    try {
+      await deleteTransaction(id);
+    } catch {
+      return;
+    }
+  }
+  state.transactions = state.transactions.filter((item) => String(item.id) !== String(id));
+  closeTxDrawer();
+  persist();
+  render();
+}
+
+// ─── Criar e editar ─────────────────────────────────────────────────────────
+
+function openTxModal(item) {
+  const modal = document.querySelector("#txModal");
+  if (!modal) return;
+
+  txEditingId = item ? item.id : null;
+  document.querySelector("#txModalTitle").textContent = item ? "Editar movimentação" : "Nova movimentação";
+  document.querySelector("#txSubmit").textContent = item ? "Salvar" : "Adicionar";
+
+  document.querySelector("#txType").value = item ? item.type : "income";
+  document.querySelector("#txDescription").value = item ? item.description : "";
+  document.querySelector("#txAmount").value = item ? formatMoney(item.amount) : "";
+  document.querySelector("#txDate").value = item ? dateKey(transactionDate(item)) : dateKey(new Date());
+
+  const erro = document.querySelector("#txFormError");
+  erro.hidden = true;
+  erro.textContent = "";
+
+  modal.hidden = false;
+  requestAnimationFrame(() => modal.classList.add("is-open"));
+  document.addEventListener("keydown", txModalEscHandler);
+  document.querySelector("#txDescription")?.focus();
+}
+
+function closeTxModal() {
+  const modal = document.querySelector("#txModal");
+  if (!modal) return;
+  modal.classList.remove("is-open");
+  txEditingId = null;
+  document.removeEventListener("keydown", txModalEscHandler);
+  window.setTimeout(() => { modal.hidden = true; }, 300);
+}
+
+function txModalEscHandler(event) {
+  if (event.key === "Escape") closeTxModal();
 }
 
 function renderProducts() {
@@ -1887,6 +2132,15 @@ async function createProduct(payload) {
     persist();
     return { id: uid(), ...payload };
   }
+}
+
+async function updateTransaction(id, payload) {
+  // Diferente do create, aqui um erro precisa chegar ao usuário: salvar uma
+  // edição só na memória daria a impressão de que gravou.
+  return apiRequest(`/transactions/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 }
 
 async function createTransaction(payload) {

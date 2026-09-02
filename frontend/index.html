@@ -715,28 +715,106 @@
         </section>
 
         <section class="view" id="finance">
+          <div class="summary-grid summary-grid--trio">
+            <article class="summary-card">
+              <span>Entrou no período</span>
+              <strong id="txIncome" class="value-currency value-positive">R$ 0,00</strong>
+            </article>
+            <article class="summary-card">
+              <span>Saiu no período</span>
+              <strong id="txExpense" class="value-currency value-negative">R$ 0,00</strong>
+            </article>
+            <article class="summary-card">
+              <span>Saldo do período</span>
+              <strong id="txBalance" class="value-currency">R$ 0,00</strong>
+            </article>
+          </div>
+
           <div class="work-panel">
             <div class="panel-heading">
               <h3>Movimentações</h3>
-              <span>Entradas e saídas</span>
+              <button class="primary-button" type="button" id="openTxModal">
+                <span class="material-symbols-rounded" aria-hidden="true">add</span>Nova movimentação
+              </button>
             </div>
-            <form class="inline-form" id="transactionForm">
-              <input name="description" placeholder="Descrição" required aria-label="Descrição da movimentação" />
-              <select name="type" required aria-label="Tipo de movimentação">
-                <option value="income">Entrada</option>
-                <option value="expense">Saída</option>
-              </select>
-              <input name="amount" type="number" min="0.01" step="0.01" placeholder="Valor" required aria-label="Valor (R$)" />
-              <input name="occurred_at" type="date" aria-label="Data da movimentação" title="Data da movimentação (padrão: hoje)" />
-              <button class="primary-button" type="submit">Adicionar</button>
-            </form>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr><th>Descrição</th><th>Tipo</th><th>Valor</th><th></th></tr>
-                </thead>
-                <tbody id="transactionRows"></tbody>
-              </table>
+
+            <div class="record-filters">
+              <div class="charge-filters" role="group" aria-label="Filtrar por tipo">
+                <button class="chip is-active" type="button" data-tx-filter="all">Todas</button>
+                <button class="chip" type="button" data-tx-filter="income">Entradas</button>
+                <button class="chip" type="button" data-tx-filter="expense">Saídas</button>
+              </div>
+              <div class="record-filters__month">
+                <button class="icon-btn" type="button" id="txPrevMonth" aria-label="Mês anterior">
+                  <span class="material-symbols-rounded" aria-hidden="true">chevron_left</span>
+                </button>
+                <span class="record-filters__label" id="txMonthLabel">—</span>
+                <button class="icon-btn" type="button" id="txNextMonth" aria-label="Próximo mês">
+                  <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                </button>
+                <button class="chip" type="button" id="txAllPeriods">Todo o período</button>
+              </div>
+            </div>
+
+            <div class="charge-list" id="transactionRows"></div>
+          </div>
+
+          <!-- Detalhes da movimentação -->
+          <div class="drawer" id="txDrawer" hidden>
+            <div class="drawer__overlay" data-close-tx></div>
+            <aside class="drawer__panel" role="dialog" aria-modal="true" aria-labelledby="txDrawerTitle">
+              <header class="drawer__head">
+                <div>
+                  <p class="drawer__date" id="txDrawerTitle">Movimentação</p>
+                  <span class="drawer__weekday" id="txDrawerKind"></span>
+                </div>
+                <button class="drawer__close" type="button" data-close-tx aria-label="Fechar">✕</button>
+              </header>
+              <div class="drawer__body" id="txDrawerBody"></div>
+            </aside>
+          </div>
+
+          <!-- Criar / editar movimentação -->
+          <div class="modal" id="txModal" hidden>
+            <div class="modal__overlay" data-close-tx-modal></div>
+            <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="txModalTitle">
+              <header class="modal__head">
+                <h3 id="txModalTitle">Nova movimentação</h3>
+                <button class="drawer__close" type="button" data-close-tx-modal aria-label="Fechar">✕</button>
+              </header>
+
+              <form class="modal__form" id="transactionForm">
+                <label class="field">
+                  <span class="field__label">Tipo</span>
+                  <select name="type" id="txType" required>
+                    <option value="income">Entrada — dinheiro que entrou</option>
+                    <option value="expense">Saída — dinheiro que saiu</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span class="field__label">Descrição</span>
+                  <input name="description" id="txDescription" required placeholder="Ex.: Vendas do dia" />
+                </label>
+
+                <label class="field">
+                  <span class="field__label">Valor</span>
+                  <input name="amount" id="txAmount" inputmode="numeric" required placeholder="R$ 0,00" autocomplete="off" />
+                </label>
+
+                <label class="field">
+                  <span class="field__label">Data</span>
+                  <input name="occurred_at" id="txDate" type="date" />
+                  <small class="field__hint">Deixe em branco para hoje.</small>
+                </label>
+
+                <p class="modal__error" id="txFormError" role="alert" hidden></p>
+
+                <div class="modal__actions">
+                  <button class="ghost-button" type="button" data-close-tx-modal>Cancelar</button>
+                  <button class="primary-button" type="submit" id="txSubmit">Adicionar</button>
+                </div>
+              </form>
             </div>
           </div>
         </section>

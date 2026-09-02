@@ -263,6 +263,7 @@ def record_finance_income(payment):
         description=f"PIX recebido: {description}"[:180],
         type=Transaction.TransactionType.INCOME,
         amount=payment.amount,
+        source=Transaction.Source.PIX,
     )
     payment.metadata = {**payment.metadata, "finance_transaction_id": str(transaction.id)}
 
@@ -279,5 +280,6 @@ def record_finance_refund(payment):
         description=f"Estorno PIX: {description}"[:180],
         type=Transaction.TransactionType.EXPENSE,
         amount=payment.amount,
+        source=Transaction.Source.PIX,
     )
     payment.metadata = {**payment.metadata, "refund_transaction_id": str(transaction.id)}
