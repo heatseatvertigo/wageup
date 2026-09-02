@@ -1680,8 +1680,8 @@ select:focus {
   .nav-group__chevron { transition: none; }
 }
 
-/* ─── Navegação em trilha de ícones (tela do assistente) ───
-   No chat a navegação encolhe para uma faixa de ícones, liberando espaço.
+/* ─── Navegação em trilha de ícones ───
+   A navegação fica recolhida em toda a plataforma, liberando espaço.
    Passar o mouse devolve a barra inteira, sobreposta ao conteúdo, para não
    empurrar o chat a cada vez. */
 

@@ -639,8 +639,9 @@ function setView(viewName) {
   title.textContent = viewTitles[viewName] || "Wage Up";
   // A tela do assistente esconde o título da página: a barra do chat basta.
   document.querySelector(".dashboard")?.classList.toggle("is-chat", viewName === "finance-assistant");
-  // A navegação vira uma trilha de ícones no chat, liberando largura.
-  appShell.classList.toggle("is-rail", viewName === "finance-assistant");
+  // A navegação fica recolhida em trilha de ícones em toda a plataforma e se
+  // abre ao passar o mouse ou receber foco pelo teclado.
+  appShell.classList.add("is-rail");
   if (viewName === "overview") { renderSummary(); renderCalendar(); renderSemesterChart(); }
   if (viewName === "payments") loadPayments();
   // A conversa vive no servidor: ao abrir a tela, restaura o histórico.
