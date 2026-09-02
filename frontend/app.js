@@ -45,6 +45,7 @@ let txFilter = "all";
 let txMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let txAllPeriods = false;
 let txEditingId = null;
+let txRange = { start: null, end: null };
 
 const siteShell = document.querySelector(".site-shell");
 const authShell = document.querySelector("#auth");
@@ -266,11 +267,39 @@ document.querySelectorAll("[data-tx-filter]").forEach((chip) => {
   });
 });
 
+document.querySelector("#txRangeTrigger")?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  setRangeMenuOpen(document.querySelector("#txRangePanel")?.hidden !== false);
+});
+
+document.querySelector("#txRangePrev")?.addEventListener("click", () => {
+  txRangeCursor = new Date(txRangeCursor.getFullYear(), txRangeCursor.getMonth() - 1, 1);
+  renderRangeCalendar();
+});
+
+document.querySelector("#txRangeNext")?.addEventListener("click", () => {
+  txRangeCursor = new Date(txRangeCursor.getFullYear(), txRangeCursor.getMonth() + 1, 1);
+  renderRangeCalendar();
+});
+
+document.querySelector("#txRangeApply")?.addEventListener("click", () => applyRange());
+document.querySelector("#txRangeClear")?.addEventListener("click", () => clearRange());
+
+document.addEventListener("click", (event) => {
+  if (!document.querySelector("#txRangeMenu")?.contains(event.target)) setRangeMenuOpen(false);
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") setRangeMenuOpen(false);
+});
+
 document.querySelector("#txPrevMonth")?.addEventListener("click", () => shiftTxMonth(-1));
 document.querySelector("#txNextMonth")?.addEventListener("click", () => shiftTxMonth(1));
 
 document.querySelector("#txAllPeriods")?.addEventListener("click", (event) => {
   txAllPeriods = !txAllPeriods;
+  txRange = { start: null, end: null };
+  document.querySelector("#txRangeTrigger")?.classList.remove("is-active");
   event.currentTarget.classList.toggle("is-active", txAllPeriods);
   renderTransactions();
 });
@@ -1173,8 +1202,14 @@ function txSourceInfo(source) {
 function visibleTransactions() {
   return state.transactions.filter((item) => {
     if (txFilter !== "all" && item.type !== txFilter) return false;
-    if (txAllPeriods) return true;
     const date = transactionDate(item);
+
+    // O período personalizado, quando existe, manda em cima do mês.
+    if (txRange.start) {
+      const dia = dateKey(date);
+      return dia >= dateKey(txRange.start) && dia <= dateKey(txRange.end);
+    }
+    if (txAllPeriods) return true;
     return date.getFullYear() === txMonth.getFullYear() && date.getMonth() === txMonth.getMonth();
   });
 }
@@ -1203,7 +1238,9 @@ function renderTransactions() {
 
   const rotulo = document.querySelector("#txMonthLabel");
   if (rotulo) {
-    rotulo.textContent = txAllPeriods
+    rotulo.textContent = txRange.start
+      ? `${txRange.start.toLocaleDateString("pt-BR")} – ${txRange.end.toLocaleDateString("pt-BR")}`
+      : txAllPeriods
       ? "Todo o período"
       : `${CAL_MONTHS[txMonth.getMonth()]} de ${txMonth.getFullYear()}`;
   }
@@ -1250,8 +1287,119 @@ function renderTransactions() {
 
 function shiftTxMonth(delta) {
   txAllPeriods = false;
+  txRange = { start: null, end: null };
+  document.querySelector("#txRangeTrigger")?.classList.remove("is-active");
   txMonth = new Date(txMonth.getFullYear(), txMonth.getMonth() + delta, 1);
   document.querySelector("#txAllPeriods")?.classList.remove("is-active");
+  renderTransactions();
+}
+
+// ─── Filtro por período personalizado ───────────────────────────────────────
+
+// Mês visível no calendário do filtro (independente do mês da lista).
+let txRangeCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+// Seleção em andamento, ainda não aplicada.
+let txRangeDraft = { start: null, end: null };
+
+function sameDay(a, b) {
+  return a && b && dateKey(a) === dateKey(b);
+}
+
+function setRangeMenuOpen(open) {
+  const panel = document.querySelector("#txRangePanel");
+  const trigger = document.querySelector("#txRangeTrigger");
+  if (!panel || !trigger) return;
+  panel.hidden = !open;
+  trigger.setAttribute("aria-expanded", String(open));
+  if (open) {
+    // Reabrir parte do que já está aplicado, para ajustar em vez de recomeçar.
+    txRangeDraft = txRange.start
+      ? { start: new Date(txRange.start), end: txRange.end ? new Date(txRange.end) : null }
+      : { start: null, end: null };
+    txRangeCursor = new Date((txRangeDraft.start || new Date()).getFullYear(), (txRangeDraft.start || new Date()).getMonth(), 1);
+    renderRangeCalendar();
+  }
+}
+
+function renderRangeCalendar() {
+  const grid = document.querySelector("#txRangeGrid");
+  const rotulo = document.querySelector("#txRangeMonth");
+  const dica = document.querySelector("#txRangeHint");
+  const aplicar = document.querySelector("#txRangeApply");
+  if (!grid || !rotulo) return;
+
+  const ano = txRangeCursor.getFullYear();
+  const mes = txRangeCursor.getMonth();
+  rotulo.textContent = `${CAL_MONTHS[mes]} de ${ano}`;
+
+  const { start, end } = txRangeDraft;
+  dica.textContent = !start
+    ? "Escolha o dia de início."
+    : !end
+    ? "Agora escolha o dia final."
+    : `De ${start.toLocaleDateString("pt-BR")} até ${end.toLocaleDateString("pt-BR")}.`;
+  aplicar.disabled = !start;
+
+  const primeiroDia = new Date(ano, mes, 1).getDay();
+  const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+  const hoje = dateKey(new Date());
+
+  let celulas = "";
+  for (let i = 0; i < primeiroDia; i += 1) {
+    celulas += `<span class="range__day range__day--empty" aria-hidden="true"></span>`;
+  }
+  for (let dia = 1; dia <= diasNoMes; dia += 1) {
+    const data = new Date(ano, mes, dia);
+    const chave = dateKey(data);
+    const ponta = sameDay(data, start) || sameDay(data, end);
+    const entre = start && end && data > start && data < end;
+    celulas += `
+      <button type="button" role="gridcell"
+        class="range__day${ponta ? " is-edge" : ""}${entre ? " is-between" : ""}${chave === hoje ? " is-today" : ""}"
+        data-dia="${chave}" aria-label="${data.toLocaleDateString("pt-BR")}">${dia}</button>`;
+  }
+  grid.innerHTML = celulas;
+
+  grid.querySelectorAll("[data-dia]").forEach((celula) => {
+    celula.addEventListener("click", () => pickRangeDay(celula.dataset.dia));
+  });
+}
+
+function pickRangeDay(chave) {
+  const [ano, mes, dia] = chave.split("-").map(Number);
+  const escolhido = new Date(ano, mes - 1, dia);
+  const { start, end } = txRangeDraft;
+
+  if (!start || end) {
+    // Começa uma seleção nova.
+    txRangeDraft = { start: escolhido, end: null };
+  } else if (escolhido < start) {
+    // Clicou antes do início: inverte, em vez de recusar o clique.
+    txRangeDraft = { start: escolhido, end: start };
+  } else {
+    txRangeDraft = { start, end: escolhido };
+  }
+  renderRangeCalendar();
+}
+
+function applyRange() {
+  const { start, end } = txRangeDraft;
+  if (!start) return;
+  // Um dia só é um intervalo válido de um dia.
+  txRange = { start, end: end || start };
+  txAllPeriods = false;
+  document.querySelector("#txAllPeriods")?.classList.remove("is-active");
+  document.querySelector("#txRangeTrigger")?.classList.add("is-active");
+  setRangeMenuOpen(false);
+  renderTransactions();
+}
+
+function clearRange() {
+  txRange = { start: null, end: null };
+  txRangeDraft = { start: null, end: null };
+  document.querySelector("#txRangeTrigger")?.classList.remove("is-active");
+  renderRangeCalendar();
+  setRangeMenuOpen(false);
   renderTransactions();
 }
 

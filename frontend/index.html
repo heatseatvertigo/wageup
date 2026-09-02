@@ -753,6 +753,38 @@
                   <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
                 </button>
                 <button class="chip" type="button" id="txAllPeriods">Todo o período</button>
+
+                <div class="menu" id="txRangeMenu">
+                  <button class="chip chip--action" type="button" id="txRangeTrigger"
+                          aria-haspopup="true" aria-expanded="false" aria-controls="txRangePanel">
+                    <span class="material-symbols-rounded" aria-hidden="true">tune</span>Filtros
+                  </button>
+
+                  <div class="menu__panel menu__panel--wide" id="txRangePanel" hidden>
+                    <p class="menu__label">Período personalizado</p>
+                    <p class="range__hint" id="txRangeHint">Escolha o dia de início.</p>
+
+                    <div class="range__nav">
+                      <button class="icon-btn icon-btn--sm" type="button" id="txRangePrev" aria-label="Mês anterior">
+                        <span class="material-symbols-rounded" aria-hidden="true">chevron_left</span>
+                      </button>
+                      <span class="range__month" id="txRangeMonth">—</span>
+                      <button class="icon-btn icon-btn--sm" type="button" id="txRangeNext" aria-label="Próximo mês">
+                        <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                      </button>
+                    </div>
+
+                    <div class="range__weekdays" aria-hidden="true">
+                      <span>dom</span><span>seg</span><span>ter</span><span>qua</span><span>qui</span><span>sex</span><span>sáb</span>
+                    </div>
+                    <div class="range__grid" id="txRangeGrid" role="grid" aria-label="Selecione o período"></div>
+
+                    <div class="range__actions">
+                      <button class="ghost-button" type="button" id="txRangeClear">Limpar</button>
+                      <button class="primary-button" type="button" id="txRangeApply" disabled>Aplicar</button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
