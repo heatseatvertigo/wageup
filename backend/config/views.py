@@ -39,4 +39,10 @@ def frontend_index(request):
         f'</script>'
     )
     content = content.replace("</head>", f"{inject}\n</head>", 1)
-    return HttpResponse(content, content_type="text/html; charset=utf-8")
+
+    response = HttpResponse(content, content_type="text/html; charset=utf-8")
+    # O HTML nunca pode vir do cache: e ele que carrega as URLs versionadas do
+    # CSS e do JS. Guardado, o navegador continua pedindo os arquivos antigos e
+    # monta a pagina nova sobre estilos velhos.
+    response["Cache-Control"] = "no-cache, must-revalidate"
+    return response
