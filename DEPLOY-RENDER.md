@@ -57,14 +57,24 @@ Na aba **Environment** do serviço, adicione (botão "Add Environment Variable")
 | Variável | Valor |
 |---|---|
 | `DATABASE_URL` | a connection string do Neon (Passo 1) |
-| `SECRET_KEY` | um valor secreto aleatório e longo — **ver como gerar abaixo** |
+| `SECRET_KEY` | um valor secreto aleatório de 50 caracteres ou mais — use o botão **Generate** do Render, ou **ver como gerar abaixo** |
 | `DJANGO_DEBUG` | `False` |
 | `ALLOWED_HOSTS` | `localhost,127.0.0.1,testserver` (o domínio `.onrender.com` é adicionado automaticamente pelo código) |
 | `ABACATE_PAY_API_KEY` | sua chave da Abacate Pay |
 | `ABACATE_PAY_WEBHOOK_SECRET` | invente um segredo forte (será usado no Passo 5) |
 | `WAGEUP_ADMIN_EMAILS` | `guilherme.maiellaroo@gmail.com,discordguigo@gmail.com` |
-| `ANTHROPIC_API_KEY` | sua chave da Anthropic |
+| `ANTHROPIC_API_KEY` | sua chave da Anthropic (campanhas de marketing e insights) |
+| `DEEPSEEK_API_KEY` | sua chave da DeepSeek (assistente financeiro; sem ela o assistente cai na Anthropic) |
 | `GOOGLE_CLIENT_ID` | seu Client ID do Google (só se for usar login Google) |
+
+Opcionais, com valores padrão razoáveis no código: `LOG_LEVEL`, `THROTTLE_ANON`,
+`THROTTLE_USER`, `THROTTLE_AI`, `THROTTLE_LOGIN`, `SECURE_HSTS_SECONDS`,
+`SECURE_HSTS_INCLUDE_SUBDOMAINS`, `SECURE_HSTS_PRELOAD`, `CUSTOM_DOMAIN`. A lista
+completa e comentada está em [`.env.example`](.env.example).
+
+> **Duas variáveis são obrigatórias com `DJANGO_DEBUG=False`:**
+> - Sem uma `SECRET_KEY` própria de pelo menos 50 caracteres, a aplicação **se recusa a subir** (o deploy falha com uma mensagem explicando o que fazer). É proposital: uma chave conhecida ou curta permite forjar cookie de sessão e entrar como qualquer usuário. No painel do Render, o botão **Generate** ao lado do campo já preenche um valor adequado.
+> - Sem `ABACATE_PAY_WEBHOOK_SECRET`, o webhook responde `503` e nenhuma cobrança é confirmada automaticamente. Também é proposital: sem segredo, qualquer um poderia postar um evento e marcar uma cobrança como paga.
 
 **Como gerar o SECRET_KEY** (rode local, no terminal do projeto):
 ```bash
@@ -123,6 +133,7 @@ O domínio mudou de `*.railway.app` para `*.onrender.com`. Duas integrações ap
 - [ ] Módulo financeiro/PIX acessível (confirma que o e-mail é admin)
 - [ ] Webhook da Abacate Pay atualizado
 - [ ] Origin do Google atualizado (se usar login Google)
+- [ ] `python backend/manage.py check --deploy` roda sem avisos (aba **Shell** do Render)
 
 ---
 
@@ -134,5 +145,7 @@ O domínio mudou de `*.railway.app` para `*.onrender.com`. Duas integrações ap
 
 ## Notas importantes
 
+- **Segurança em produção:** com `DJANGO_DEBUG=False` o código liga sozinho o redirect para HTTPS, o HSTS, os cookies `Secure` e desliga a API navegável do DRF. O HSTS fica gravado no navegador por um ano e **não dá para cancelar antes disso** — se estiver estreando um domínio próprio e ainda em teste, defina `SECURE_HSTS_SECONDS=3600` no início e suba o valor depois. Os detalhes estão na seção "Segurança" do [`CLAUDE.md`](CLAUDE.md).
+- **Limite de requisições:** as rotas de IA aceitam 60 chamadas por hora por usuário e as de login 10 por minuto. Se durante a apresentação isso apertar, ajuste `THROTTLE_AI` / `THROTTLE_LOGIN` no painel do Render — a mudança vale no próximo deploy.
 - **Hibernação (plano free):** após ~15 min sem acesso, o serviço no Render "dorme" e o próximo acesso demora ~50s para acordar. Para a apresentação do TCC, abra o site alguns minutos antes. Se quiser eliminar isso, o plano pago é US$ 7/mês.
 - **Segurança:** com `DJANGO_DEBUG=False`, o Django para de mostrar páginas de erro detalhadas ao público — obrigatório em produção.

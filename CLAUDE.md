@@ -7,7 +7,7 @@ Plataforma para microempreendedores brasileiros (TCC). Permite gestão financeir
 Usuário **admin**: acessa módulo financeiro completo (transações, PIX via Abacate Pay).
 Usuário **member**: cadastro de produtos, marketing com IA, onboarding.
 
-O escopo completo está em `Escopo TCC.pdf` na raiz do projeto.
+O escopo completo está em `Escopo TCC.pdf`, dentro de `docs/` (pasta local, não versionada).
 
 ---
 
@@ -16,7 +16,7 @@ O escopo completo está em `Escopo TCC.pdf` na raiz do projeto.
 **Backend**: Django 6 + Django REST Framework, autenticação por Token.
 **Frontend**: SPA em vanilla JS (sem framework), servido pelo próprio Django via WhiteNoise.
 **Pagamentos**: Abacate Pay (PIX). Integração em `backend/apps/payments/services.py`.
-**IA**: Anthropic Claude Haiku (`claude-haiku-4-5-20251001`) para geração de campanhas de marketing.
+**IA**: Anthropic Claude Haiku (`claude-haiku-4-5-20251001`) para campanhas de marketing e insights do dashboard. DeepSeek (`deepseek-chat`) para o assistente financeiro, com a Anthropic como alternativa e resposta local quando não há nenhuma chave.
 **Deploy**: Render (aplicação) + Neon (PostgreSQL). Produção em https://wageup.onrender.com. Ver [DEPLOY-RENDER.md](DEPLOY-RENDER.md).
 
 ### Apps Django
@@ -26,7 +26,7 @@ backend/apps/
 ├── accounts/     # Auth (Token), UserProfile com role admin/member
 ├── businesses/   # Business (criado automaticamente no cadastro do usuário)
 ├── products/     # Catálogo de produtos por Business
-├── finance/      # Transações (entrada/saída) — só admin
+├── finance/      # Transações, insights e assistente financeiro — só admin
 ├── payments/     # Cobranças PIX via Abacate Pay — só admin
 └── marketing/    # Campanhas de marketing com IA (Claude Haiku)
 ```
@@ -44,6 +44,49 @@ Todos os ViewSets filtram por `business__owner=request.user`. Nunca use `queryse
 
 ---
 
+## Segurança
+
+Regras que valem para qualquer código novo. Todas estão implementadas em `backend/config/settings.py` e nas views.
+
+### Permissão é fechada por padrão
+
+`DEFAULT_PERMISSION_CLASSES` é `IsAuthenticated`. Uma view que esquecer de declarar permissão fica **inacessível**, não pública. As únicas rotas abertas declaram `AllowAny` de forma explícita:
+
+| Rota | Por que é aberta |
+|---|---|
+| `POST /api/auth/register/` | Cria a conta — não há como exigir login |
+| `POST /api/auth/login/` e `/api/auth/google/` | Autenticam |
+| `POST /api/payments/webhooks/abacatepay/` | Quem chama é a Abacate Pay; autentica pelo segredo compartilhado |
+| `GET /api/health/` | Health check do Render |
+
+Ao criar uma view nova, **não** adicione `AllowAny` sem um motivo desta tabela.
+
+### Limites de requisição (throttling)
+
+Definidos em `backend/apps/accounts/throttles.py` e aplicados com `@throttle_classes`:
+
+- `AIRateThrottle` (escopo `ai`, default 60/hora) — em toda rota que chama modelo de linguagem. Cada chamada custa dinheiro; sem limite, uma conta comprometida esvazia o crédito da API.
+- `LoginRateThrottle` (escopo `login`, default 10/min) — em registro, login e login com Google. Segura tentativa de descobrir senha por força bruta.
+- Padrão global: 30/min para visitante, 120/min para usuário autenticado.
+
+O health check e o webhook rodam com `@throttle_classes([])`: um 429 no health check derruba o deploy, e no webhook faria a Abacate Pay reentregar o evento à toa.
+
+O contador do throttle vive no cache do Django, que hoje é `LocMemCache` — ou seja, por processo. Com mais de um worker do gunicorn o limite efetivo é multiplicado pelo número de workers. Para um limite exato seria preciso um cache compartilhado (Redis).
+
+### Produção (`DJANGO_DEBUG=False`)
+
+- O projeto **se recusa a subir** com a `SECRET_KEY` de exemplo, ausente ou com menos de 50 caracteres. O mínimo é o mesmo que o `check --deploy` do Django cobra (`security.W009`): checar só a chave de exemplo deixaria passar um valor curto qualquer, que não protege nada.
+- HTTPS obrigatório: `SECURE_SSL_REDIRECT`, cookies com `Secure`, HSTS (ajustável por `SECURE_HSTS_SECONDS`).
+- `SECURE_PROXY_SSL_HEADER` é obrigatório atrás do proxy do Render — sem ele o redirect de HTTPS entra em laço.
+- A API navegável do DRF (`BrowsableAPIRenderer`) só é carregada com `DEBUG=True`.
+- O webhook da Abacate Pay responde `503` se `ABACATE_PAY_WEBHOOK_SECRET` não estiver configurado. Sem segredo, qualquer um poderia postar um evento e marcar uma cobrança como paga. A comparação usa `secrets.compare_digest` (tempo constante).
+
+### Isolamento continua sendo responsabilidade da view
+
+Throttle e permissão não substituem o filtro por `business`. Todo `get_queryset()` filtra pelo negócio do usuário — ver a seção "Isolamento de dados".
+
+---
+
 ## Variáveis de ambiente
 
 Arquivo `.env` na raiz do projeto (não commitado). Ver `.env.example` para referência.
@@ -56,7 +99,16 @@ Arquivo `.env` na raiz do projeto (não commitado). Ver `.env.example` para refe
 | `ABACATE_PAY_API_KEY` | Chave da Abacate Pay para gerar PIX |
 | `ABACATE_PAY_WEBHOOK_SECRET` | Segredo do webhook da Abacate Pay |
 | `WAGEUP_ADMIN_EMAILS` | E-mails com role admin (ex: `admin@wageup.com`) |
-| `ANTHROPIC_API_KEY` | Chave da Anthropic para IA de marketing |
+| `ANTHROPIC_API_KEY` | Chave da Anthropic — campanhas de marketing e insights |
+| `DEEPSEEK_API_KEY` | Chave da DeepSeek — assistente financeiro |
+| `DEEPSEEK_BASE_URL` | Endpoint da DeepSeek (default `https://api.deepseek.com`) |
+| `DEEPSEEK_MODEL` | Modelo da DeepSeek (default `deepseek-chat`) |
+| `GOOGLE_CLIENT_ID` | Client ID do Google — habilita o login com Google |
+| `LOG_LEVEL` | Nível dos logs de `apps.*` (default `INFO`) |
+| `THROTTLE_ANON` / `THROTTLE_USER` | Limite de requisições por visitante / por usuário |
+| `THROTTLE_AI` / `THROTTLE_LOGIN` | Limite das rotas de IA / das rotas de login e registro |
+| `SECURE_HSTS_SECONDS` | Duração do HSTS em produção (default 31536000) |
+| `SECURE_HSTS_INCLUDE_SUBDOMAINS` / `SECURE_HSTS_PRELOAD` | Ajuste fino do HSTS |
 | `CUSTOM_DOMAIN` | Domínio próprio — adicionado automaticamente ao CORS/ALLOWED_HOSTS |
 | `RENDER_EXTERNAL_HOSTNAME` | Preenchido automaticamente pelo Render — adicionado ao ALLOWED_HOSTS/CORS/CSRF |
 
@@ -85,10 +137,17 @@ PATCH  /api/auth/onboarding/
 
 GET/POST        /api/products/               # Filtrado por business do usuário
 GET/POST        /api/transactions/           # Só admin, filtrado por business
-GET/POST        /api/payments/              # Só admin, gera PIX via Abacate Pay
+GET             /api/finance/insights/       # Só admin, insights por IA do dashboard
+POST            /api/finance/assistant/      # Só admin, pergunta ao assistente financeiro
+GET/POST        /api/finance/assistant/conversations/          # Lista ou cria conversa
+GET/DELETE      /api/finance/assistant/conversations/<uuid>/   # Mensagens ou remoção
+GET/POST        /api/payments/               # Só admin, gera PIX via Abacate Pay
+GET             /api/payments/summary/       # Consolidação de recebíveis
+POST            /api/payments/<id>/check/    # Sincroniza status com a Abacate Pay
 POST            /api/payments/webhooks/abacatepay/   # Webhook de confirmação
 POST            /api/marketing/chat/         # Gera campanha (Claude Haiku se ANTHROPIC_API_KEY estiver set)
 GET/POST        /api/marketing/campaigns/
+GET             /api/health/                 # Health check (aberto, sem throttle)
 ```
 
 ---
@@ -106,6 +165,10 @@ GET/POST        /api/marketing/campaigns/
 5. **Admin via env var**: `WAGEUP_ADMIN_EMAILS` define quem é admin no cadastro. Não há promoção de role por interface — é configuração de deploy.
 
 6. **Abacate Pay centralizado**: no TCC, todas as cobranças vão para uma conta única de teste (limitação documentada no escopo). A arquitetura futura usaria subcontas.
+
+7. **API fechada por padrão**: `DEFAULT_PERMISSION_CLASSES = IsAuthenticated`. O default anterior era `AllowAny`, o que fazia a segurança depender de cada view lembrar de declarar permissão — um esquecimento bastava para expor uma rota. Ver a seção "Segurança".
+
+8. **`DJANGO_DEBUG` default `False`**: quem não configurar nada roda no modo seguro. O `.env.example` liga o modo de desenvolvimento explicitamente.
 
 ---
 
@@ -129,7 +192,10 @@ Para domínio próprio: configurar `CUSTOM_DOMAIN=seudominio.com` nas variáveis
 - [backend/apps/accounts/permissions.py](backend/apps/accounts/permissions.py) — `IsAdminRole`
 - [backend/apps/payments/services.py](backend/apps/payments/services.py) — cliente Abacate Pay
 - [backend/apps/marketing/views.py](backend/apps/marketing/views.py) — `_call_claude()` para IA
-- [frontend/app.js](frontend/app.js) — toda a lógica do SPA (744 linhas)
+- [backend/apps/finance/assistant.py](backend/apps/finance/assistant.py) — assistente financeiro (DeepSeek/Claude/local)
+- [backend/apps/finance/insights.py](backend/apps/finance/insights.py) — insights do dashboard
+- [backend/apps/accounts/throttles.py](backend/apps/accounts/throttles.py) — limites de requisição por rota
+- [frontend/app.js](frontend/app.js) — toda a lógica do SPA
 - [frontend/styles.css](frontend/styles.css) — CSS atual do SPA
 - [frontend/index.html](frontend/index.html) — HTML do SPA
 - [design-system.md](design-system.md) — **Design system completo** (cores, tipografia, componentes)

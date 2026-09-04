@@ -1,10 +1,11 @@
 import logging
+import secrets
 
 from django.conf import settings
 from django.db.models import Sum
 from django.utils import timezone
 from rest_framework import status, viewsets
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
@@ -141,10 +142,33 @@ class PaymentViewSet(viewsets.ModelViewSet):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([])
 def abacatepay_webhook(request):
+    """Recebe atualizacoes de status da Abacate Pay.
+
+    A rota e aberta porque quem chama e a Abacate Pay, nao o usuario. O que
+    autentica a chamada e o segredo compartilhado na query string.
+
+    Sem throttle: um 429 faria a Abacate Pay reentregar o evento a toa. A
+    protecao contra repeticao vem do `PaymentEvent` com `event_id` unico.
+    """
     configured_secret = settings.ABACATE_PAY_WEBHOOK_SECRET
     received_secret = request.query_params.get("webhookSecret", "")
-    if configured_secret and received_secret != configured_secret:
+
+    # Sem segredo configurado, qualquer um poderia postar um evento e marcar
+    # uma cobranca como paga. Em desenvolvimento isso e aceitavel para testar
+    # o fluxo sem tunel; em producao a rota fica fechada.
+    if not configured_secret:
+        if not settings.DEBUG:
+            logger.error("Webhook recebido sem ABACATE_PAY_WEBHOOK_SECRET configurado. Rejeitado.")
+            return Response(
+                {"detail": "webhook nao configurado"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+    # compare_digest compara em tempo constante: o tempo de resposta nao revela
+    # quantos caracteres do segredo o remetente acertou.
+    elif not secrets.compare_digest(received_secret, configured_secret):
+        logger.warning("Webhook da Abacate Pay rejeitado: segredo invalido.")
         return Response({"detail": "webhook nao autorizado"}, status=status.HTTP_401_UNAUTHORIZED)
 
     event_id = str(request.data.get("id") or request.data.get("event_id") or "")

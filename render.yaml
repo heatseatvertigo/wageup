@@ -14,8 +14,12 @@ services:
       #   ABACATE_PAY_API_KEY
       #   ABACATE_PAY_WEBHOOK_SECRET
       #   WAGEUP_ADMIN_EMAILS
-      #   ANTHROPIC_API_KEY
+      #   ANTHROPIC_API_KEY     -> marketing e insights
+      #   DEEPSEEK_API_KEY      -> assistente financeiro (opcional; sem ela cai na Anthropic)
       #   GOOGLE_CLIENT_ID      (opcional, para login Google)
+      #
+      # Com DJANGO_DEBUG=False o projeto exige SECRET_KEY propria e recusa o
+      # webhook da Abacate Pay sem ABACATE_PAY_WEBHOOK_SECRET.
       - key: DJANGO_DEBUG
         value: "False"
       - key: ALLOWED_HOSTS

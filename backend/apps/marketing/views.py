@@ -1,10 +1,11 @@
 import anthropic as anthropic_sdk
 from django.conf import settings
 from rest_framework import status, viewsets
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.accounts.throttles import AIRateThrottle
 from apps.businesses.models import Business
 from .models import MarketingCampaign
 from .serializers import MarketingCampaignSerializer
@@ -27,6 +28,7 @@ class MarketingCampaignViewSet(viewsets.ModelViewSet):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([AIRateThrottle])
 def marketing_chat(request):
     product = request.data.get("product") or {}
     goal = request.data.get("goal") or "promocao"
