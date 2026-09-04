@@ -1766,6 +1766,175 @@ select:focus {
   .app-shell.is-rail .sidebar { transition: none; }
 }
 
+/* ─── Movimentações ─── */
+
+.summary-grid--trio { grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); max-width: 52rem; }
+
+.record-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.record-filters__month {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.record-filters__label {
+  min-width: 9.5rem;
+  text-align: center;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-primary);
+}
+
+.drawer__actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.ghost-button--danger {
+  color: var(--color-negative);
+  border-color: var(--color-border);
+}
+
+.ghost-button--danger:hover {
+  background: #FBEDED;
+  border-color: var(--color-negative);
+  color: var(--color-negative);
+}
+
+@media (max-width: 768px) {
+  .record-filters { flex-direction: column; align-items: stretch; }
+  .record-filters__month { justify-content: space-between; }
+}
+
+/* ─── Filtro por período ─── */
+
+.chip--action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.chip--action .material-symbols-rounded { font-size: 1rem; }
+
+/* O painel flutua a partir do gatilho: no fluxo ele empurraria a barra de
+   filtros e desmontaria a linha inteira. */
+.menu { position: relative; }
+
+.menu__panel {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: 30;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.menu__label {
+  padding: 0 var(--space-2) var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.menu__panel--wide { width: min(21rem, 90vw); }
+
+.range__hint {
+  padding: 0 var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.range__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+}
+
+.range__month {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-primary);
+}
+
+.range__weekdays,
+.range__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.range__weekdays span {
+  padding-bottom: var(--space-1);
+  font-size: 0.65rem;
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text-disabled);
+  text-align: center;
+}
+
+.range__day {
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background var(--duration-normal), color var(--duration-normal);
+}
+
+.range__day--empty { cursor: default; }
+
+.range__day:not(.range__day--empty):hover {
+  background: var(--color-surface-muted);
+  color: var(--color-text-primary);
+}
+
+/* Dias entre as pontas ficam com fundo suave; as pontas, sólidas. */
+.range__day.is-between {
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-dark);
+}
+
+.range__day.is-edge {
+  background: var(--color-brand-mid);
+  color: var(--color-text-inverse);
+  font-weight: var(--weight-medium);
+}
+
+.range__day.is-today { box-shadow: inset 0 0 0 1px var(--color-border-strong); }
+
+.range__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  margin-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.range__actions .primary-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* ─── Assistente financeiro (chat) ─── */
 
 /* A tela do chat dispensa o título da página: a barra do próprio chat já diz
