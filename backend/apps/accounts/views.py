@@ -2,13 +2,14 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.authtoken.models import Token
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from apps.businesses.models import Business
 from .models import UserProfile
 from .serializers import LoginSerializer, OnboardingSerializer, RegisterSerializer, UserProfileSerializer
+from .throttles import LoginRateThrottle
 
 User = get_user_model()
 
@@ -24,7 +25,9 @@ def auth_payload(user):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([LoginRateThrottle])
 def register_view(request):
+    """Cria conta. Limitado para evitar criacao de contas em massa."""
     serializer = RegisterSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     user = serializer.save()
@@ -33,7 +36,9 @@ def register_view(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([LoginRateThrottle])
 def login_view(request):
+    """Autentica. Limitado para dificultar tentativa de senha por forca bruta."""
     serializer = LoginSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     return Response(auth_payload(serializer.validated_data["user"]))
@@ -63,6 +68,7 @@ def onboarding_view(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([LoginRateThrottle])
 def google_signin_view(request):
     if not settings.GOOGLE_CLIENT_ID:
         return Response({"detail": "Google login não configurado."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)

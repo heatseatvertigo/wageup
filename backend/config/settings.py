@@ -1,11 +1,15 @@
 from pathlib import Path
+
 import environ
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 ROOT_DIR = BASE_DIR.parent
 
 env = environ.Env(
-    DJANGO_DEBUG=(bool, True),
+    # Default seguro: quem nao configurar nada roda com DEBUG desligado.
+    # O .env.example liga DEBUG para desenvolvimento local.
+    DJANGO_DEBUG=(bool, False),
     ALLOWED_HOSTS=(list, ["localhost", "127.0.0.1", "testserver"]),
     CORS_ALLOWED_ORIGINS=(list, ["http://localhost:5173", "http://127.0.0.1:5173"]),
     CSRF_TRUSTED_ORIGINS=(list, ["http://localhost:8000", "http://127.0.0.1:8000"]),
@@ -13,9 +17,19 @@ env = environ.Env(
 environ.Env.read_env(ROOT_DIR / ".env")
 
 
-SECRET_KEY = env("SECRET_KEY", default="django-insecure-dev-wageup-change-me")
+INSECURE_DEV_SECRET_KEY = "django-insecure-dev-wageup-change-me"
+SECRET_KEY = env("SECRET_KEY", default=INSECURE_DEV_SECRET_KEY)
 
 DEBUG = env("DJANGO_DEBUG")
+
+# Uma SECRET_KEY conhecida permite forjar sessoes e tokens de reset de senha.
+# Em desenvolvimento a chave de exemplo e aceitavel; em producao nao.
+if not DEBUG and SECRET_KEY == INSECURE_DEV_SECRET_KEY:
+    raise ImproperlyConfigured(
+        "SECRET_KEY nao configurada. Gere uma com "
+        "django.core.management.utils.get_random_secret_key() e defina a "
+        "variavel de ambiente SECRET_KEY antes de subir com DJANGO_DEBUG=False."
+    )
 
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
 # Dominios preenchidos automaticamente pela plataforma de deploy.
@@ -87,13 +101,34 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.TokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
+    # Fechado por padrao: uma view que esquecer de declarar permissao fica
+    # inacessivel em vez de publica. As poucas rotas abertas (registro, login,
+    # webhook, health check) declaram AllowAny explicitamente.
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
+        "rest_framework.permissions.IsAuthenticated",
     ],
-    "DEFAULT_RENDERER_CLASSES": [
-        "rest_framework.renderers.JSONRenderer",
-        "rest_framework.renderers.BrowsableAPIRenderer",
+    # A API navegavel do DRF expoe formularios e nomes de campos. Util em
+    # desenvolvimento, desnecessaria em producao.
+    "DEFAULT_RENDERER_CLASSES": (
+        [
+            "rest_framework.renderers.JSONRenderer",
+            "rest_framework.renderers.BrowsableAPIRenderer",
+        ]
+        if DEBUG
+        else ["rest_framework.renderers.JSONRenderer"]
+    ),
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
     ],
+    # As rotas de IA custam dinheiro por chamada, entao tem limite proprio
+    # ("ai"). "login" segura tentativa de descobrir senha por forca bruta.
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": env("THROTTLE_ANON", default="30/min"),
+        "user": env("THROTTLE_USER", default="120/min"),
+        "ai": env("THROTTLE_AI", default="60/hour"),
+        "login": env("THROTTLE_LOGIN", default="10/min"),
+    },
 }
 
 DATABASES = {
@@ -172,3 +207,73 @@ if CUSTOM_DOMAIN:
     ALLOWED_HOSTS.append(CUSTOM_DOMAIN)
     CORS_ALLOWED_ORIGINS.append(f"https://{CUSTOM_DOMAIN}")
     CSRF_TRUSTED_ORIGINS.append(f"https://{CUSTOM_DOMAIN}")
+
+
+
+# ---------------------------------------------------------------------------
+# Seguranca de producao
+# ---------------------------------------------------------------------------
+# Cabecalhos que nao dependem de HTTPS valem sempre.
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+X_FRAME_OPTIONS = "DENY"
+
+if not DEBUG:
+    # O Render (e qualquer proxy TLS) entrega a requisicao ao gunicorn em HTTP
+    # e informa o esquema original neste cabecalho. Sem isso o Django acha que
+    # a conexao e insegura e o redirect de HTTPS entra em laco.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    # HSTS fica gravado no navegador pelo tempo declarado e nao da para
+    # cancelar antes disso. Por isso e ajustavel por variavel de ambiente:
+    # comece baixo (ex.: 3600) ao estrear um dominio e suba depois.
+    SECURE_HSTS_SECONDS = env.int("SECURE_HSTS_SECONDS", default=31536000)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True)
+    # Preload e irreversivel na pratica: so ligue com dominio proprio definitivo.
+    SECURE_HSTS_PRELOAD = env.bool("SECURE_HSTS_PRELOAD", default=False)
+
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+# Sem esta configuracao os logs da aplicacao (ex.: falhas da Abacate Pay em
+# apps/payments/views.py) nao aparecem na saida do gunicorn no Render.
+LOG_LEVEL = env("LOG_LEVEL", default="INFO")
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "standard": {
+            "format": "{asctime} {levelname} {name} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "WARNING",
+    },
+    "loggers": {
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "apps": {
+            "handlers": ["console"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+    },
+}

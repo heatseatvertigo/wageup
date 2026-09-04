@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.http import HttpResponse
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 # Arquivos do frontend que recebem versao na URL.
@@ -8,6 +9,10 @@ VERSIONED_ASSETS = ("styles.css", "app.js")
 
 
 @api_view(["GET"])
+@permission_classes([AllowAny])
+# Sem throttle: o Render consulta esta rota para saber se o servico esta vivo.
+# Um 429 aqui derrubaria o deploy.
+@throttle_classes([])
 def health_check(request):
     return Response({"status": "ok", "service": "wageup-api"})
 

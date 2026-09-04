@@ -1,10 +1,11 @@
 import logging
 
 from rest_framework import status, viewsets
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.response import Response
 
 from apps.accounts.permissions import IsAdminRole
+from apps.accounts.throttles import AIRateThrottle
 from apps.businesses.models import Business
 from .assistant import AssistantError, ask_assistant
 from .models import AssistantConversation, AssistantMessage
@@ -34,6 +35,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
 @api_view(["GET"])
 @permission_classes([IsAdminRole])
+@throttle_classes([AIRateThrottle])
 def business_insights(request):
     """Insights de negócio gerados por IA (com fallback local) para o dashboard."""
     business = Business.objects.filter(owner=request.user).first()
@@ -102,6 +104,7 @@ def assistant_conversation_detail(request, conversation_id):
 
 @api_view(["POST"])
 @permission_classes([IsAdminRole])
+@throttle_classes([AIRateThrottle])
 def finance_assistant(request):
     """Recebe uma pergunta, responde e guarda os dois lados da conversa.
 
