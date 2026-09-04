@@ -57,7 +57,7 @@ Na aba **Environment** do serviço, adicione (botão "Add Environment Variable")
 | Variável | Valor |
 |---|---|
 | `DATABASE_URL` | a connection string do Neon (Passo 1) |
-| `SECRET_KEY` | um valor secreto aleatório e longo — **ver como gerar abaixo** |
+| `SECRET_KEY` | um valor secreto aleatório de 50 caracteres ou mais — use o botão **Generate** do Render, ou **ver como gerar abaixo** |
 | `DJANGO_DEBUG` | `False` |
 | `ALLOWED_HOSTS` | `localhost,127.0.0.1,testserver` (o domínio `.onrender.com` é adicionado automaticamente pelo código) |
 | `ABACATE_PAY_API_KEY` | sua chave da Abacate Pay |
@@ -73,7 +73,7 @@ Opcionais, com valores padrão razoáveis no código: `LOG_LEVEL`, `THROTTLE_ANO
 completa e comentada está em [`.env.example`](.env.example).
 
 > **Duas variáveis são obrigatórias com `DJANGO_DEBUG=False`:**
-> - Sem uma `SECRET_KEY` própria, a aplicação **se recusa a subir** (o deploy falha com uma mensagem explicando o que fazer). É proposital: uma chave conhecida permite forjar sessões.
+> - Sem uma `SECRET_KEY` própria de pelo menos 50 caracteres, a aplicação **se recusa a subir** (o deploy falha com uma mensagem explicando o que fazer). É proposital: uma chave conhecida ou curta permite forjar cookie de sessão e entrar como qualquer usuário. No painel do Render, o botão **Generate** ao lado do campo já preenche um valor adequado.
 > - Sem `ABACATE_PAY_WEBHOOK_SECRET`, o webhook responde `503` e nenhuma cobrança é confirmada automaticamente. Também é proposital: sem segredo, qualquer um poderia postar um evento e marcar uma cobrança como paga.
 
 **Como gerar o SECRET_KEY** (rode local, no terminal do projeto):

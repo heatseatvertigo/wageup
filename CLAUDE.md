@@ -75,7 +75,7 @@ O contador do throttle vive no cache do Django, que hoje é `LocMemCache` — ou
 
 ### Produção (`DJANGO_DEBUG=False`)
 
-- O projeto **se recusa a subir** com a `SECRET_KEY` de exemplo.
+- O projeto **se recusa a subir** com a `SECRET_KEY` de exemplo, ausente ou com menos de 50 caracteres. O mínimo é o mesmo que o `check --deploy` do Django cobra (`security.W009`): checar só a chave de exemplo deixaria passar um valor curto qualquer, que não protege nada.
 - HTTPS obrigatório: `SECURE_SSL_REDIRECT`, cookies com `Secure`, HSTS (ajustável por `SECURE_HSTS_SECONDS`).
 - `SECURE_PROXY_SSL_HEADER` é obrigatório atrás do proxy do Render — sem ele o redirect de HTTPS entra em laço.
 - A API navegável do DRF (`BrowsableAPIRenderer`) só é carregada com `DEBUG=True`.

@@ -22,11 +22,19 @@ SECRET_KEY = env("SECRET_KEY", default=INSECURE_DEV_SECRET_KEY)
 
 DEBUG = env("DJANGO_DEBUG")
 
-# Uma SECRET_KEY conhecida permite forjar sessoes e tokens de reset de senha.
-# Em desenvolvimento a chave de exemplo e aceitavel; em producao nao.
-if not DEBUG and SECRET_KEY == INSECURE_DEV_SECRET_KEY:
+# Uma SECRET_KEY conhecida ou curta permite forjar cookie de sessao e token de
+# reset de senha. Em desenvolvimento a chave de exemplo e aceitavel; em
+# producao nao. O minimo de 50 caracteres e o mesmo que o check --deploy do
+# Django cobra (security.W009) — checar so a chave de exemplo deixaria passar
+# um valor curto qualquer, que nao protege nada.
+MIN_SECRET_KEY_LENGTH = 50
+
+if not DEBUG and (
+    SECRET_KEY == INSECURE_DEV_SECRET_KEY or len(SECRET_KEY) < MIN_SECRET_KEY_LENGTH
+):
     raise ImproperlyConfigured(
-        "SECRET_KEY nao configurada. Gere uma com "
+        "SECRET_KEY ausente, de exemplo ou curta demais "
+        f"(minimo {MIN_SECRET_KEY_LENGTH} caracteres). Gere uma com "
         "django.core.management.utils.get_random_secret_key() e defina a "
         "variavel de ambiente SECRET_KEY antes de subir com DJANGO_DEBUG=False."
     )
