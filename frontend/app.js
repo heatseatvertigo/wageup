@@ -39,6 +39,7 @@ let calendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1
 // topo do arquivo: declarado mais abaixo, cairia na zona morta temporal.
 const TX_SOURCE = {
   pix: { label: "Cobrança PIX", tone: "positive" },
+  import: { label: "Extrato importado", tone: "neutral" },
   manual: { label: "Lançamento manual", tone: "neutral" }
 };
 let txFilter = "all";
@@ -1488,6 +1489,200 @@ async function removeTransaction(id) {
 
 // ─── Criar e editar ─────────────────────────────────────────────────────────
 
+// ─── Importação de extrato ──────────────────────────────────────────────────
+// São dois passos de propósito: primeiro o servidor lê o arquivo e devolve o
+// que encontrou, depois o usuário confere e confirma. Extrato traz
+// transferência entre contas próprias, que não é receita nem despesa —
+// importar direto sujaria os totais.
+
+let importPreview = null;
+
+document.querySelector("#openImportModal")?.addEventListener("click", openImportModal);
+
+document.querySelectorAll("[data-close-import]").forEach((el) =>
+  el.addEventListener("click", closeImportModal)
+);
+
+document.querySelector("#importForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const erro = document.querySelector("#importFormError");
+  const submit = document.querySelector("#importSubmit");
+  const arquivo = document.querySelector("#importFile")?.files?.[0];
+
+  if (!arquivo) {
+    erro.textContent = "Escolha o arquivo do extrato.";
+    erro.hidden = false;
+    return;
+  }
+
+  const dados = new FormData();
+  dados.append("file", arquivo);
+
+  erro.hidden = true;
+  submit.disabled = true;
+  submit.textContent = "Lendo...";
+
+  try {
+    importPreview = await apiRequest("/transactions/import/preview/", { method: "POST", body: dados });
+  } catch (requestError) {
+    erro.textContent = requestError.message;
+    erro.hidden = false;
+    return;
+  } finally {
+    submit.disabled = false;
+    submit.textContent = "Ler extrato";
+  }
+
+  renderImportReview();
+});
+
+document.querySelector("#importConfirm")?.addEventListener("click", async () => {
+  const erro = document.querySelector("#importConfirmError");
+  const botao = document.querySelector("#importConfirm");
+  const linhas = selectedImportRows();
+
+  if (!linhas.length) {
+    erro.textContent = "Selecione pelo menos um lançamento.";
+    erro.hidden = false;
+    return;
+  }
+
+  erro.hidden = true;
+  botao.disabled = true;
+  botao.textContent = "Importando...";
+
+  let resultado;
+  try {
+    resultado = await apiRequest("/transactions/import/confirm/", {
+      method: "POST",
+      body: JSON.stringify({
+        filename: importPreview.filename,
+        file_format: importPreview.file_format,
+        file_hash: importPreview.file_hash,
+        transactions: linhas
+      })
+    });
+  } catch (requestError) {
+    erro.textContent = requestError.message;
+    erro.hidden = false;
+    return;
+  } finally {
+    botao.disabled = false;
+    botao.textContent = "Importar";
+  }
+
+  state.transactions = [...resultado.transactions, ...state.transactions];
+  closeImportModal();
+  persist();
+  render();
+});
+
+function openImportModal() {
+  const modal = document.querySelector("#importModal");
+  if (!modal) return;
+
+  importPreview = null;
+  document.querySelector("#importForm").reset();
+  document.querySelector("#importForm").hidden = false;
+  document.querySelector("#importReview").hidden = true;
+
+  ["#importFormError", "#importConfirmError"].forEach((seletor) => {
+    const alvo = document.querySelector(seletor);
+    alvo.hidden = true;
+    alvo.textContent = "";
+  });
+
+  modal.hidden = false;
+  requestAnimationFrame(() => modal.classList.add("is-open"));
+  document.addEventListener("keydown", importModalEscHandler);
+}
+
+function closeImportModal() {
+  const modal = document.querySelector("#importModal");
+  if (!modal) return;
+  modal.classList.remove("is-open");
+  importPreview = null;
+  document.removeEventListener("keydown", importModalEscHandler);
+  window.setTimeout(() => { modal.hidden = true; }, 300);
+}
+
+function importModalEscHandler(event) {
+  if (event.key === "Escape") closeImportModal();
+}
+
+function renderImportReview() {
+  document.querySelector("#importForm").hidden = true;
+  document.querySelector("#importReview").hidden = false;
+
+  const lista = document.querySelector("#importRows");
+  lista.innerHTML = importPreview.transactions.map((linha, indice) => {
+    const entrada = linha.type === "income";
+    const valor = Number(linha.amount);
+    const quando = new Date(linha.occurred_at).toLocaleDateString("pt-BR");
+    const id = `importRow${indice}`;
+    return `
+      <div class="import-row ${linha.duplicate ? "import-row--duplicate" : ""}" data-import-row
+           data-external-id="${escapeHtml(linha.external_id)}"
+           data-occurred-at="${escapeHtml(linha.occurred_at)}"
+           data-amount="${escapeHtml(linha.amount)}">
+        <input class="import-row__check" type="checkbox" id="${id}" data-import-check
+               ${linha.duplicate ? "" : "checked"} />
+        <label class="import-row__date" for="${id}">${escapeHtml(quando)}</label>
+        <input class="import-row__field" data-import-desc aria-label="Descrição"
+               value="${escapeHtml(linha.description)}" maxlength="180" />
+        <select class="import-row__field" data-import-type aria-label="Tipo">
+          <option value="income" ${entrada ? "selected" : ""}>Entrada</option>
+          <option value="expense" ${entrada ? "" : "selected"}>Saída</option>
+        </select>
+        <span class="value-currency import-row__amount ${entrada ? "value-positive" : "value-negative"}">
+          ${entrada ? "+" : "−"} ${formatMoney(valor)}
+        </span>
+        <span class="import-row__tag ${linha.duplicate ? "status-badge status-badge--neutral" : ""}">
+          ${linha.duplicate ? "Já importado" : ""}
+        </span>
+      </div>`;
+  }).join("");
+
+  lista.querySelectorAll("[data-import-check]").forEach((caixa) =>
+    caixa.addEventListener("change", updateImportSummary)
+  );
+
+  updateImportSummary();
+}
+
+function updateImportSummary() {
+  const total = importPreview?.transactions.length || 0;
+  const marcados = selectedImportRows().length;
+  const duplicados = importPreview?.duplicates || 0;
+
+  const partes = [`${marcados} de ${total} lançamentos selecionados`];
+  if (duplicados) {
+    partes.push(`${duplicados} já ${duplicados === 1 ? "existe" : "existem"} no financeiro e ${duplicados === 1 ? "veio desmarcado" : "vieram desmarcados"}`);
+  }
+  if (importPreview?.already_imported) {
+    partes.push("este arquivo já foi importado antes");
+  }
+
+  document.querySelector("#importSummary").textContent = `${partes.join(" · ")}.`;
+  document.querySelector("#importConfirm").textContent = marcados
+    ? `Importar ${marcados}`
+    : "Importar";
+}
+
+function selectedImportRows() {
+  return [...document.querySelectorAll("[data-import-row]")]
+    .filter((linha) => linha.querySelector("[data-import-check]").checked)
+    .map((linha) => ({
+      external_id: linha.dataset.externalId,
+      occurred_at: linha.dataset.occurredAt,
+      amount: linha.dataset.amount,
+      type: linha.querySelector("[data-import-type]").value,
+      // Descrição vazia quebraria a validação do servidor por um campo que o
+      // usuário só apagou sem querer.
+      description: linha.querySelector("[data-import-desc]").value.trim() || "Lançamento importado"
+    }));
+}
+
 function openTxModal(item) {
   const modal = document.querySelector("#txModal");
   if (!modal) return;
@@ -2321,6 +2516,9 @@ async function deleteTransaction(id) {
 async function apiRequest(path, options = {}) {
   const { skipAuth, ...fetchOptions } = options;
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+  // Upload de arquivo: o navegador precisa montar o Content-Type sozinho, com
+  // o boundary do multipart. Definir aqui quebraria o envio.
+  if (fetchOptions.body instanceof FormData) delete headers["Content-Type"];
   if (authToken && !skipAuth) headers.Authorization = `Token ${authToken}`;
 
   const response = await fetch(`${apiBaseUrl}${path}`, { ...fetchOptions, headers });
