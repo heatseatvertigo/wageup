@@ -42,7 +42,7 @@ O código já foi ajustado para o Render (ver seção "Ajustes já feitos no có
    | **Region** | a mesma/ mais próxima do Neon |
    | **Branch** | `main` |
    | **Runtime** | `Python 3` |
-   | **Build Command** | `pip install -r requirements.txt && python backend/manage.py collectstatic --noinput` |
+   | **Build Command** | `pip install -r requirements.txt && python backend/manage.py migrate --noinput && python backend/manage.py collectstatic --noinput` |
    | **Start Command** | `gunicorn config.wsgi:application --chdir backend --bind 0.0.0.0:$PORT` |
    | **Instance Type** | `Free` |
 
@@ -88,11 +88,19 @@ Copie a saída e cole como valor de `SECRET_KEY`. **Nunca** use `change-me` em p
 
 ## Passo 4 — Migrations e usuário admin
 
-O `render.yaml` (já incluído no repo) roda `migrate` automaticamente a cada deploy via **Pre-Deploy Command**. Se você configurou o serviço manualmente pela interface, confirme que o campo **Pre-Deploy Command** está preenchido com:
+O `migrate` faz parte do **Build Command**, que roda a cada deploy. Confira que o campo em **Settings** está exatamente assim:
 
 ```
-python backend/manage.py migrate --noinput
+pip install -r requirements.txt && python backend/manage.py migrate --noinput && python backend/manage.py collectstatic --noinput
 ```
+
+> **Por que no build e não em Pre-Deploy.** O Render tem um campo **Pre-Deploy Command**, que seria o lugar mais correto — ele roda depois do build e antes de trocar o tráfego. Só que ele exige plano pago. No plano free o build é a única etapa garantida.
+>
+> Isso já custou caro uma vez: o serviço foi criado manualmente pelo painel, então o `preDeployCommand` do `render.yaml` foi ignorado e as migrations **nunca rodaram**. O banco ficou parado na migration `0002` enquanto o código seguia para a `0004`. O sintoma foi erro 500 no assistente e nas movimentações, com `relation "finance_assistantconversation" does not exist` nos logs.
+>
+> Se um dia o serviço passar para plano pago, mover o `migrate` para o Pre-Deploy Command é uma melhoria: rodar migration durante o build significa que ela é aplicada enquanto a versão antiga ainda atende requisições.
+
+**Se as migrations ficaram para trás** (erro `relation ... does not exist` ou `column ... does not exist` nos logs), corrija o Build Command como acima e dispare um **Manual Deploy**. O `migrate` é idempotente: rodar de novo no que já está aplicado não faz nada.
 
 Depois do primeiro deploy bem-sucedido, crie seu usuário admin. No painel do Render, abra a aba **Shell** do serviço e rode:
 

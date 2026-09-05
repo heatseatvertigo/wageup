@@ -4,8 +4,11 @@ services:
     runtime: python
     plan: free
     branch: main
-    buildCommand: pip install -r requirements.txt && python backend/manage.py collectstatic --noinput
-    preDeployCommand: python backend/manage.py migrate --noinput
+    # O migrate vive aqui, e nao em preDeployCommand, porque pre-deploy exige
+    # plano pago no Render. No plano free o build e a unica etapa garantida, e
+    # sem ela as migrations nunca rodam: foi o que derrubou o assistente e as
+    # movimentacoes em producao com "relation does not exist".
+    buildCommand: pip install -r requirements.txt && python backend/manage.py migrate --noinput && python backend/manage.py collectstatic --noinput
     startCommand: gunicorn config.wsgi:application --chdir backend --bind 0.0.0.0:$PORT
     envVars:
       # Preenchidos manualmente no painel do Render (nao commitar valores reais):
