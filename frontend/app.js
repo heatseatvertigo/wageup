@@ -1577,6 +1577,36 @@ document.querySelector("#importConfirm")?.addEventListener("click", async () => 
   render();
 });
 
+// A conexão direta com o banco ainda não existe: esta tela só explica como ela
+// funcionaria. Por isso não há chamada de API nenhuma aqui, e o botão carrega
+// o selo "Em breve" — ninguém deve clicar achando que já funciona.
+
+document.querySelector("#openBankModal")?.addEventListener("click", openBankModal);
+
+document.querySelectorAll("[data-close-bank]").forEach((el) =>
+  el.addEventListener("click", closeBankModal)
+);
+
+function openBankModal() {
+  const modal = document.querySelector("#bankModal");
+  if (!modal) return;
+  modal.hidden = false;
+  requestAnimationFrame(() => modal.classList.add("is-open"));
+  document.addEventListener("keydown", bankModalEscHandler);
+}
+
+function closeBankModal() {
+  const modal = document.querySelector("#bankModal");
+  if (!modal) return;
+  modal.classList.remove("is-open");
+  document.removeEventListener("keydown", bankModalEscHandler);
+  window.setTimeout(() => { modal.hidden = true; }, 300);
+}
+
+function bankModalEscHandler(event) {
+  if (event.key === "Escape") closeBankModal();
+}
+
 function openImportModal() {
   const modal = document.querySelector("#importModal");
   if (!modal) return;

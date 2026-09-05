@@ -44,6 +44,12 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 - [x] Limite de 5 MB por arquivo, e arquivo ilegível responde com explicação em vez de erro 500
 - [ ] Formatos **CSV** e **PDF** — a estrutura está pronta para recebê-los, falta o leitor de cada um
 
+### Conexão direta com o banco — apenas explicativa
+
+- [x] Botão "Integre com seu banco" em Movimentações, com selo **Em breve**, abrindo uma tela que explica como a conexão automática funcionaria: escolher o banco, autorizar dentro do próprio banco, e os lançamentos entrando sozinhos na tela de conferência
+- [x] A tela deixa claro que a senha do banco nunca passaria pela plataforma
+- [ ] **A integração em si não existe.** Não há backend, nem chamada de API, nem contrato com provedor. A tela serve para apresentar a próxima etapa do produto — as marcas dos bancos e do provedor estão como placeholder, não são as oficiais
+
 ## 4. Cobranças via PIX (Abacate Pay) — somente admin
 
 - [x] Gerar cobrança PIX (QR Code + código "copia e cola") através da API da Abacate Pay
