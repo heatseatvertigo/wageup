@@ -4561,3 +4561,199 @@ td:first-child { font-weight: var(--weight-medium); }
   }
 }
 
+/* ─── Cadastro de produto ─── */
+
+.product-editor { display: grid; gap: var(--space-5); }
+
+.product-editor__cols { display: grid; gap: var(--space-6); }
+
+.product-editor__main { display: grid; gap: var(--space-5); }
+
+.field-set { border: 0; display: grid; gap: var(--space-3); }
+
+.field-set__title {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.field-grid { display: grid; gap: var(--space-4); }
+
+.field--wide { grid-column: 1 / -1; }
+
+.field--check {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.field--check .field__label { margin: 0; }
+
+/* Foto */
+
+.photo-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.photo-field__preview {
+  display: grid;
+  place-items: center;
+  width: 6rem;
+  height: 6rem;
+  flex: none;
+  overflow: hidden;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+  color: var(--color-text-disabled);
+}
+
+.photo-field__preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-field__preview--filled { border-style: solid; }
+
+.photo-field__actions {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+/* O label faz o papel do botão, então precisa parecer clicável. */
+.photo-field__actions label { cursor: pointer; }
+
+/* Painel de cálculo */
+
+.calc-panel {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+  padding: var(--space-5);
+  border: 1px solid var(--color-brand-light);
+  border-radius: var(--radius-lg);
+  background: var(--color-brand-subtle);
+}
+
+.calc-panel__title {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-brand-mid);
+}
+
+.calc-panel__hero { display: grid; gap: var(--space-1); }
+
+.calc-panel__hero .value-currency {
+  font-size: var(--text-xl);
+  color: var(--color-positive);
+}
+
+/* Margem negativa é prejuízo: precisa mudar de cor e de rótulo, nunca só de cor. */
+.calc-panel__hero--negative .value-currency { color: var(--color-negative); }
+
+.calc-panel__hero small {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.calc-panel__rows { display: grid; gap: var(--space-2); }
+
+.calc-panel__rows > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--text-xs);
+}
+
+.calc-panel__rows dt { color: var(--color-text-secondary); }
+.calc-panel__rows dd { color: var(--color-text-primary); }
+
+.calc-panel__target {
+  display: grid;
+  gap: var(--space-2);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-brand-light);
+}
+
+.calc-panel__target-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.calc-panel__target-row input { width: 5rem; }
+
+.calc-panel__suggestion {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-brand-dark);
+}
+
+/* .ghost-button define display, o que vence o atributo hidden e faz o botão
+   aparecer quando não deveria. Vale para "Remover foto" e "Excluir". */
+.ghost-button[hidden] { display: none; }
+
+.modal__actions--split { justify-content: space-between; }
+
+/* Com o "Excluir" escondido, o grupo é filho único e o space-between o joga
+   para a esquerda. A margem automática mantém os botões à direita. */
+.modal__actions-group {
+  display: flex;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+
+/* Cartão do produto na grade */
+
+.product-card { text-align: left; cursor: pointer; }
+
+.product-card__photo {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  color: var(--color-text-disabled);
+}
+
+.product-card__photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.product-card--inactive { opacity: 0.55; }
+
+.product-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+@media (min-width: 40rem) {
+  .field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 60rem) {
+  .product-editor__cols { grid-template-columns: minmax(0, 1fr) 17rem; }
+}
+

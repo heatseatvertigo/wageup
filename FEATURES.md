@@ -22,9 +22,17 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 
 ## 2. Catálogo de produtos
 
-- [x] Cadastrar produto (nome, categoria, custo, preço, estoque)
-- [x] Listar, editar e remover produtos
+- [x] Cadastrar, editar e remover produto, numa tela única com nome, categoria, código, unidade (unidade, quilo, litro, metro, pacote, serviço) e descrição
+- [x] **Foto do produto**, reduzida no próprio navegador antes de subir e guardada no banco — o disco do servidor é apagado a cada deploy, então arquivo salvo lá sumiria
+- [x] **Cálculo de margem real**, não só preço menos custo. Entram outros custos por unidade (embalagem, frete) e os percentuais de taxa de cartão/PIX e imposto, que saem do mesmo bolso e não aparecem na conta simples
+- [x] O painel de cálculo responde **enquanto o usuário digita**: quanto sobra em reais, quanto isso representa do preço, markup sobre o custo e as taxas em reais
+- [x] **Preço sugerido para uma margem alvo** — "quero ganhar 30%, quanto preciso cobrar?". Quando taxas e alvo somam 100% ou mais, a tela diz que nenhum preço fecha a conta em vez de mostrar um número absurdo
+- [x] Margem negativa aparece como **Prejuízo**, com cor e rótulo — nunca só a cor
+- [x] Estoque mínimo, com aviso de **estoque baixo** na grade
+- [x] Produto **ativo ou inativo**, para tirar do catálogo sem apagar o histórico
+- [x] Grade com foto, preço, margem e estoque; clicar abre a edição
 - [x] Dados isolados por negócio (um usuário nunca vê produtos de outro)
+- [ ] Gestão de produtos com métricas de venda e giro — depende de registrar vendas, que ainda não existe
 
 ## 3. Módulo financeiro (somente admin)
 
@@ -95,8 +103,8 @@ Endpoints: `POST /api/finance/assistant/`, `GET|POST /api/finance/assistant/conv
 - [x] Em produção: HTTPS obrigatório, HSTS, cookies com `Secure`, API navegável do DRF desligada e recusa de subir com a `SECRET_KEY` de exemplo
 - [x] Webhook da Abacate Pay só funciona com segredo configurado, comparado em tempo constante. Sem o segredo, qualquer um poderia marcar uma cobrança como paga
 - [x] Logs da aplicação aparecem na saída do servidor (antes se perdiam)
-- [x] Primeiros testes automatizados: 15 casos cobrindo a leitura de OFX e a importação ponta a ponta
-- [ ] Testes dos demais módulos (contas, produtos, pagamentos, marketing) — ainda não existem
+- [x] Testes automatizados: 31 casos cobrindo a leitura de OFX, a importação ponta a ponta, o cálculo de margem e a foto de produto
+- [ ] Testes dos demais módulos (contas, pagamentos, marketing) — ainda não existem
 
 ---
 
