@@ -4353,11 +4353,23 @@ td:first-child { font-weight: var(--weight-medium); }
 
 /* ─── Conexão direta com o banco (tela explicativa) ─── */
 
+/* As marcas dão altura própria ao botão. Sem reduzir a marca e apertar o
+   padding vertical, ele fica mais alto que "Importar extrato" e "Nova
+   movimentação", e a fileira de botões sai desalinhada. */
 .bank-cta {
   display: inline-flex;
   align-items: center;
   gap: var(--space-3);
+  padding-block: var(--space-2);
 }
+
+.bank-cta .bank-mark {
+  width: 1.5rem;
+  height: 1.5rem;
+  font-size: 0.625rem;
+}
+
+.bank-cta .status-badge { flex: none; }
 
 .bank-cta__marks {
   display: inline-flex;
@@ -4366,7 +4378,7 @@ td:first-child { font-weight: var(--weight-medium); }
 /* As marcas se sobrepõem para caber no botão sem alargá-lo. A sobreposição é
    de um terço: mais que isso esconde o logo e sobra só um risco colorido. */
 .bank-cta__marks .bank-mark {
-  margin-left: calc(var(--space-2) * -1);
+  margin-left: calc(var(--space-1) * -1 - 2px);
   border: 2px solid var(--color-surface);
 }
 
@@ -4755,5 +4767,18 @@ td:first-child { font-weight: var(--weight-medium); }
 
 @media (min-width: 60rem) {
   .product-editor__cols { grid-template-columns: minmax(0, 1fr) 17rem; }
+}
+
+/* ─── Foco visível ─── */
+
+/* O anel azul do navegador destoa da paleta e aparece em qualquer clique com
+   teclado. O token do design system vale para todos os controles. */
+.primary-button:focus-visible,
+.secondary-button:focus-visible,
+.ghost-button:focus-visible,
+.icon-btn:focus-visible,
+.chip:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 

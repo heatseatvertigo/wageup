@@ -42,6 +42,12 @@ const TX_SOURCE = {
   import: { label: "Extrato importado", tone: "neutral" },
   manual: { label: "Lançamento manual", tone: "neutral" }
 };
+// Mesmo motivo: renderProducts() lê este mapa, e render() roda no topo.
+
+const PRODUCT_UNITS = {
+  un: "un", kg: "kg", g: "g", l: "L", ml: "mL", m: "m", pct: "pct", srv: "serviço"
+};
+
 let txFilter = "all";
 let txMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let txAllPeriods = false;
@@ -1267,7 +1273,6 @@ function drawerEscHandler(event) {
 
 // ─── Gráfico interativo do semestre ─────────────────────────────────────────
 
-const CHART_MONTH_SHORT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 const chartSeries = { income: true, expense: true, net: true };
 
 function formatMoneyCompact(value) {
@@ -1288,6 +1293,8 @@ function niceStep(range, steps) {
 }
 
 // Totais dos 6 meses que terminam no mês aberto no calendário.
+const CHART_MONTH_SHORT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
 function semesterData() {
   const months = [];
   for (let offset = 5; offset >= 0; offset -= 1) {
@@ -2035,10 +2042,6 @@ function closeTxModal() {
 function txModalEscHandler(event) {
   if (event.key === "Escape") closeTxModal();
 }
-
-const PRODUCT_UNITS = {
-  un: "un", kg: "kg", g: "g", l: "L", ml: "mL", m: "m", pct: "pct", srv: "serviço"
-};
 
 function renderProducts() {
   const grid = document.querySelector("#productGrid");
