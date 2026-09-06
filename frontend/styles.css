@@ -4361,14 +4361,24 @@ td:first-child { font-weight: var(--weight-medium); }
 
 .bank-cta__marks {
   display: inline-flex;
-  /* As marcas se sobrepõem para caber no botão sem alargá-lo. */
-  padding-left: var(--space-2);
 }
 
+/* As marcas se sobrepõem para caber no botão sem alargá-lo. A sobreposição é
+   de um terço: mais que isso esconde o logo e sobra só um risco colorido. */
 .bank-cta__marks .bank-mark {
-  margin-left: calc(var(--space-4) * -1);
+  margin-left: calc(var(--space-2) * -1);
   border: 2px solid var(--color-surface);
 }
+
+.bank-cta__marks .bank-mark:first-child { margin-left: 0; }
+
+/* Sem isto o último irmão fica por cima e come a borda do anterior. Invertido,
+   cada marca cobre a seguinte e todas continuam legíveis. */
+.bank-cta__marks .bank-mark { position: relative; }
+.bank-cta__marks .bank-mark:nth-child(1) { z-index: 4; }
+.bank-cta__marks .bank-mark:nth-child(2) { z-index: 3; }
+.bank-cta__marks .bank-mark:nth-child(3) { z-index: 2; }
+.bank-cta__marks .bank-mark:nth-child(4) { z-index: 1; }
 
 .bank-mark {
   display: inline-flex;
@@ -4386,8 +4396,9 @@ td:first-child { font-weight: var(--weight-medium); }
   background: var(--color-brand-mid);
 }
 
-/* Tons da própria paleta: as marcas se distinguem sem imitar a identidade de
-   nenhum banco. Trocar por logo oficial é só substituir o conteúdo do span. */
+/* Bancos sem logo no projeto usam sigla nos tons da própria paleta, para não
+   imitar a identidade visual de ninguém. Onde existe o arquivo oficial, o span
+   recebe --logo e um <img> dentro. */
 .bank-mark--a { background: var(--color-brand-dark); }
 .bank-mark--b { background: var(--color-brand-mid); }
 .bank-mark--c { background: var(--color-brand-light); color: var(--color-brand-dark); }
@@ -4396,6 +4407,22 @@ td:first-child { font-weight: var(--weight-medium); }
 .bank-mark--rest {
   background: var(--color-surface-muted);
   color: var(--color-text-secondary);
+}
+
+/* Logo oficial: fundo branco porque as marcas dos bancos são coloridas e
+   contam com fundo claro. O contorno interno separa o círculo do fundo da
+   tela, que também é branco. */
+.bank-mark--logo {
+  background: var(--color-surface);
+  outline: 1px solid var(--color-border);
+  outline-offset: -1px;
+  padding: 0.3rem;
+}
+
+.bank-mark--logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .bank-title {

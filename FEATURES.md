@@ -48,7 +48,7 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 
 - [x] Botão "Integre com seu banco" em Movimentações, com selo **Em breve**, abrindo uma tela que explica como a conexão automática funcionaria: escolher o banco, autorizar dentro do próprio banco, e os lançamentos entrando sozinhos na tela de conferência
 - [x] A tela deixa claro que a senha do banco nunca passaria pela plataforma
-- [ ] **A integração em si não existe.** Não há backend, nem chamada de API, nem contrato com provedor. A tela serve para apresentar a próxima etapa do produto — as marcas dos bancos e do provedor estão como placeholder, não são as oficiais
+- [ ] **A integração em si não existe.** Não há backend, nem chamada de API, nem contrato com provedor. A tela serve para apresentar a próxima etapa do produto — o logo do Nubank é o oficial; os demais bancos e o provedor aparecem como placeholder (sigla em círculo), até os arquivos serem adicionados ao projeto
 
 ## 4. Cobranças via PIX (Abacate Pay) — somente admin
 
