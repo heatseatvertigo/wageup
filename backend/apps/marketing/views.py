@@ -1,3 +1,5 @@
+import logging
+
 import anthropic as anthropic_sdk
 from django.conf import settings
 from rest_framework import status, viewsets
@@ -9,6 +11,8 @@ from apps.accounts.throttles import AIRateThrottle
 from apps.businesses.models import Business
 from .models import MarketingCampaign
 from .serializers import MarketingCampaignSerializer
+
+logger = logging.getLogger(__name__)
 
 
 class MarketingCampaignViewSet(viewsets.ModelViewSet):
@@ -43,12 +47,22 @@ def marketing_chat(request):
     business = Business.objects.filter(owner=request.user).first()
     business_name = business.name if business else ""
 
+    generated_text = None
+    provider = "local-demo"
     if settings.ANTHROPIC_API_KEY:
-        generated_text = _call_claude(product_name, price, cost, margin, goal, channel, prompt, business_name)
-        provider = "anthropic"
-    else:
+        try:
+            generated_text = _call_claude(
+                product_name, price, cost, margin, goal, channel, prompt, business_name
+            )
+            provider = "anthropic"
+        except Exception:
+            # Chave invalida ou provedor fora do ar nao pode virar erro 500: o
+            # usuario fica sem campanha nenhuma por um problema de
+            # configuracao. Mesmo caminho que os insights ja seguem.
+            logger.exception("Falha ao gerar campanha com a IA. Usando o texto local.")
+
+    if generated_text is None:
         generated_text = _build_demo_campaign(product_name, goal, channel, margin)
-        provider = "local-demo"
 
     campaign = MarketingCampaign.objects.create(
         business=business,
