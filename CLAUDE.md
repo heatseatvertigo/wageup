@@ -26,7 +26,7 @@ backend/apps/
 ├── accounts/     # Auth (Token), UserProfile com role admin/member
 ├── businesses/   # Business (criado automaticamente no cadastro do usuário)
 ├── products/     # Catálogo de produtos por Business
-├── finance/      # Transações, insights e assistente financeiro — só admin
+├── finance/      # Transações, importação de extrato, insights e assistente — só admin
 ├── payments/     # Cobranças PIX via Abacate Pay — só admin
 └── marketing/    # Campanhas de marketing com IA (Claude Haiku)
 ```
@@ -80,6 +80,14 @@ O contador do throttle vive no cache do Django, que hoje é `LocMemCache` — ou
 - `SECURE_PROXY_SSL_HEADER` é obrigatório atrás do proxy do Render — sem ele o redirect de HTTPS entra em laço.
 - A API navegável do DRF (`BrowsableAPIRenderer`) só é carregada com `DEBUG=True`.
 - O webhook da Abacate Pay responde `503` se `ABACATE_PAY_WEBHOOK_SECRET` não estiver configurado. Sem segredo, qualquer um poderia postar um evento e marcar uma cobrança como paga. A comparação usa `secrets.compare_digest` (tempo constante).
+
+### Upload de arquivo
+
+A importação de extrato é o único ponto que recebe arquivo. Regras em `settings.py`:
+
+- `FILE_UPLOAD_HANDLERS` tem só o handler de memória, então nada vai para o disco.
+- `STATEMENT_MAX_UPLOAD_BYTES` limita em 5 MB, conferido na view antes de ler.
+- Arquivo ilegível responde `400` com explicação. Uma exceção inesperada no leitor também vira `400`, com o traceback no log — arquivo corrompido é problema do arquivo, não do servidor.
 
 ### Isolamento continua sendo responsabilidade da view
 
@@ -137,6 +145,8 @@ PATCH  /api/auth/onboarding/
 
 GET/POST        /api/products/               # Filtrado por business do usuário
 GET/POST        /api/transactions/           # Só admin, filtrado por business
+POST            /api/transactions/import/preview/    # Lê o extrato enviado, não grava nada
+POST            /api/transactions/import/confirm/    # Grava o que o usuário confirmou
 GET             /api/finance/insights/       # Só admin, insights por IA do dashboard
 POST            /api/finance/assistant/      # Só admin, pergunta ao assistente financeiro
 GET/POST        /api/finance/assistant/conversations/          # Lista ou cria conversa
@@ -170,6 +180,12 @@ GET             /api/health/                 # Health check (aberto, sem throttl
 
 8. **`DJANGO_DEBUG` default `False`**: quem não configurar nada roda no modo seguro. O `.env.example` liga o modo de desenvolvimento explicitamente.
 
+9. **Importação de extrato em dois passos**: `preview` lê e devolve, `confirm` grava. Nunca criar lançamento direto do arquivo — extrato traz transferência entre contas próprias, que não é receita nem despesa. O usuário confere antes.
+
+10. **O arquivo do extrato não é guardado**: é lido em memória (`FILE_UPLOAD_HANDLERS` só com o handler de memória) e descartado. Ficam os lançamentos e o hash do arquivo. Extrato bancário é dado sensível e a funcionalidade não precisa dele depois.
+
+11. **Deduplicação por `Transaction.external_id`**, com unicidade por business: o FITID do OFX quando existe, senão uma impressão digital do conteúdo. É o que faz reimportar o mesmo extrato não duplicar. Qualquer formato novo (CSV, PDF) precisa devolver um `external_id` estável — sem isso, a importação suja o financeiro em vez de ajudar.
+
 ---
 
 ## Deploy no Render + Neon
@@ -194,6 +210,8 @@ Para domínio próprio: configurar `CUSTOM_DOMAIN=seudominio.com` nas variáveis
 - [backend/apps/marketing/views.py](backend/apps/marketing/views.py) — `_call_claude()` para IA
 - [backend/apps/finance/assistant.py](backend/apps/finance/assistant.py) — assistente financeiro (DeepSeek/Claude/local)
 - [backend/apps/finance/insights.py](backend/apps/finance/insights.py) — insights do dashboard
+- [backend/apps/finance/statements/](backend/apps/finance/statements/) — leitura de extrato bancário, um módulo por formato
+- [backend/apps/finance/tests.py](backend/apps/finance/tests.py) — testes da leitura de OFX e da importação
 - [backend/apps/accounts/throttles.py](backend/apps/accounts/throttles.py) — limites de requisição por rota
 - [frontend/app.js](frontend/app.js) — toda a lógica do SPA
 - [frontend/styles.css](frontend/styles.css) — CSS atual do SPA

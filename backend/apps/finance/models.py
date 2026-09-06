@@ -3,6 +3,40 @@ from django.utils import timezone
 import uuid
 
 
+class StatementImport(models.Model):
+    """Registro de uma importacao de extrato.
+
+    Guarda so metadado. O arquivo nunca e gravado: ele e lido em memoria e
+    descartado, porque extrato bancario e dado sensivel e a funcionalidade nao
+    precisa dele depois que os lancamentos existem. O hash fica para avisar o
+    usuario quando ele reenvia o mesmo arquivo.
+    """
+
+    class Format(models.TextChoices):
+        OFX = "ofx", "OFX"
+        CSV = "csv", "CSV"
+        PDF = "pdf", "PDF"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    business = models.ForeignKey(
+        "businesses.Business",
+        on_delete=models.CASCADE,
+        related_name="statement_imports",
+    )
+    filename = models.CharField(max_length=200)
+    file_format = models.CharField(max_length=8, choices=Format.choices)
+    file_hash = models.CharField(max_length=64, db_index=True)
+    imported_count = models.PositiveIntegerField(default=0)
+    skipped_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.filename} ({self.imported_count} lancamentos)"
+
+
 class Transaction(models.Model):
     class TransactionType(models.TextChoices):
         INCOME = "income", "Entrada"
@@ -11,6 +45,7 @@ class Transaction(models.Model):
     class Source(models.TextChoices):
         MANUAL = "manual", "Lancamento manual"
         PIX = "pix", "Cobranca PIX"
+        IMPORT = "import", "Extrato importado"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     business = models.ForeignKey(
@@ -37,8 +72,30 @@ class Transaction(models.Model):
     occurred_at = models.DateTimeField(default=timezone.now)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # Identificador do lancamento no extrato de origem: o FITID quando o banco
+    # fornece, ou uma impressao digital do conteudo quando nao. E o que sustenta
+    # a restricao de unicidade abaixo — sem ele, reimportar o mesmo extrato
+    # duplicaria tudo e o financeiro passaria a mentir.
+    external_id = models.CharField(max_length=120, blank=True, default="", db_index=True)
+    statement_import = models.ForeignKey(
+        "finance.StatementImport",
+        on_delete=models.SET_NULL,
+        related_name="transactions",
+        null=True,
+        blank=True,
+    )
+
     class Meta:
         ordering = ["-occurred_at"]
+        constraints = [
+            # Lancamento manual nao tem external_id, e varios deles convivem com
+            # o campo vazio. A condicao exclui o vazio da regra.
+            models.UniqueConstraint(
+                fields=["business", "external_id"],
+                condition=~models.Q(external_id=""),
+                name="transaction_external_id_unico_por_business",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.description} - {self.amount}"

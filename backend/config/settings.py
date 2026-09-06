@@ -198,6 +198,14 @@ STORAGES = {
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Importacao de extrato bancario. O arquivo e lido em memoria e descartado:
+# extrato e dado sensivel e a funcionalidade nao precisa dele depois que os
+# lancamentos existem. Sem o handler de memoria como unico, o Django gravaria
+# arquivos maiores num temporario em disco.
+STATEMENT_MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = STATEMENT_MAX_UPLOAD_BYTES
+FILE_UPLOAD_HANDLERS = ["django.core.files.uploadhandler.MemoryFileUploadHandler"]
+
 ABACATE_PAY_API_KEY = env("ABACATE_PAY_API_KEY", default="")
 ABACATE_PAY_WEBHOOK_SECRET = env("ABACATE_PAY_WEBHOOK_SECRET", default="")
 WAGEUP_ADMIN_EMAILS = env("WAGEUP_ADMIN_EMAILS", default="")

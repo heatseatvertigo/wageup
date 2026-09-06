@@ -1,7 +1,10 @@
 import logging
 
+from django.conf import settings
+from django.db import transaction as db_transaction
 from rest_framework import status, viewsets
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes, throttle_classes
+from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 
 from apps.accounts.permissions import IsAdminRole
@@ -10,8 +13,9 @@ from apps.businesses.models import Business
 from .assistant import AssistantError, ask_assistant
 from .models import AssistantConversation, AssistantMessage
 from .insights import build_insights
-from .models import Transaction
-from .serializers import TransactionSerializer
+from .models import StatementImport, Transaction
+from .serializers import StatementConfirmSerializer, TransactionSerializer
+from .statements import EXTENSOES_ACEITAS, StatementError, hash_arquivo, parse_statement
 
 logger = logging.getLogger(__name__)
 
@@ -164,3 +168,150 @@ def finance_assistant(request):
         "message": resposta,
         "conversation": _serialize_conversation(conversation),
     })
+
+
+# ---------------------------------------------------------------------------
+# Importacao de extrato bancario
+# ---------------------------------------------------------------------------
+# Sao dois passos de proposito. O primeiro so le e devolve; o segundo grava o
+# que o usuario confirmou. Extrato tem transferencia entre contas proprias, que
+# nao e receita nem despesa — importar direto sujaria os totais.
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminRole])
+@parser_classes([MultiPartParser])
+def statement_preview(request):
+    """Le o extrato enviado e devolve os lancamentos, sem gravar nada."""
+    business = _business_or_none(request)
+    if not business:
+        return Response(
+            {"detail": "Nenhum negocio encontrado para este usuario."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    enviado = request.FILES.get("file")
+    if not enviado:
+        limite = settings.STATEMENT_MAX_UPLOAD_BYTES // (1024 * 1024)
+        return Response(
+            {"detail": f"Envie o arquivo do extrato (ate {limite} MB)."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if enviado.size > settings.STATEMENT_MAX_UPLOAD_BYTES:
+        limite = settings.STATEMENT_MAX_UPLOAD_BYTES // (1024 * 1024)
+        return Response(
+            {"detail": f"Arquivo grande demais. O limite e {limite} MB."},
+            status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        )
+
+    conteudo = enviado.read()
+    try:
+        formato, lancamentos = parse_statement(enviado.name, conteudo)
+    except StatementError as erro:
+        return Response({"detail": str(erro)}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception:
+        # Arquivo corrompido nao deve virar 500: o usuario precisa saber que o
+        # problema esta no arquivo, nao no servidor.
+        logger.exception("Falha inesperada ao ler extrato %s", enviado.name)
+        return Response(
+            {"detail": "Nao foi possivel ler este arquivo. Confirme que e o extrato exportado pelo banco."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    arquivo_hash = hash_arquivo(conteudo)
+    ja_existentes = set(
+        Transaction.objects.filter(
+            business=business,
+            external_id__in=[item.external_id for item in lancamentos],
+        )
+        .exclude(external_id="")
+        .values_list("external_id", flat=True)
+    )
+
+    linhas = []
+    for item in lancamentos:
+        linha = item.as_dict()
+        linha["duplicate"] = item.external_id in ja_existentes
+        linhas.append(linha)
+
+    return Response({
+        "filename": enviado.name[:200],
+        "file_format": formato,
+        "file_hash": arquivo_hash,
+        "total": len(linhas),
+        "duplicates": sum(1 for linha in linhas if linha["duplicate"]),
+        "already_imported": StatementImport.objects.filter(
+            business=business, file_hash=arquivo_hash
+        ).exists(),
+        "transactions": linhas,
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminRole])
+def statement_confirm(request):
+    """Grava os lancamentos que o usuario manteve na tela de conferencia."""
+    business = _business_or_none(request)
+    if not business:
+        return Response(
+            {"detail": "Nenhum negocio encontrado para este usuario."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    serializer = StatementConfirmSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    dados = serializer.validated_data
+
+    linhas = dados["transactions"]
+    identificadores = [linha["external_id"] for linha in linhas if linha["external_id"]]
+    ja_existentes = set(
+        Transaction.objects.filter(business=business, external_id__in=identificadores)
+        .values_list("external_id", flat=True)
+    )
+
+    criadas = []
+    vistos = set()
+    with db_transaction.atomic():
+        importacao = StatementImport.objects.create(
+            business=business,
+            filename=dados["filename"],
+            file_format=dados["file_format"],
+            file_hash=dados["file_hash"],
+        )
+        for linha in linhas:
+            identificador = linha["external_id"]
+            # Pula o que ja existe no banco e o que veio repetido no mesmo envio.
+            if identificador and (identificador in ja_existentes or identificador in vistos):
+                continue
+            if identificador:
+                vistos.add(identificador)
+            criadas.append(
+                Transaction.objects.create(
+                    business=business,
+                    description=linha["description"],
+                    type=linha["type"],
+                    amount=linha["amount"],
+                    occurred_at=linha["occurred_at"],
+                    source=Transaction.Source.IMPORT,
+                    external_id=identificador,
+                    statement_import=importacao,
+                )
+            )
+        importacao.imported_count = len(criadas)
+        importacao.skipped_count = len(linhas) - len(criadas)
+        importacao.save(update_fields=["imported_count", "skipped_count"])
+
+    logger.info(
+        "Extrato %s importado: %s lancamentos, %s ignorados.",
+        dados["filename"], importacao.imported_count, importacao.skipped_count,
+    )
+
+    return Response(
+        {
+            "imported": importacao.imported_count,
+            "skipped": importacao.skipped_count,
+            "transactions": TransactionSerializer(criadas, many=True).data,
+        },
+        status=status.HTTP_201_CREATED,
+    )

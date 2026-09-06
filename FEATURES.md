@@ -1,7 +1,7 @@
 # WageUp — O que a plataforma faz hoje
 
 > Documento de **funcionalidades** (visão de produto). Para arquitetura técnica, ver [`CLAUDE.md`](CLAUDE.md).
-> Última atualização: 2026-09-04.
+> Última atualização: 2026-09-05.
 
 Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que já está pronto, o que está pela metade e o que ainda não existe**. Sempre que uma feature for concluída ou alterada, atualize esta lista.
 
@@ -31,6 +31,24 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 - [x] Lançar transações manuais de **entrada** (receita) e **saída** (despesa)
 - [x] Listar histórico de transações
 - [x] Dashboard com indicadores (somatório de entradas/saídas, gráfico)
+- [x] Filtros por tipo e por período, com totais do recorte
+- [x] Cada lançamento mostra de onde veio: manual, cobrança PIX ou extrato importado
+
+### Importação de extrato bancário
+
+- [x] Botão "Importar extrato" na tela de Movimentações — o usuário anexa o arquivo e a plataforma lê os lançamentos
+- [x] Formato **OFX**, que os bancos grandes exportam no internet banking
+- [x] **Tela de conferência antes de gravar**: o usuário desmarca o que não quer, corrige a descrição e o tipo, e só então confirma. Extrato traz transferência entre contas próprias, que não é receita nem despesa — importar direto sujaria os totais
+- [x] **Reimportar o mesmo extrato não duplica nada.** Cada lançamento guarda o identificador que o banco atribui (FITID); o que já existe vem desmarcado e marcado como "Já importado". Sem FITID, o identificador vem de uma impressão digital do conteúdo, que continua distinguindo dois lançamentos iguais no mesmo dia
+- [x] **O arquivo nunca é gravado.** É lido em memória e descartado; ficam só os lançamentos confirmados e um hash, usado para avisar quando o mesmo arquivo é reenviado. Extrato bancário é dado sensível e a funcionalidade não precisa guardá-lo
+- [x] Limite de 5 MB por arquivo, e arquivo ilegível responde com explicação em vez de erro 500
+- [ ] Formatos **CSV** e **PDF** — a estrutura está pronta para recebê-los, falta o leitor de cada um
+
+### Conexão direta com o banco — apenas explicativa
+
+- [x] Botão "Integre com seu banco" em Movimentações, com selo **Em breve**, abrindo uma tela que explica como a conexão automática funcionaria: escolher o banco, autorizar dentro do próprio banco, e os lançamentos entrando sozinhos na tela de conferência
+- [x] A tela deixa claro que a senha do banco nunca passaria pela plataforma
+- [ ] **A integração em si não existe.** Não há backend, nem chamada de API, nem contrato com provedor. A tela serve para apresentar a próxima etapa do produto — os logos dos oito bancos e o da Pluggy são os oficiais, usados de forma ilustrativa — não existe parceria nem contrato com nenhum deles
 
 ## 4. Cobranças via PIX (Abacate Pay) — somente admin
 
@@ -77,7 +95,8 @@ Endpoints: `POST /api/finance/assistant/`, `GET|POST /api/finance/assistant/conv
 - [x] Em produção: HTTPS obrigatório, HSTS, cookies com `Secure`, API navegável do DRF desligada e recusa de subir com a `SECRET_KEY` de exemplo
 - [x] Webhook da Abacate Pay só funciona com segredo configurado, comparado em tempo constante. Sem o segredo, qualquer um poderia marcar uma cobrança como paga
 - [x] Logs da aplicação aparecem na saída do servidor (antes se perdiam)
-- [ ] Testes automatizados — ainda não existem. Todo `tests.py` está vazio
+- [x] Primeiros testes automatizados: 15 casos cobrindo a leitura de OFX e a importação ponta a ponta
+- [ ] Testes dos demais módulos (contas, produtos, pagamentos, marketing) — ainda não existem
 
 ---
 
@@ -88,7 +107,7 @@ Com base no `Escopo TCC.pdf`, os itens abaixo ainda não foram implementados:
 1. **Recomendações automáticas de ações de marketing** baseadas no desempenho do negócio.
 2. **Geração de imagens para campanhas de marketing**.
 
-Fora do escopo do PDF, mas pendente: **testes automatizados**.
+Fora do escopo do PDF, mas pendente: **testes automatizados dos demais módulos** e os leitores de extrato em **CSV** e **PDF**.
 
 ---
 
@@ -102,5 +121,6 @@ Fora do escopo do PDF, mas pendente: **testes automatizados**.
 | Financeiro | Login como admin → aba "Financeiro" → lançar transação |
 | PIX | Login como admin → aba "Financeiro" → "Cobrança PIX" → preencher e gerar |
 | Marketing IA | Menu "Marketing" → preencher prompt/canal/objetivo → gerar campanha |
+| Importar extrato | Login como admin → "Movimentações" → "Importar extrato" → anexar um `.ofx` → conferir a lista → "Importar". Reenviar o mesmo arquivo deve trazer tudo desmarcado como "Já importado" |
 | Assistente financeiro | Login como admin → abrir o chat → perguntar sobre os números; recarregar a página e conferir que a conversa continua lá |
 | Admin/banco de dados | Acessar `/admin/` logado como superusuário Django |
