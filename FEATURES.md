@@ -22,7 +22,9 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 - [x] O link deixa de valer assim que a senha é trocada, e a sessão antiga é derrubada junto — quem redefine a senha costuma estar expulsando um invasor
 - [x] A resposta é a mesma existindo a conta ou não, para a rota não virar um verificador de quem tem cadastro na plataforma
 - [x] Em desenvolvimento o e-mail é impresso no terminal do `runserver`: dá para testar o fluxo inteiro sem configurar provedor
-- [ ] **Tela no frontend** — hoje o fluxo existe só na API; falta o link "Esqueci minha senha" e as telas
+- [x] Link "Esqueci minha senha" na tela de login, com tela de pedido e tela de nova senha
+- [x] O link do e-mail abre direto a tela de nova senha; `uid` e `token` saem da barra de endereço assim que são lidos, para não ficarem no histórico do navegador
+- [x] Confirmação da senha em dois campos, conferida antes de chamar a API
 - [ ] **SMTP em produção** — o código está pronto, falta preencher `EMAIL_HOST` e as credenciais de um provedor
 
 **Papéis de usuário:**
@@ -117,7 +119,7 @@ Com base no `Escopo TCC.pdf`, os itens abaixo ainda não foram implementados:
 1. **Recomendações automáticas de ações de marketing** baseadas no desempenho do negócio.
 2. **Geração de imagens para campanhas de marketing**.
 
-Fora do escopo do PDF, mas pendente: a **tela de recuperação de senha no frontend** (a API já está pronta e testada), o **SMTP de produção**, os **testes automatizados dos módulos restantes** (produtos, pagamentos, marketing — contas já tem) e os leitores de extrato em **CSV** e **PDF**.
+Fora do escopo do PDF, mas pendente: o **SMTP de produção** (o código está pronto, falta contratar o provedor e preencher as variáveis), os **testes automatizados dos módulos restantes** (produtos, pagamentos, marketing — contas já tem) e os leitores de extrato em **CSV** e **PDF**.
 
 ---
 
