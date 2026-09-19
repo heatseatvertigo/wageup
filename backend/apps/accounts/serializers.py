@@ -1,6 +1,11 @@
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils.http import urlsafe_base64_decode
 from rest_framework import serializers
+from rest_framework.authtoken.models import Token
 
 from .models import UserProfile
 from apps.businesses.models import Business
@@ -92,3 +97,63 @@ class OnboardingSerializer(serializers.ModelSerializer):
         instance.onboarding_completed = True
         instance.save(update_fields=["business_name", "onboarding_completed", "updated_at"])
         return instance
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    """Pedido de recuperacao. So valida o formato do e-mail.
+
+    Nao checa se a conta existe de proposito: quem decide o que responder e a
+    view, que responde igual nos dois casos.
+    """
+
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        return value.lower()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    """Troca a senha a partir do link enviado por e-mail.
+
+    O token vem do `default_token_generator` do Django, que embute o hash da
+    senha atual e o last_login. Isso faz o link expirar sozinho
+    (PASSWORD_RESET_TIMEOUT) e deixar de valer assim que a senha muda, sem
+    precisar de tabela de tokens no banco.
+    """
+
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    password = serializers.CharField(min_length=8, write_only=True)
+
+    def validate(self, attrs):
+        user = self._user_from_uid(attrs["uid"])
+        # Mesma mensagem para uid corrompido, usuario inexistente, token
+        # expirado ou ja usado: distinguir os casos entregaria a quem tem
+        # conta na plataforma.
+        if user is None or not default_token_generator.check_token(user, attrs["token"]):
+            raise serializers.ValidationError(
+                {"token": "Link inválido ou expirado. Peça um novo."}
+            )
+        try:
+            validate_password(attrs["password"], user)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({"password": list(exc.messages)})
+        attrs["user"] = user
+        return attrs
+
+    @staticmethod
+    def _user_from_uid(uid):
+        try:
+            return User.objects.get(pk=urlsafe_base64_decode(uid).decode())
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return None
+
+    def save(self):
+        user = self.validated_data["user"]
+        user.set_password(self.validated_data["password"])
+        user.save(update_fields=["password"])
+        # Sessao antiga nao sobrevive a troca de senha: quem redefine a senha
+        # costuma estar justamente tentando expulsar quem nao deveria estar
+        # dentro. Deixar o token velho valendo anularia o reset.
+        Token.objects.filter(user=user).delete()
+        return user

@@ -1,7 +1,7 @@
 # WageUp — O que a plataforma faz hoje
 
 > Documento de **funcionalidades** (visão de produto). Para arquitetura técnica, ver [`CLAUDE.md`](CLAUDE.md).
-> Última atualização: 2026-09-05.
+> Última atualização: 2026-09-19.
 
 Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que já está pronto, o que está pela metade e o que ainda não existe**. Sempre que uma feature for concluída ou alterada, atualize esta lista.
 
@@ -15,6 +15,15 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 - [x] Logout
 - [x] Cada conta nova ganha automaticamente um "negócio" (`Business`) vinculado a ela — é o que permite isolar os dados de cada usuário
 - [x] Onboarding inicial (tela para o usuário preencher nome do negócio antes de usar a plataforma)
+
+**Recuperação de senha:**
+- [x] Pedido do link pela API (`POST /api/auth/password-reset/`) — o e-mail chega com um link válido por 2 horas
+- [x] Troca da senha pelo link (`POST /api/auth/password-reset/confirm/`)
+- [x] O link deixa de valer assim que a senha é trocada, e a sessão antiga é derrubada junto — quem redefine a senha costuma estar expulsando um invasor
+- [x] A resposta é a mesma existindo a conta ou não, para a rota não virar um verificador de quem tem cadastro na plataforma
+- [x] Em desenvolvimento o e-mail é impresso no terminal do `runserver`: dá para testar o fluxo inteiro sem configurar provedor
+- [ ] **Tela no frontend** — hoje o fluxo existe só na API; falta o link "Esqueci minha senha" e as telas
+- [ ] **SMTP em produção** — o código está pronto, falta preencher `EMAIL_HOST` e as credenciais de um provedor
 
 **Papéis de usuário:**
 - **admin** — definido pela lista de e-mails em `WAGEUP_ADMIN_EMAILS`. Tem acesso ao módulo financeiro completo (transações + cobranças PIX).
@@ -96,7 +105,8 @@ Endpoints: `POST /api/finance/assistant/`, `GET|POST /api/finance/assistant/conv
 - [x] Webhook da Abacate Pay só funciona com segredo configurado, comparado em tempo constante. Sem o segredo, qualquer um poderia marcar uma cobrança como paga
 - [x] Logs da aplicação aparecem na saída do servidor (antes se perdiam)
 - [x] Primeiros testes automatizados: 15 casos cobrindo a leitura de OFX e a importação ponta a ponta
-- [ ] Testes dos demais módulos (contas, produtos, pagamentos, marketing) — ainda não existem
+- [x] Testes da recuperação de senha (9 casos: link válido, reusado, expirado, uid corrompido, senha curta, e-mail inexistente)
+- [ ] Testes dos demais módulos (produtos, pagamentos, marketing) — ainda não existem
 
 ---
 
@@ -107,7 +117,7 @@ Com base no `Escopo TCC.pdf`, os itens abaixo ainda não foram implementados:
 1. **Recomendações automáticas de ações de marketing** baseadas no desempenho do negócio.
 2. **Geração de imagens para campanhas de marketing**.
 
-Fora do escopo do PDF, mas pendente: **testes automatizados dos demais módulos** e os leitores de extrato em **CSV** e **PDF**.
+Fora do escopo do PDF, mas pendente: a **tela de recuperação de senha no frontend** (a API já está pronta e testada), o **SMTP de produção**, os **testes automatizados dos módulos restantes** (produtos, pagamentos, marketing — contas já tem) e os leitores de extrato em **CSV** e **PDF**.
 
 ---
 

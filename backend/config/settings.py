@@ -218,6 +218,33 @@ DEEPSEEK_BASE_URL = env("DEEPSEEK_BASE_URL", default="https://api.deepseek.com")
 DEEPSEEK_MODEL = env("DEEPSEEK_MODEL", default="deepseek-chat")
 GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID", default="")
 
+# ---------------------------------------------------------------------------
+# E-mail (recuperacao de senha)
+# ---------------------------------------------------------------------------
+# Sem EMAIL_HOST configurado a mensagem e impressa no console do runserver.
+# O fluxo de recuperacao funciona inteiro em desenvolvimento sem depender de
+# provedor de e-mail — mesmo padrao das chaves de IA, que caem para uma
+# resposta local em vez de quebrar.
+#
+# Em producao, definir EMAIL_HOST liga o SMTP de verdade. Sem essa troca o
+# link de recuperacao seria escrito no log do servidor e nunca chegaria ao
+# usuario, que e uma falha silenciosa — por isso a escolha e explicita.
+EMAIL_HOST = env("EMAIL_HOST", default="")
+if EMAIL_HOST:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+    EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+    EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+    EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="WageUp <nao-responda@wageup.local>")
+
+# O default do Django e 3 dias. Duas horas e suficiente para quem pediu o
+# link agora e reduz a janela em que um e-mail vazado ainda vale.
+PASSWORD_RESET_TIMEOUT = env.int("PASSWORD_RESET_TIMEOUT", default=2 * 60 * 60)
+
 CUSTOM_DOMAIN = env("CUSTOM_DOMAIN", default="")
 if CUSTOM_DOMAIN:
     ALLOWED_HOSTS.append(CUSTOM_DOMAIN)

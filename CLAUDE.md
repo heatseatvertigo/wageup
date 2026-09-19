@@ -56,6 +56,7 @@ Regras que valem para qualquer código novo. Todas estão implementadas em `back
 |---|---|
 | `POST /api/auth/register/` | Cria a conta — não há como exigir login |
 | `POST /api/auth/login/` e `/api/auth/google/` | Autenticam |
+| `POST /api/auth/password-reset/` e `/password-reset/confirm/` | Quem perdeu a senha nao tem como fazer login |
 | `POST /api/payments/webhooks/abacatepay/` | Quem chama é a Abacate Pay; autentica pelo segredo compartilhado |
 | `GET /api/health/` | Health check do Render |
 
@@ -112,6 +113,11 @@ Arquivo `.env` na raiz do projeto (não commitado). Ver `.env.example` para refe
 | `DEEPSEEK_BASE_URL` | Endpoint da DeepSeek (default `https://api.deepseek.com`) |
 | `DEEPSEEK_MODEL` | Modelo da DeepSeek (default `deepseek-chat`) |
 | `GOOGLE_CLIENT_ID` | Client ID do Google — habilita o login com Google |
+| `EMAIL_HOST` | Servidor SMTP — sem ele o e-mail sai no console (dev) |
+| `EMAIL_PORT` / `EMAIL_USE_TLS` | Ajuste do SMTP (default 587 / True) |
+| `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | Credenciais do SMTP |
+| `DEFAULT_FROM_EMAIL` | Remetente dos e-mails |
+| `PASSWORD_RESET_TIMEOUT` | Validade do link de recuperação em segundos (default 7200) |
 | `LOG_LEVEL` | Nível dos logs de `apps.*` (default `INFO`) |
 | `THROTTLE_ANON` / `THROTTLE_USER` | Limite de requisições por visitante / por usuário |
 | `THROTTLE_AI` / `THROTTLE_LOGIN` | Limite das rotas de IA / das rotas de login e registro |
@@ -142,6 +148,8 @@ POST   /api/auth/register/                   # Cria user + UserProfile + Busines
 POST   /api/auth/login/
 GET    /api/auth/me/
 PATCH  /api/auth/onboarding/
+POST   /api/auth/password-reset/            # Pede o link de recuperacao por e-mail
+POST   /api/auth/password-reset/confirm/    # Troca a senha usando uid + token do link
 
 GET/POST        /api/products/               # Filtrado por business do usuário
 GET/POST        /api/transactions/           # Só admin, filtrado por business
@@ -206,6 +214,8 @@ Para domínio próprio: configurar `CUSTOM_DOMAIN=seudominio.com` nas variáveis
 - [backend/config/settings.py](backend/config/settings.py) — toda a configuração Django
 - [backend/apps/accounts/serializers.py](backend/apps/accounts/serializers.py) — registro cria User + UserProfile + Business
 - [backend/apps/accounts/permissions.py](backend/apps/accounts/permissions.py) — `IsAdminRole`
+- [backend/apps/accounts/emails.py](backend/apps/accounts/emails.py) — e-mail de recuperação de senha
+- [backend/apps/accounts/tests.py](backend/apps/accounts/tests.py) — testes da recuperação de senha
 - [backend/apps/payments/services.py](backend/apps/payments/services.py) — cliente Abacate Pay
 - [backend/apps/marketing/views.py](backend/apps/marketing/views.py) — `_call_claude()` para IA
 - [backend/apps/finance/assistant.py](backend/apps/finance/assistant.py) — assistente financeiro (DeepSeek/Claude/local)
