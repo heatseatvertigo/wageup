@@ -4323,6 +4323,197 @@ td:first-child { font-weight: var(--weight-medium); }
 .lp-footer__cta { background: none; border: 0; font: inherit; font-weight: var(--weight-medium); font-size: 0.9rem; color: var(--color-brand-mid); cursor: pointer; }
 .lp-footer__legal { color: var(--color-text-disabled); font-size: 0.8rem; width: 100%; }
 
+/* ─── Landing: demo interativa de PIX (hero) ─── */
+.lp-pix-demo {
+  margin-top: var(--space-5);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-5);
+}
+.lp-pix-demo__qr {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto var(--space-4);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+.lp-pix-demo__qr svg { width: 100%; height: 100%; display: block; shape-rendering: crispEdges; }
+.lp-pix-demo__qr svg rect { fill: var(--color-brand-dark); }
+.lp-pix-demo__qr.is-paid svg { opacity: 0.25; }
+.lp-pix-demo__check {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 2.5rem;
+  font-weight: var(--weight-semibold);
+  color: var(--color-positive);
+}
+.lp-pix-demo__status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+.lp-pix-demo__status.is-paid { color: var(--color-positive); }
+.lp-pix-demo__pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-warning);
+  animation: lp-pulse 1.2s ease-in-out infinite;
+}
+.lp-pix-demo__status.is-paid .lp-pix-demo__pulse { background: var(--color-positive); animation: none; }
+@keyframes lp-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50%      { opacity: 1;    transform: scale(1.15); }
+}
+.lp-pix-demo .lp-btn { width: 100%; }
+
+/* ─── Landing: faixa de números ─── */
+.lp-stats {
+  max-width: var(--lp-max);
+  margin-inline: auto;
+  padding: var(--space-8) clamp(1.25rem, 4vw, 2.5rem) var(--space-12);
+  display: grid;
+  gap: var(--space-8);
+}
+@media (min-width: 640px) { .lp-stats { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 960px) { .lp-stats { grid-template-columns: repeat(4, 1fr); } }
+.lp-stat { text-align: center; }
+.lp-stat__value {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-medium);
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+.lp-stat__label {
+  display: block;
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+/* ─── Landing: calculadora de margem ─── */
+.lp-calc { display: grid; gap: var(--space-6); align-items: start; }
+@media (min-width: 860px) { .lp-calc { grid-template-columns: 1fr 1fr; } }
+.lp-calc__form {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  display: grid;
+  gap: var(--space-5);
+}
+.lp-calc__field { display: grid; gap: var(--space-2); }
+.lp-calc__field label { font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--color-text-secondary); }
+.lp-calc__input {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
+  transition: border-color var(--duration-normal) var(--ease-default),
+              box-shadow var(--duration-normal) var(--ease-default);
+}
+.lp-calc__input:focus-within { border-color: var(--color-brand-mid); box-shadow: var(--shadow-focus); }
+.lp-calc__input span { color: var(--color-text-secondary); font-family: var(--font-mono); font-size: var(--text-sm); }
+.lp-calc__input input {
+  flex: 1;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  color: var(--color-text-primary);
+}
+.lp-calc__input input::placeholder { color: var(--color-text-disabled); }
+.lp-calc__result {
+  background: var(--color-brand-subtle);
+  border: 1px solid var(--color-brand-light);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  display: grid;
+  gap: var(--space-3);
+  align-content: center;
+}
+.lp-calc__result-label { font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--color-text-secondary); }
+.lp-calc__result-value {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-medium);
+  font-size: clamp(2rem, 5vw, 2.8rem);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-brand-mid);
+}
+.lp-calc__result-value.is-negative { color: var(--color-negative); }
+.lp-calc__result-rows { display: grid; gap: var(--space-3); margin-top: var(--space-3); }
+.lp-calc__result-row { display: flex; justify-content: space-between; gap: var(--space-4); font-size: var(--text-sm); color: var(--color-text-secondary); }
+.lp-calc__result-row b { font-family: var(--font-mono); font-weight: var(--weight-medium); color: var(--color-text-primary); }
+
+/* ─── Landing: FAQ ─── */
+.lp-faq { display: grid; gap: var(--space-3); }
+.lp-faq__item {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+.lp-faq__q {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  background: none;
+  border: 0;
+  padding: var(--space-5) var(--space-6);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.lp-faq__q:hover { background: var(--color-surface-muted); }
+.lp-faq__q:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.lp-faq__icon {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-mid);
+  font-size: 1.1rem;
+  font-weight: var(--weight-medium);
+  transition: transform var(--duration-normal) var(--ease-default);
+}
+.lp-faq__item.is-open .lp-faq__icon { transform: rotate(45deg); }
+.lp-faq__a {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--duration-slow) var(--ease-out);
+}
+.lp-faq__item.is-open .lp-faq__a { grid-template-rows: 1fr; }
+.lp-faq__a-inner { overflow: hidden; }
+.lp-faq__a-inner p {
+  padding: 0 var(--space-6) var(--space-5);
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+  line-height: var(--leading-normal);
+}
+
 /* ─── Landing responsive ─── */
 @media (max-width: 720px) {
   .lp-nav__links { display: none; }
