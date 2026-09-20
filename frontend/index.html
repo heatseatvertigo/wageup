@@ -9,6 +9,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,0,0&family=Instrument+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body>
@@ -43,19 +45,51 @@
             </div>
           </div>
 
-          <aside class="lp-panel" aria-label="Exemplo de painel financeiro">
+          <aside class="lp-panel" aria-label="Demonstração de cobrança PIX">
             <div class="lp-panel__head">
               <span><i class="lp-dot" aria-hidden="true"></i>A receber</span>
               <span>Este mês</span>
             </div>
-            <div class="lp-panel__big"><span class="rs">R$ </span>12.480,00</div>
+            <div class="lp-panel__big"><span class="rs">R$ </span><span id="lpPanelValue">12.480,00</span></div>
             <div class="lp-panel__trend">↑ 18% vs. mês passado</div>
             <div class="lp-panel__rows">
-              <div class="lp-row"><span>Recebido</span><span class="v">R$ 8.200,00</span></div>
-              <div class="lp-row"><span>Pendente</span><span class="v">R$ 4.280,00</span></div>
-              <div class="lp-row"><span>Cobranças ativas</span><span class="v">3</span></div>
+              <div class="lp-row"><span>Recebido</span><span class="v" id="lpRecebido">R$ 8.200,00</span></div>
+              <div class="lp-row"><span>Pendente</span><span class="v" id="lpPendente">R$ 4.280,00</span></div>
+              <div class="lp-row"><span>Cobranças ativas</span><span class="v" id="lpAtivas">3</span></div>
+            </div>
+
+            <div class="lp-pix-demo">
+              <div class="lp-pix-demo__qr" id="lpQrWrap" hidden>
+                <svg id="lpQr" viewBox="0 0 25 25" role="img" aria-label="QR Code PIX (ilustrativo)"></svg>
+                <span class="lp-pix-demo__check" id="lpPixCheck" hidden>✓</span>
+              </div>
+              <p class="lp-pix-demo__status" id="lpPixStatus" hidden>
+                <span class="lp-pix-demo__pulse" aria-hidden="true"></span>
+                <span id="lpPixStatusText">Aguardando pagamento…</span>
+              </p>
+              <button class="lp-btn lp-btn--ghost" type="button" id="lpSimulate">Simular cobrança PIX</button>
             </div>
           </aside>
+        </section>
+
+        <!-- NÚMEROS -->
+        <section class="lp-stats" aria-label="Números da plataforma">
+          <div class="lp-stat">
+            <span class="lp-stat__value" data-count="12480" data-prefix="R$ " data-decimals="2">R$ 0,00</span>
+            <span class="lp-stat__label">recebidos por PIX este mês</span>
+          </div>
+          <div class="lp-stat">
+            <span class="lp-stat__value" data-count="18" data-prefix="+" data-suffix="%">+0%</span>
+            <span class="lp-stat__label">de crescimento vs. mês passado</span>
+          </div>
+          <div class="lp-stat">
+            <span class="lp-stat__value" data-count="3" data-prefix="">0</span>
+            <span class="lp-stat__label">cobranças ativas agora</span>
+          </div>
+          <div class="lp-stat">
+            <span class="lp-stat__value" data-count="58" data-suffix="%">0%</span>
+            <span class="lp-stat__label">de margem média no catálogo</span>
+          </div>
         </section>
 
         <!-- RECURSOS -->
@@ -118,6 +152,84 @@
               </div>
             </li>
           </ol>
+        </section>
+
+        <!-- CALCULADORA DE MARGEM -->
+        <section class="lp-section" id="margem">
+          <div class="lp-section__head">
+            <p class="lp-eyebrow">Na prática</p>
+            <h2>Descubra sua margem em segundos.</h2>
+            <p class="lp-section__sub">Digite custo e preço — a WageUp calcula o que sobra para você, do jeito que o painel faz.</p>
+          </div>
+          <div class="lp-calc">
+            <div class="lp-calc__form">
+              <div class="lp-calc__field">
+                <label for="lpCost">Custo do produto</label>
+                <div class="lp-calc__input"><span>R$</span><input id="lpCost" name="cost" inputmode="decimal" placeholder="0,00" autocomplete="off" /></div>
+              </div>
+              <div class="lp-calc__field">
+                <label for="lpPrice">Preço de venda</label>
+                <div class="lp-calc__input"><span>R$</span><input id="lpPrice" name="price" inputmode="decimal" placeholder="0,00" autocomplete="off" /></div>
+              </div>
+              <div class="lp-calc__field">
+                <label for="lpFee">Taxa de cartão/PIX (%)</label>
+                <div class="lp-calc__input"><span>%</span><input id="lpFee" name="fee" inputmode="decimal" placeholder="0" autocomplete="off" /></div>
+              </div>
+            </div>
+            <div class="lp-calc__result" aria-live="polite">
+              <span class="lp-calc__result-label">O que sobra para você</span>
+              <div class="lp-calc__result-value" id="lpMarginValue">R$ 0,00</div>
+              <div class="lp-calc__result-rows">
+                <div class="lp-calc__result-row"><span>Margem</span><b id="lpMarginPct">0%</b></div>
+                <div class="lp-calc__result-row"><span>Markup sobre o custo</span><b id="lpMarkupPct">0%</b></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- FAQ -->
+        <section class="lp-section lp-section--muted" id="faq">
+          <div class="lp-section__head">
+            <p class="lp-eyebrow">Perguntas frequentes</p>
+            <h2>Boa pergunta.</h2>
+          </div>
+          <div class="lp-faq">
+            <div class="lp-faq__item">
+              <button class="lp-faq__q" type="button" aria-expanded="false">
+                <span>Preciso entender de contabilidade para usar?</span>
+                <span class="lp-faq__icon" aria-hidden="true">+</span>
+              </button>
+              <div class="lp-faq__a"><div class="lp-faq__a-inner"><p>Não. A WageUp foi feita para o dia a dia do MEI: você registra entradas e saídas com palavras simples, e o painel traduz isso em lucro, despesas e margem — sem jargão.</p></div></div>
+            </div>
+            <div class="lp-faq__item">
+              <button class="lp-faq__q" type="button" aria-expanded="false">
+                <span>Quanto custa criar uma cobrança PIX?</span>
+                <span class="lp-faq__icon" aria-hidden="true">+</span>
+              </button>
+              <div class="lp-faq__a"><div class="lp-faq__a-inner"><p>Você paga só a taxa da Abacate Pay por cobrança. A plataforma em si não cobra mensalidade no plano gratuito.</p></div></div>
+            </div>
+            <div class="lp-faq__item">
+              <button class="lp-faq__q" type="button" aria-expanded="false">
+                <span>Meus dados e os do meu negócio estão seguros?</span>
+                <span class="lp-faq__icon" aria-hidden="true">+</span>
+              </button>
+              <div class="lp-faq__a"><div class="lp-faq__a-inner"><p>Sim. Cada conta é isolada, o extrato importado é lido e descartado sem ficar guardado, e o acesso ao seu banco nunca passa pela WageUp.</p></div></div>
+            </div>
+            <div class="lp-faq__item">
+              <button class="lp-faq__q" type="button" aria-expanded="false">
+                <span>A IA de marketing usa os meus produtos de verdade?</span>
+                <span class="lp-faq__icon" aria-hidden="true">+</span>
+              </button>
+              <div class="lp-faq__a"><div class="lp-faq__a-inner"><p>Sim. Ela lê o catálogo que você cadastrou — nome, preço e margem — para sugerir campanhas que falam do seu produto, não de algo genérico.</p></div></div>
+            </div>
+            <div class="lp-faq__item">
+              <button class="lp-faq__q" type="button" aria-expanded="false">
+                <span>Posso usar no celular?</span>
+                <span class="lp-faq__icon" aria-hidden="true">+</span>
+              </button>
+              <div class="lp-faq__a"><div class="lp-faq__a-inner"><p>Sim. A plataforma é responsiva e funciona no navegador do celular, tablet e computador, sem instalar nada.</p></div></div>
+            </div>
+          </div>
         </section>
 
         <!-- CTA FINAL -->
@@ -1410,5 +1522,270 @@
     </section>
 
     <script src="app.js"></script>
+    <script>
+      // ─── Landing page: animações e interações ───────────────────────────
+      // Escopo: só a página inicial (.site-shell). Respeita o design system:
+      // opacity + transform, sem cor nova, sem gradiente. Com movimento
+      // reduzido, as interações continuam funcionando e só a animação
+      // decorativa é que desliga.
+      (function () {
+        if (typeof gsap === "undefined") return;
+
+        const shell = document.querySelector(".site-shell");
+        if (!shell) return;
+
+        const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (!prefersReduced) gsap.registerPlugin(ScrollTrigger);
+
+        const $ = (sel, root) => (root || document).querySelector(sel);
+        const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
+        const fmt = (v, dec) =>
+          v.toLocaleString("pt-BR", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+
+        // ── Animações decorativas ────────────────────────────────────────
+        if (prefersReduced) {
+          const big = $("#lpPanelValue");
+          if (big) big.textContent = "12.480,00";
+          $$(".lp-stat__value").forEach((el) => {
+            el.textContent =
+              (el.dataset.prefix || "") +
+              fmt(Number(el.dataset.count) || 0, Number(el.dataset.decimals || 0)) +
+              (el.dataset.suffix || "");
+          });
+        } else {
+          // Entrada do topo, escalonada.
+          gsap.timeline({ defaults: { ease: "power3.out" } })
+            .from(".lp-nav", { y: -16, opacity: 0, duration: 0.55, ease: "power2.out" })
+            .from(".lp-hero__copy .lp-eyebrow", { y: 22, opacity: 0, duration: 0.5 }, "-=0.3")
+            .from(".lp-hero__title", { y: 28, opacity: 0, duration: 0.65 }, "-=0.3")
+            .from(".lp-hero__sub", { y: 22, opacity: 0, duration: 0.5 }, "-=0.35")
+            .from(".lp-hero__actions", { y: 18, opacity: 0, duration: 0.5 }, "-=0.3")
+            .from(".lp-panel", { y: 30, opacity: 0, scale: 0.97, duration: 0.7 }, "-=0.55");
+
+          // Contador do valor em destaque no painel.
+          const big = $("#lpPanelValue");
+          if (big) {
+            const contador = { v: 0 };
+            gsap.to(contador, {
+              v: 12480, duration: 1.6, ease: "power2.out", delay: 0.6,
+              onUpdate: () => { big.textContent = fmt(contador.v, 2); }
+            });
+          }
+
+          // Revela cada cabeçalho de seção ao entrar na tela.
+          $$(".lp-section__head").forEach((head) => {
+            gsap.from(head, {
+              y: 26, opacity: 0, duration: 0.7, ease: "power3.out",
+              scrollTrigger: { trigger: head, start: "top 85%", once: true }
+            });
+          });
+
+          // Cartões de recursos, em cascata.
+          gsap.from(".lp-features .lp-feature", {
+            y: 32, opacity: 0, duration: 0.6, ease: "power3.out", stagger: 0.1,
+            scrollTrigger: { trigger: ".lp-features", start: "top 80%", once: true }
+          });
+
+          // Passos do "Como funciona", em cascata.
+          gsap.from(".lp-steps .lp-step", {
+            y: 26, opacity: 0, duration: 0.6, ease: "power3.out", stagger: 0.15,
+            scrollTrigger: { trigger: ".lp-steps", start: "top 82%", once: true }
+          });
+
+          // Calculadora de margem.
+          gsap.from(".lp-calc__form, .lp-calc__result", {
+            y: 30, opacity: 0, duration: 0.7, ease: "power3.out", stagger: 0.12,
+            scrollTrigger: { trigger: ".lp-calc", start: "top 80%", once: true }
+          });
+
+          // Itens do FAQ, um a um.
+          $$(".lp-faq__item").forEach((item, i) => {
+            gsap.from(item, {
+              y: 22, opacity: 0, duration: 0.55, ease: "power3.out",
+              scrollTrigger: { trigger: item, start: "top 88%", once: true }
+            });
+          });
+
+          // Chamada final.
+          gsap.from(".lp-cta > *", {
+            y: 22, opacity: 0, duration: 0.6, ease: "power3.out", stagger: 0.1,
+            scrollTrigger: { trigger: ".lp-cta", start: "top 85%", once: true }
+          });
+
+          // Rodapé, discreto.
+          gsap.from(".lp-footer", {
+            y: 18, opacity: 0, duration: 0.6, ease: "power2.out",
+            scrollTrigger: { trigger: ".lp-footer", start: "top 92%", once: true }
+          });
+
+          // Números da faixa de estatísticas, contando ao entrar na tela.
+          $$(".lp-stat__value").forEach((el) => {
+            const alvo = Number(el.dataset.count) || 0;
+            const prefix = el.dataset.prefix || "";
+            const suffix = el.dataset.suffix || "";
+            const dec = Number(el.dataset.decimals || 0);
+            const proxy = { v: 0 };
+            el.textContent = prefix + fmt(0, dec) + suffix;
+            gsap.to(proxy, {
+              v: alvo, duration: 1.4, ease: "power2.out",
+              scrollTrigger: { trigger: el, start: "top 88%", once: true },
+              onUpdate: () => { el.textContent = prefix + fmt(proxy.v, dec) + suffix; }
+            });
+          });
+        }
+
+        // ── Demo interativa: cobrança PIX ────────────────────────────────
+        (function () {
+          const wrap = $("#lpQrWrap"), qr = $("#lpQr"), statusEl = $("#lpPixStatus"),
+                statusText = $("#lpPixStatusText"), check = $("#lpPixCheck"), btn = $("#lpSimulate");
+          if (!wrap || !btn || !qr) return;
+
+          const state = { recebido: 8200, pendente: 4280, ativas: 3 };
+          const VALOR = 350;
+          let running = false;
+
+          const setText = (sel, txt) => { const el = $(sel); if (el) el.textContent = txt; };
+          const render = () => {
+            setText("#lpPanelValue", fmt(state.recebido + state.pendente, 2));
+            setText("#lpRecebido", "R$ " + fmt(state.recebido, 2));
+            setText("#lpPendente", "R$ " + fmt(state.pendente, 2));
+            setText("#lpAtivas", String(Math.round(state.ativas)));
+          };
+
+          // Desenha um QR Code ilustrativo (não escaneável) com os tokens.
+          (function drawQr() {
+            const size = 25;
+            let seed = 20260908;
+            const rand = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+            const grid = Array.from({ length: size }, () => Array(size).fill(0));
+            const finder = (r0, c0) => {
+              for (let r = 0; r < 7; r++) for (let c = 0; c < 7; c++) {
+                const border = r === 0 || r === 6 || c === 0 || c === 6;
+                const core = r >= 2 && r <= 4 && c >= 2 && c <= 4;
+                grid[r0 + r][c0 + c] = border || core ? 1 : 0;
+              }
+            };
+            finder(0, 0); finder(0, size - 7); finder(size - 7, 0);
+            for (let i = 8; i < size - 8; i++) {
+              grid[6][i] = i % 2 === 0 ? 1 : 0;
+              grid[i][6] = i % 2 === 0 ? 1 : 0;
+            }
+            for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
+              if (r < 9 && c < 9) continue;
+              if (r < 9 && c >= size - 8) continue;
+              if (r >= size - 8 && c < 9) continue;
+              if (r === 6 || c === 6) continue;
+              grid[r][c] = rand() > 0.5 ? 1 : 0;
+            }
+            let rects = "";
+            for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
+              if (grid[r][c]) rects += `<rect x="${c}" y="${r}" width="1" height="1"/>`;
+            }
+            qr.innerHTML = rects;
+          })();
+
+          btn.addEventListener("click", () => {
+            if (running) return;
+            running = true;
+            btn.disabled = true;
+            btn.textContent = "Gerando cobrança…";
+
+            // Fase 1: cria a cobrança (pendente e ativas sobem).
+            state.pendente += VALOR;
+            state.ativas += 1;
+            render();
+            wrap.hidden = false;
+            wrap.classList.remove("is-paid");
+            check.hidden = true;
+            statusEl.hidden = false;
+            statusEl.classList.remove("is-paid");
+            statusText.textContent = "Aguardando pagamento…";
+            if (!prefersReduced) {
+              gsap.fromTo(wrap, { scale: 0.85, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "back.out(1.6)" });
+              gsap.fromTo(statusEl, { opacity: 0 }, { opacity: 1, duration: 0.4, delay: 0.2 });
+            }
+
+            // Fase 2: pagamento confirmado.
+            window.setTimeout(() => {
+              const target = {
+                pendente: state.pendente - VALOR,
+                recebido: state.recebido + VALOR,
+                ativas: state.ativas - 1
+              };
+              statusText.textContent = "Pagamento confirmado ✓";
+              statusEl.classList.add("is-paid");
+              wrap.classList.add("is-paid");
+              const showCheck = () => {
+                check.hidden = false;
+                if (!prefersReduced) {
+                  gsap.fromTo(check, { scale: 0.5, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(2)" });
+                }
+              };
+              if (prefersReduced) {
+                Object.assign(state, target);
+                render();
+                showCheck();
+              } else {
+                gsap.to(state, { ...target, duration: 0.7, ease: "power3.out", onUpdate: render, onComplete: showCheck });
+              }
+              btn.textContent = "Simular outra cobrança";
+              btn.disabled = false;
+              running = false;
+            }, 2200);
+          });
+        })();
+
+        // ── Calculadora de margem ─────────────────────────────────────────
+        (function () {
+          const cost = $("#lpCost"), price = $("#lpPrice"), fee = $("#lpFee");
+          const marginValue = $("#lpMarginValue"), marginPct = $("#lpMarginPct"), markupPct = $("#lpMarkupPct");
+          if (!cost || !price) return;
+
+          const parseMoney = (el) => {
+            const raw = (el.value || "").replace(/\s/g, "").replace(/\./g, "").replace(",", ".");
+            const n = parseFloat(raw);
+            return isFinite(n) ? n : 0;
+          };
+          const parseFee = (el) => {
+            const n = parseFloat((el.value || "").trim().replace(",", "."));
+            return isFinite(n) ? n : 0;
+          };
+
+          const update = () => {
+            const c = parseMoney(cost), p = parseMoney(price), f = parseFee(fee);
+            const taxas = (p * f) / 100;
+            const margem = p - c - taxas;
+            const margemP = p ? (margem / p) * 100 : 0;
+            const markupP = c ? ((p - c) / c) * 100 : 0;
+
+            marginValue.textContent = "R$ " + fmt(margem, 2);
+            marginValue.classList.toggle("is-negative", margem < 0);
+            marginPct.textContent = fmt(margemP, 1) + "%";
+            markupPct.textContent = fmt(markupP, 0) + "%";
+          };
+
+          [cost, price, fee].forEach((el) => el.addEventListener("input", update));
+          update();
+        })();
+
+        // ── FAQ ───────────────────────────────────────────────────────────
+        $$(".lp-faq__item").forEach((item) => {
+          const q = item.querySelector(".lp-faq__q");
+          if (!q) return;
+          q.addEventListener("click", () => {
+            const open = item.classList.toggle("is-open");
+            q.setAttribute("aria-expanded", String(open));
+          });
+        });
+
+        // A landing some (vira app) e volta (logout). Ao voltar, o layout
+        // retorna ao normal e os triggers precisam recalcular suas posições.
+        if (!prefersReduced) {
+          new MutationObserver(() => {
+            if (!shell.classList.contains("is-hidden")) ScrollTrigger.refresh();
+          }).observe(shell, { attributes: true, attributeFilter: ["class"] });
+        }
+      })();
+    </script>
   </body>
 </html>
