@@ -4,14 +4,20 @@ O runner do Django troca o EMAIL_BACKEND pelo de memoria, entao
 `mail.outbox` guarda o que teria sido enviado.
 """
 import re
+from unittest.mock import Mock, patch
 
+import requests
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.core.cache import cache
+from django.core.mail import EmailMultiAlternatives, get_connection, send_mail
+from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
+
+from .email_backends import ResendError
 
 User = get_user_model()
 
@@ -161,3 +167,83 @@ class PasswordResetTests(APITestCase):
 
         self.assertEqual(resposta.status_code, status.HTTP_200_OK)
         self.assertIn("token", resposta.data)
+
+
+def _resposta_resend(status_code, body=None):
+    resposta = Mock(status_code=status_code, ok=200 <= status_code < 300)
+    resposta.json.return_value = body or {}
+    resposta.text = str(body or "")
+    return resposta
+
+
+@override_settings(RESEND_API_KEY="re_teste", DEFAULT_FROM_EMAIL="WageUp <onboarding@resend.dev>")
+class ResendBackendTests(SimpleTestCase):
+    """O backend chama a API do Resend com o que o Django entregaria por SMTP."""
+
+    BACKEND = "apps.accounts.email_backends.ResendEmailBackend"
+
+    @patch("apps.accounts.email_backends.requests.post")
+    def test_envia_pela_api_com_remetente_destino_e_corpo(self, post):
+        post.return_value = _resposta_resend(200, {"id": "abc"})
+
+        enviados = _enviar_pelo_backend(self.BACKEND, "Assunto", "Corpo", ["dono@wageup.local"])
+
+        self.assertEqual(enviados, 1)
+        post.assert_called_once()
+        chamada = post.call_args
+        self.assertEqual(chamada.args[0], "https://api.resend.com/emails")
+        self.assertEqual(chamada.kwargs["headers"]["Authorization"], "Bearer re_teste")
+        self.assertEqual(
+            chamada.kwargs["json"],
+            {
+                "from": "WageUp <onboarding@resend.dev>",
+                "to": ["dono@wageup.local"],
+                "subject": "Assunto",
+                "text": "Corpo",
+            },
+        )
+
+    @patch("apps.accounts.email_backends.requests.post")
+    def test_versao_html_vai_no_campo_html(self, post):
+        post.return_value = _resposta_resend(200, {"id": "abc"})
+        mensagem = EmailMultiAlternatives(
+            "Assunto", "texto", to=["dono@wageup.local"], connection=get_connection(self.BACKEND)
+        )
+        mensagem.attach_alternative("<p>html</p>", "text/html")
+        mensagem.send()
+
+        self.assertEqual(post.call_args.kwargs["json"]["html"], "<p>html</p>")
+
+    @patch("apps.accounts.email_backends.requests.post")
+    def test_recusa_da_api_vira_erro_com_a_explicacao(self, post):
+        post.return_value = _resposta_resend(403, {"message": "domain is not verified"})
+        with self.assertRaisesRegex(ResendError, "403.*domain is not verified"):
+            _enviar_pelo_backend(self.BACKEND, "Assunto", "Corpo", ["dono@wageup.local"])
+
+    @patch("apps.accounts.email_backends.requests.post", side_effect=requests.Timeout())
+    def test_timeout_vira_erro_ou_e_engolido_com_fail_silently(self, post):
+        with self.assertRaises(ResendError):
+            _enviar_pelo_backend(self.BACKEND, "Assunto", "Corpo", ["dono@wageup.local"])
+
+        enviados = _enviar_pelo_backend(
+            self.BACKEND, "Assunto", "Corpo", ["dono@wageup.local"], fail_silently=True
+        )
+        self.assertEqual(enviados, 0)
+
+    @override_settings(RESEND_API_KEY="")
+    def test_sem_chave_falha_claro_em_vez_de_chamar_a_api(self):
+        with patch("apps.accounts.email_backends.requests.post") as post:
+            with self.assertRaisesRegex(ResendError, "RESEND_API_KEY"):
+                _enviar_pelo_backend(self.BACKEND, "Assunto", "Corpo", ["dono@wageup.local"])
+        post.assert_not_called()
+
+
+def _enviar_pelo_backend(backend, assunto, corpo, destinatarios, fail_silently=False):
+    return send_mail(
+        assunto,
+        corpo,
+        None,
+        destinatarios,
+        fail_silently=fail_silently,
+        connection=get_connection(backend, fail_silently=fail_silently),
+    )

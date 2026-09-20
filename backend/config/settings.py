@@ -221,16 +221,21 @@ GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID", default="")
 # ---------------------------------------------------------------------------
 # E-mail (recuperacao de senha)
 # ---------------------------------------------------------------------------
-# Sem EMAIL_HOST configurado a mensagem e impressa no console do runserver.
-# O fluxo de recuperacao funciona inteiro em desenvolvimento sem depender de
-# provedor de e-mail — mesmo padrao das chaves de IA, que caem para uma
-# resposta local em vez de quebrar.
+# Sem RESEND_API_KEY nem EMAIL_HOST a mensagem e impressa no console do
+# runserver. O fluxo de recuperacao funciona inteiro em desenvolvimento sem
+# depender de provedor de e-mail — mesmo padrao das chaves de IA, que caem
+# para uma resposta local em vez de quebrar.
 #
-# Em producao, definir EMAIL_HOST liga o SMTP de verdade. Sem essa troca o
-# link de recuperacao seria escrito no log do servidor e nunca chegaria ao
-# usuario, que e uma falha silenciosa — por isso a escolha e explicita.
+# Em producao, RESEND_API_KEY liga a entrega pela API HTTP do Resend
+# (apps/accounts/email_backends.py); EMAIL_HOST, o SMTP generico. Sem uma
+# das duas o link de recuperacao seria escrito no log do servidor e nunca
+# chegaria ao usuario, que e uma falha silenciosa — por isso a escolha e
+# explicita.
+RESEND_API_KEY = env("RESEND_API_KEY", default="")
 EMAIL_HOST = env("EMAIL_HOST", default="")
-if EMAIL_HOST:
+if RESEND_API_KEY:
+    EMAIL_BACKEND = "apps.accounts.email_backends.ResendEmailBackend"
+elif EMAIL_HOST:
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
     EMAIL_PORT = env.int("EMAIL_PORT", default=587)
     EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)

@@ -113,7 +113,8 @@ Arquivo `.env` na raiz do projeto (não commitado). Ver `.env.example` para refe
 | `DEEPSEEK_BASE_URL` | Endpoint da DeepSeek (default `https://api.deepseek.com`) |
 | `DEEPSEEK_MODEL` | Modelo da DeepSeek (default `deepseek-chat`) |
 | `GOOGLE_CLIENT_ID` | Client ID do Google — habilita o login com Google |
-| `EMAIL_HOST` | Servidor SMTP — sem ele o e-mail sai no console (dev) |
+| `RESEND_API_KEY` | Chave do Resend — entrega o e-mail de recuperação pela API HTTP |
+| `EMAIL_HOST` | Servidor SMTP, alternativa ao Resend — sem nenhum dos dois o e-mail sai no console (dev) |
 | `EMAIL_PORT` / `EMAIL_USE_TLS` | Ajuste do SMTP (default 587 / True) |
 | `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | Credenciais do SMTP |
 | `DEFAULT_FROM_EMAIL` | Remetente dos e-mails |
@@ -215,6 +216,7 @@ Para domínio próprio: configurar `CUSTOM_DOMAIN=seudominio.com` nas variáveis
 - [backend/apps/accounts/serializers.py](backend/apps/accounts/serializers.py) — registro cria User + UserProfile + Business
 - [backend/apps/accounts/permissions.py](backend/apps/accounts/permissions.py) — `IsAdminRole`
 - [backend/apps/accounts/emails.py](backend/apps/accounts/emails.py) — e-mail de recuperação de senha
+- [backend/apps/accounts/email_backends.py](backend/apps/accounts/email_backends.py) — backend de e-mail via API do Resend
 - [backend/apps/accounts/tests.py](backend/apps/accounts/tests.py) — testes da recuperação de senha
 - [backend/apps/payments/services.py](backend/apps/payments/services.py) — cliente Abacate Pay
 - [backend/apps/marketing/views.py](backend/apps/marketing/views.py) — `_call_claude()` para IA
