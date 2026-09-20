@@ -315,6 +315,14 @@ def _call_deepseek(system_prompt, history):
     except ValueError as exc:
         raise AssistantError("Resposta invalida do assistente.") from exc
 
+    if response.status_code in (401, 403):
+        # A mensagem do provedor vem em inglês e cita a chave. Nem o usuário
+        # entende, nem deveria ver: é problema de configuração, não dele.
+        raise AssistantError(
+            "A chave do assistente não foi aceita pelo provedor. "
+            "Confira DEEPSEEK_API_KEY nas variáveis de ambiente."
+        )
+
     if response.status_code >= 400:
         detail = (body.get("error") or {}).get("message") or body
         raise AssistantError(str(detail))
@@ -329,6 +337,16 @@ def _call_claude(system_prompt, history):
     import anthropic as anthropic_sdk
 
     client = anthropic_sdk.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    try:
+        return _mensagem_claude(client, anthropic_sdk, system_prompt, history)
+    except anthropic_sdk.AuthenticationError as exc:
+        raise AssistantError(
+            "A chave do assistente não foi aceita pelo provedor. "
+            "Confira ANTHROPIC_API_KEY nas variáveis de ambiente."
+        ) from exc
+
+
+def _mensagem_claude(client, anthropic_sdk, system_prompt, history):
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=700,

@@ -42,6 +42,12 @@ const TX_SOURCE = {
   import: { label: "Extrato importado", tone: "neutral" },
   manual: { label: "Lançamento manual", tone: "neutral" }
 };
+// Mesmo motivo: renderProducts() lê este mapa, e render() roda no topo.
+
+const PRODUCT_UNITS = {
+  un: "un", kg: "kg", g: "g", l: "L", ml: "mL", m: "m", pct: "pct", srv: "serviço"
+};
+
 let txFilter = "all";
 let txMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let txAllPeriods = false;
@@ -372,27 +378,314 @@ document.querySelector("#transactionForm")?.addEventListener("submit", async (ev
   render();
 });
 
-document.querySelector("#productForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const formEl = event.currentTarget;
-  const form = new FormData(formEl);
-  const payload = {
-    name: form.get("name").trim(),
-    category: form.get("category").trim(),
-    cost: Number(form.get("cost")),
-    price: Number(form.get("price")),
-    stock: Number(form.get("stock"))
-  };
+// ─── Produtos: cadastro, foto e cálculo de margem ───────────────────────────
 
-  const product = apiAvailable
-    ? await createProduct(payload)
-    : { id: uid(), ...payload };
+// Lado maior da foto depois da redução, e qualidade do JPEG. A imagem vai para
+// o banco, então encolher no navegador é o que mantém a linha pequena — o
+// servidor recusa acima de 400 KB.
+const PHOTO_MAX_SIDE = 800;
+const PHOTO_QUALITY = 0.8;
 
-  state.products.unshift(product);
-  formEl.reset();
+let productEditingId = null;
+let productPhotoPending = null;   // Blob escolhido e ainda não enviado
+let productPhotoCleared = false;  // usuário pediu para remover a foto atual
+
+document.querySelector("#openProductModal")?.addEventListener("click", () => openProductModal(null));
+
+document.querySelectorAll("[data-close-product]").forEach((el) =>
+  el.addEventListener("click", closeProductModal)
+);
+
+["#productPrice", "#productCost", "#productOtherCosts"].forEach((seletor) => {
+  document.querySelector(seletor)?.addEventListener("input", (event) => {
+    const input = event.target;
+    input.value = centsFromMasked(input.value) ? maskMoney(input.value) : "";
+    updateProductCalc();
+  });
+});
+
+["#productFee", "#productTax", "#calcTarget"].forEach((seletor) => {
+  document.querySelector(seletor)?.addEventListener("input", updateProductCalc);
+});
+
+document.querySelector("#productPhoto")?.addEventListener("change", async (event) => {
+  const arquivo = event.target.files?.[0];
+  if (!arquivo) return;
+
+  const erro = document.querySelector("#productFormError");
+  try {
+    productPhotoPending = await shrinkImage(arquivo);
+    productPhotoCleared = false;
+    showProductPhoto(URL.createObjectURL(productPhotoPending));
+    erro.hidden = true;
+  } catch (falha) {
+    erro.textContent = falha.message;
+    erro.hidden = false;
+  }
+});
+
+document.querySelector("#productPhotoRemove")?.addEventListener("click", () => {
+  productPhotoPending = null;
+  productPhotoCleared = true;
+  document.querySelector("#productPhoto").value = "";
+  showProductPhoto(null);
+});
+
+document.querySelector("#productDelete")?.addEventListener("click", async () => {
+  const produto = state.products.find((item) => String(item.id) === String(productEditingId));
+  if (!produto) return;
+
+  const erro = document.querySelector("#productFormError");
+  try {
+    await apiRequest(`/products/${produto.id}/`, { method: "DELETE" });
+  } catch (falha) {
+    erro.textContent = falha.message;
+    erro.hidden = false;
+    return;
+  }
+
+  state.products = state.products.filter((item) => String(item.id) !== String(produto.id));
+  closeProductModal();
   persist();
   render();
 });
+
+document.querySelector("#productForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const erro = document.querySelector("#productFormError");
+  const submit = document.querySelector("#productSubmit");
+
+  const payload = {
+    name: document.querySelector("#productName").value.trim(),
+    category: document.querySelector("#productCategory").value.trim(),
+    sku: document.querySelector("#productSku").value.trim(),
+    description: document.querySelector("#productDescription").value.trim(),
+    unit: document.querySelector("#productUnit").value,
+    price: reaisFromField("#productPrice"),
+    cost: reaisFromField("#productCost"),
+    other_costs: reaisFromField("#productOtherCosts"),
+    fee_percent: Number(document.querySelector("#productFee").value) || 0,
+    tax_percent: Number(document.querySelector("#productTax").value) || 0,
+    stock: Number(document.querySelector("#productStock").value) || 0,
+    min_stock: Number(document.querySelector("#productMinStock").value) || 0,
+    is_active: document.querySelector("#productActive").checked
+  };
+
+  if (!payload.name) {
+    erro.textContent = "Informe o nome do produto.";
+    erro.hidden = false;
+    return;
+  }
+
+  erro.hidden = true;
+  submit.disabled = true;
+  const rotulo = submit.textContent;
+  submit.textContent = "Salvando...";
+
+  try {
+    let produto = productEditingId
+      ? await apiRequest(`/products/${productEditingId}/`, { method: "PATCH", body: JSON.stringify(payload) })
+      : await apiRequest("/products/", { method: "POST", body: JSON.stringify(payload) });
+
+    // A foto vai numa chamada separada: ela só pode ser enviada depois que o
+    // produto existe e tem id.
+    if (productPhotoPending) {
+      const dados = new FormData();
+      dados.append("file", productPhotoPending, "foto.jpg");
+      produto = await apiRequest(`/products/${produto.id}/image/`, { method: "POST", body: dados });
+    } else if (productPhotoCleared && productEditingId) {
+      await apiRequest(`/products/${produto.id}/image/`, { method: "DELETE" });
+      produto = { ...produto, has_image: false, image_updated_at: null };
+    }
+
+    const posicao = state.products.findIndex((item) => String(item.id) === String(produto.id));
+    if (posicao === -1) state.products.unshift(produto);
+    else state.products[posicao] = produto;
+  } catch (falha) {
+    erro.textContent = falha.message;
+    erro.hidden = false;
+    return;
+  } finally {
+    submit.disabled = false;
+    submit.textContent = rotulo;
+  }
+
+  closeProductModal();
+  persist();
+  render();
+});
+
+function openProductModal(produto) {
+  const modal = document.querySelector("#productModal");
+  if (!modal) return;
+
+  productEditingId = produto ? produto.id : null;
+  productPhotoPending = null;
+  productPhotoCleared = false;
+
+  document.querySelector("#productModalTitle").textContent = produto ? "Editar produto" : "Novo produto";
+  document.querySelector("#productSubmit").textContent = produto ? "Salvar" : "Cadastrar";
+  document.querySelector("#productDelete").hidden = !produto;
+
+  document.querySelector("#productName").value = produto?.name || "";
+  document.querySelector("#productCategory").value = produto?.category || "";
+  document.querySelector("#productSku").value = produto?.sku || "";
+  document.querySelector("#productDescription").value = produto?.description || "";
+  document.querySelector("#productUnit").value = produto?.unit || "un";
+  document.querySelector("#productPrice").value = produto ? formatMoney(produto.price) : "";
+  document.querySelector("#productCost").value = produto ? formatMoney(produto.cost) : "";
+  document.querySelector("#productOtherCosts").value = produto ? formatMoney(produto.other_costs || 0) : "";
+  document.querySelector("#productFee").value = produto?.fee_percent ? Number(produto.fee_percent) : "";
+  document.querySelector("#productTax").value = produto?.tax_percent ? Number(produto.tax_percent) : "";
+  document.querySelector("#productStock").value = produto?.stock ?? "";
+  document.querySelector("#productMinStock").value = produto?.min_stock ?? "";
+  document.querySelector("#productActive").checked = produto ? produto.is_active !== false : true;
+  document.querySelector("#productPhoto").value = "";
+
+  showProductPhoto(null);
+  if (produto?.has_image) {
+    productImageUrl(produto).then((url) => {
+      // Só aplica se o usuário ainda estiver editando este produto: numa
+      // conexão lenta ele pode ter fechado ou trocado de item antes de chegar.
+      if (url && String(productEditingId) === String(produto.id) && !productPhotoPending) showProductPhoto(url);
+    });
+  }
+
+  const erro = document.querySelector("#productFormError");
+  erro.hidden = true;
+  erro.textContent = "";
+
+  updateProductCalc();
+  modal.hidden = false;
+  requestAnimationFrame(() => modal.classList.add("is-open"));
+  document.addEventListener("keydown", productModalEscHandler);
+  document.querySelector("#productName")?.focus();
+}
+
+function closeProductModal() {
+  const modal = document.querySelector("#productModal");
+  if (!modal) return;
+  modal.classList.remove("is-open");
+  productEditingId = null;
+  productPhotoPending = null;
+  productPhotoCleared = false;
+  document.removeEventListener("keydown", productModalEscHandler);
+  window.setTimeout(() => { modal.hidden = true; }, 300);
+}
+
+function productModalEscHandler(event) {
+  if (event.key === "Escape") closeProductModal();
+}
+
+function showProductPhoto(url) {
+  const preview = document.querySelector("#productPhotoPreview");
+  const remover = document.querySelector("#productPhotoRemove");
+  if (!preview) return;
+
+  if (url) {
+    preview.innerHTML = `<img src="${url}" alt="Pré-visualização da foto do produto" />`;
+    preview.classList.add("photo-field__preview--filled");
+    remover.hidden = false;
+  } else {
+    preview.innerHTML = `<span class="material-symbols-rounded" aria-hidden="true">photo_camera</span>`;
+    preview.classList.remove("photo-field__preview--filled");
+    remover.hidden = true;
+  }
+}
+
+function reaisFromField(seletor) {
+  return centsFromMasked(document.querySelector(seletor).value) / 100;
+}
+
+// Espelho da conta que vive em Product, no backend. Existe só para o usuário
+// ver o resultado enquanto digita; o valor gravado é sempre o que o servidor
+// calcula. Mudou a fórmula lá, muda aqui.
+function productMargin({ price, cost, otherCosts, feePercent, taxPercent }) {
+  const custoTotal = cost + otherCosts;
+  const taxas = price * (feePercent + taxPercent) / 100;
+  const margem = price - custoTotal - taxas;
+  return {
+    custoTotal,
+    taxas,
+    margem,
+    margemPercent: price ? (margem / price) * 100 : 0,
+    markupPercent: custoTotal ? ((price - custoTotal) / custoTotal) * 100 : 0
+  };
+}
+
+function updateProductCalc() {
+  const entrada = {
+    price: reaisFromField("#productPrice"),
+    cost: reaisFromField("#productCost"),
+    otherCosts: reaisFromField("#productOtherCosts"),
+    feePercent: Number(document.querySelector("#productFee").value) || 0,
+    taxPercent: Number(document.querySelector("#productTax").value) || 0
+  };
+  const conta = productMargin(entrada);
+
+  const hero = document.querySelector(".calc-panel__hero");
+  hero.classList.toggle("calc-panel__hero--negative", conta.margem < 0);
+  document.querySelector("#calcMarginValue").textContent = formatMoney(conta.margem);
+  document.querySelector("#calcMarginPercent").textContent = conta.margem < 0
+    ? `Prejuízo de ${Math.abs(conta.margemPercent).toFixed(1)}% sobre o preço`
+    : `${conta.margemPercent.toFixed(1)}% do preço de venda`;
+
+  document.querySelector("#calcPrice").textContent = formatMoney(entrada.price);
+  document.querySelector("#calcCost").textContent = formatMoney(conta.custoTotal);
+  document.querySelector("#calcFees").textContent = formatMoney(conta.taxas);
+  document.querySelector("#calcMarkup").textContent = `${conta.markupPercent.toFixed(0)}%`;
+
+  const alvo = Number(document.querySelector("#calcTarget").value) || 0;
+  const divisor = 1 - (entrada.feePercent + entrada.taxPercent + alvo) / 100;
+  const sugestao = document.querySelector("#calcSuggestion");
+  if (!conta.custoTotal) {
+    sugestao.textContent = "Informe o custo para ver o preço sugerido.";
+  } else if (divisor <= 0) {
+    sugestao.textContent = "Taxas e margem somam 100% ou mais — nenhum preço fecha essa conta.";
+  } else {
+    sugestao.textContent = `Cobre ${formatMoney(conta.custoTotal / divisor)}`;
+  }
+}
+
+// Reduz a foto no navegador antes de subir. Sem isto, a foto de um celular
+// moderno tem vários megabytes e o servidor recusa.
+async function shrinkImage(arquivo) {
+  if (!arquivo.type.startsWith("image/")) throw new Error("Escolha um arquivo de imagem.");
+
+  const bitmap = await createImageBitmap(arquivo);
+  const escala = Math.min(1, PHOTO_MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * escala);
+  canvas.height = Math.round(bitmap.height * escala);
+  canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close?.();
+
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", PHOTO_QUALITY));
+  if (!blob) throw new Error("Não foi possível preparar esta imagem.");
+  if (blob.size > 400 * 1024) throw new Error("Mesmo reduzida a foto ficou grande demais. Tente outra.");
+  return blob;
+}
+
+// A rota da foto exige autenticação como qualquer outra, e <img src> não manda
+// o token. Por isso a imagem é buscada e vira um object URL.
+const productPhotoCache = new Map();
+
+async function productImageUrl(produto) {
+  const chave = `${produto.id}:${produto.image_updated_at || ""}`;
+  if (productPhotoCache.has(chave)) return productPhotoCache.get(chave);
+
+  try {
+    const resposta = await fetch(`${apiBaseUrl}/products/${produto.id}/image/`, {
+      headers: authToken ? { Authorization: `Token ${authToken}` } : {}
+    });
+    if (!resposta.ok) return null;
+    const url = URL.createObjectURL(await resposta.blob());
+    productPhotoCache.set(chave, url);
+    return url;
+  } catch {
+    return null;
+  }
+}
 
 document.querySelector("#campaignForm").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -980,7 +1273,6 @@ function drawerEscHandler(event) {
 
 // ─── Gráfico interativo do semestre ─────────────────────────────────────────
 
-const CHART_MONTH_SHORT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 const chartSeries = { income: true, expense: true, net: true };
 
 function formatMoneyCompact(value) {
@@ -1001,6 +1293,8 @@ function niceStep(range, steps) {
 }
 
 // Totais dos 6 meses que terminam no mês aberto no calendário.
+const CHART_MONTH_SHORT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
 function semesterData() {
   const months = [];
   for (let offset = 5; offset >= 0; offset -= 1) {
@@ -1751,27 +2045,77 @@ function txModalEscHandler(event) {
 
 function renderProducts() {
   const grid = document.querySelector("#productGrid");
-  grid.innerHTML = "";
+  if (!grid) return;
+
   if (!state.products.length) {
-    grid.innerHTML = `<p class="empty-state">Seu catálogo está vazio — cadastre o primeiro produto acima para começar a calcular margens automaticamente.</p>`;
+    grid.innerHTML = `<p class="empty-state">Seu catálogo está vazio — cadastre o primeiro produto para a plataforma calcular a margem de cada um.</p>`;
     return;
   }
-  state.products.forEach((product) => {
-    const margin = product.price - product.cost;
-    const marginPercent = product.price ? (margin / product.price) * 100 : 0;
-    const card = document.createElement("article");
-    card.className = "product-card";
-    card.innerHTML = `
-      <strong>${escapeHtml(product.name)}</strong>
-      <span>${escapeHtml(product.category)}</span>
-      <div class="product-meta">
-        <span><b>Preço</b><em>${formatMoney(product.price)}</em></span>
-        <span><b>Custo</b><em>${formatMoney(product.cost)}</em></span>
-        <span><b>Margem</b><em>${formatMoney(margin)} · ${marginPercent.toFixed(0)}%</em></span>
-        <span><b>Estoque</b><em>${product.stock} un.</em></span>
-      </div>
-    `;
-    grid.appendChild(card);
+
+  grid.innerHTML = state.products.map((product) => {
+    // Produto salvo antes destes campos existirem não traz os calculados; a
+    // conta local cobre esse caso sem quebrar a tela.
+    const conta = productMargin({
+      price: Number(product.price) || 0,
+      cost: Number(product.cost) || 0,
+      otherCosts: Number(product.other_costs) || 0,
+      feePercent: Number(product.fee_percent) || 0,
+      taxPercent: Number(product.tax_percent) || 0
+    });
+    const margem = product.margin_value !== undefined ? Number(product.margin_value) : conta.margem;
+    const margemPercent = product.margin_percent !== undefined
+      ? Number(product.margin_percent)
+      : conta.margemPercent;
+    const unidade = PRODUCT_UNITS[product.unit] || "un";
+    const estoqueBaixo = product.is_low_stock ?? (product.min_stock > 0 && product.stock <= product.min_stock);
+    const inativo = product.is_active === false;
+
+    return `
+      <article class="product-card ${inativo ? "product-card--inactive" : ""}" tabindex="0"
+               role="button" data-product="${escapeHtml(product.id)}">
+        <div class="product-card__photo" data-product-photo="${escapeHtml(product.id)}">
+          <span class="material-symbols-rounded" aria-hidden="true">photo_camera</span>
+        </div>
+        <div class="product-card__head">
+          <h4>${escapeHtml(product.name)}</h4>
+          <span class="value-currency">${formatMoney(product.price)}</span>
+        </div>
+        <p>${escapeHtml(product.category || "Sem categoria")}${product.sku ? ` · ${escapeHtml(product.sku)}` : ""}</p>
+        <div class="product-card__tags">
+          <span class="status-badge status-badge--${margem < 0 ? "negative" : "positive"}">
+            ${margem < 0 ? "Prejuízo" : "Margem"} ${formatMoney(Math.abs(margem))} · ${margemPercent.toFixed(0)}%
+          </span>
+          ${estoqueBaixo ? `<span class="status-badge status-badge--warning">Estoque baixo</span>` : ""}
+          ${inativo ? `<span class="status-badge status-badge--neutral">Inativo</span>` : ""}
+        </div>
+        <div class="product-meta">
+          <span><b>Custo total</b><em>${formatMoney(conta.custoTotal)}</em></span>
+          <span><b>Taxas</b><em>${formatMoney(conta.taxas)}</em></span>
+          <span><b>Estoque</b><em>${product.stock ?? 0} ${escapeHtml(unidade)}</em></span>
+        </div>
+      </article>`;
+  }).join("");
+
+  grid.querySelectorAll("[data-product]").forEach((card) => {
+    const abrir = () => {
+      const produto = state.products.find((item) => String(item.id) === String(card.dataset.product));
+      if (produto) openProductModal(produto);
+    };
+    card.addEventListener("click", abrir);
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        abrir();
+      }
+    });
+  });
+
+  // As fotos chegam depois: cada uma é uma requisição autenticada, e segurar a
+  // grade até todas voltarem deixaria a tela vazia à toa.
+  state.products.filter((product) => product.has_image).forEach(async (product) => {
+    const url = await productImageUrl(product);
+    const alvo = grid.querySelector(`[data-product-photo="${CSS.escape(String(product.id))}"]`);
+    if (url && alvo) alvo.innerHTML = `<img src="${url}" alt="Foto de ${escapeHtml(product.name)}" />`;
   });
 }
 
