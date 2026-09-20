@@ -25,7 +25,7 @@ O escopo completo está em `Escopo TCC.pdf`, dentro de `docs/` (pasta local, nã
 backend/apps/
 ├── accounts/     # Auth (Token), UserProfile com role admin/member
 ├── businesses/   # Business (criado automaticamente no cadastro do usuário)
-├── products/     # Catálogo de produtos por Business
+├── products/     # Catálogo, cálculo de margem e foto do produto
 ├── finance/      # Transações, importação de extrato, insights e assistente — só admin
 ├── payments/     # Cobranças PIX via Abacate Pay — só admin
 └── marketing/    # Campanhas de marketing com IA (Claude Haiku)
@@ -153,6 +153,7 @@ POST   /api/auth/password-reset/            # Pede o link de recuperacao por e-m
 POST   /api/auth/password-reset/confirm/    # Troca a senha usando uid + token do link
 
 GET/POST        /api/products/               # Filtrado por business do usuário
+GET/POST/DELETE /api/products/<id>/image/    # Foto do produto, guardada no banco
 GET/POST        /api/transactions/           # Só admin, filtrado por business
 POST            /api/transactions/import/preview/    # Lê o extrato enviado, não grava nada
 POST            /api/transactions/import/confirm/    # Grava o que o usuário confirmou
@@ -193,7 +194,13 @@ GET             /api/health/                 # Health check (aberto, sem throttl
 
 10. **O arquivo do extrato não é guardado**: é lido em memória (`FILE_UPLOAD_HANDLERS` só com o handler de memória) e descartado. Ficam os lançamentos e o hash do arquivo. Extrato bancário é dado sensível e a funcionalidade não precisa dele depois.
 
-11. **Deduplicação por `Transaction.external_id`**, com unicidade por business: o FITID do OFX quando existe, senão uma impressão digital do conteúdo. É o que faz reimportar o mesmo extrato não duplicar. Qualquer formato novo (CSV, PDF) precisa devolver um `external_id` estável — sem isso, a importação suja o financeiro em vez de ajudar.
+11. **Foto de produto no banco, não em disco**: o disco do Render no plano free é efêmero — arquivo salvo lá some no próximo deploy. A imagem chega reduzida pelo navegador (lado maior de 800px, JPEG), o servidor recusa acima de 400 KB, e ela vive em `ProductImage`, uma tabela à parte para a listagem de produtos não arrastar os bytes junto. Não escala para milhares de produtos; para o catálogo de um MEI, resolve sem serviço externo.
+
+12. **A rota da foto exige autenticação**, e `<img src>` não manda o token. A tela busca a imagem com `fetch` e monta um object URL. A alternativa seria uma rota pública protegida só pelo UUID, o que troca segurança por conveniência.
+
+13. **O cálculo de margem mora no modelo `Product`**, em `variable_cost`, `fee_amount`, `margin_value`, `margin_percent` e `markup_percent`. O serializer expõe esses valores prontos. A tela repete a fórmula em `productMargin()` apenas para responder enquanto o usuário digita — mudou a conta no Python, mude no JavaScript.
+
+14. **Deduplicação por `Transaction.external_id`**, com unicidade por business: o FITID do OFX quando existe, senão uma impressão digital do conteúdo. É o que faz reimportar o mesmo extrato não duplicar. Qualquer formato novo (CSV, PDF) precisa devolver um `external_id` estável — sem isso, a importação suja o financeiro em vez de ajudar.
 
 ---
 

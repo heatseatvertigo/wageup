@@ -1130,17 +1130,162 @@
           <div class="work-panel">
             <div class="panel-heading">
               <h3>Produtos</h3>
-              <span>Cadastro e margem</span>
+              <button class="primary-button" type="button" id="openProductModal">
+                <span class="material-symbols-rounded" aria-hidden="true">add</span>Novo produto
+              </button>
             </div>
-            <form class="inline-form product-form" id="productForm">
-              <input name="name" placeholder="Nome do produto" required aria-label="Nome do produto" />
-              <input name="category" placeholder="Categoria" required aria-label="Categoria do produto" />
-              <input name="cost" type="number" min="0" step="0.01" placeholder="Custo" required aria-label="Custo (R$)" />
-              <input name="price" type="number" min="0" step="0.01" placeholder="Preço" required aria-label="Preço de venda (R$)" />
-              <input name="stock" type="number" min="0" step="1" placeholder="Estoque" required aria-label="Quantidade em estoque" />
-              <button class="primary-button" type="submit">Cadastrar</button>
-            </form>
             <div class="product-grid" id="productGrid"></div>
+          </div>
+
+          <!-- Cadastrar / editar produto -->
+          <div class="modal" id="productModal" hidden>
+            <div class="modal__overlay" data-close-product></div>
+            <div class="modal__panel modal__panel--wide" role="dialog" aria-modal="true" aria-labelledby="productModalTitle">
+              <header class="modal__head">
+                <h3 id="productModalTitle">Novo produto</h3>
+                <button class="drawer__close" type="button" data-close-product aria-label="Fechar">✕</button>
+              </header>
+
+              <form class="product-editor" id="productForm">
+                <div class="product-editor__cols">
+                  <div class="product-editor__main">
+                    <fieldset class="field-set">
+                      <legend class="field-set__title">Foto</legend>
+                      <div class="photo-field">
+                        <div class="photo-field__preview" id="productPhotoPreview">
+                          <span class="material-symbols-rounded" aria-hidden="true">photo_camera</span>
+                        </div>
+                        <div class="photo-field__actions">
+                          <label class="ghost-button" for="productPhoto">Escolher foto</label>
+                          <input type="file" id="productPhoto" name="photo" accept="image/jpeg,image/png,image/webp" hidden />
+                          <button class="ghost-button ghost-button--danger" type="button" id="productPhotoRemove" hidden>Remover</button>
+                          <small class="field__hint">A foto é reduzida no seu navegador antes de subir.</small>
+                        </div>
+                      </div>
+                    </fieldset>
+
+                    <fieldset class="field-set">
+                      <legend class="field-set__title">Identificação</legend>
+                      <div class="field-grid">
+                        <label class="field field--wide">
+                          <span class="field__label">Nome</span>
+                          <input name="name" id="productName" required placeholder="Ex.: Bolo de cenoura" />
+                        </label>
+                        <label class="field">
+                          <span class="field__label">Categoria</span>
+                          <input name="category" id="productCategory" placeholder="Ex.: Doces" />
+                        </label>
+                        <label class="field">
+                          <span class="field__label">Código (SKU)</span>
+                          <input name="sku" id="productSku" placeholder="Opcional" />
+                        </label>
+                        <label class="field">
+                          <span class="field__label">Unidade</span>
+                          <select name="unit" id="productUnit">
+                            <option value="un">Unidade</option>
+                            <option value="kg">Quilograma</option>
+                            <option value="g">Grama</option>
+                            <option value="l">Litro</option>
+                            <option value="ml">Mililitro</option>
+                            <option value="m">Metro</option>
+                            <option value="pct">Pacote</option>
+                            <option value="srv">Serviço</option>
+                          </select>
+                        </label>
+                        <label class="field field--wide">
+                          <span class="field__label">Descrição</span>
+                          <textarea name="description" id="productDescription" rows="2"
+                                    placeholder="Opcional — também alimenta as campanhas de marketing"></textarea>
+                        </label>
+                      </div>
+                    </fieldset>
+
+                    <fieldset class="field-set">
+                      <legend class="field-set__title">Preço e custos</legend>
+                      <div class="field-grid">
+                        <label class="field">
+                          <span class="field__label">Preço de venda</span>
+                          <input name="price" id="productPrice" inputmode="numeric" required placeholder="R$ 0,00" autocomplete="off" />
+                        </label>
+                        <label class="field">
+                          <span class="field__label">Custo do produto</span>
+                          <input name="cost" id="productCost" inputmode="numeric" required placeholder="R$ 0,00" autocomplete="off" />
+                        </label>
+                        <label class="field">
+                          <span class="field__label">Outros custos</span>
+                          <input name="other_costs" id="productOtherCosts" inputmode="numeric" placeholder="R$ 0,00" autocomplete="off" />
+                          <small class="field__hint">Embalagem, frete, etiqueta — por unidade.</small>
+                        </label>
+                        <label class="field">
+                          <span class="field__label">Taxa de cartão ou PIX</span>
+                          <input name="fee_percent" id="productFee" type="number" min="0" max="100" step="0.01" placeholder="0" />
+                          <small class="field__hint">Em % sobre o preço.</small>
+                        </label>
+                        <label class="field">
+                          <span class="field__label">Imposto</span>
+                          <input name="tax_percent" id="productTax" type="number" min="0" max="100" step="0.01" placeholder="0" />
+                          <small class="field__hint">Em % sobre o preço.</small>
+                        </label>
+                      </div>
+                    </fieldset>
+
+                    <fieldset class="field-set">
+                      <legend class="field-set__title">Estoque</legend>
+                      <div class="field-grid">
+                        <label class="field">
+                          <span class="field__label">Quantidade</span>
+                          <input name="stock" id="productStock" type="number" min="0" step="1" placeholder="0" />
+                        </label>
+                        <label class="field">
+                          <span class="field__label">Estoque mínimo</span>
+                          <input name="min_stock" id="productMinStock" type="number" min="0" step="1" placeholder="0" />
+                          <small class="field__hint">Abaixo disso a plataforma avisa.</small>
+                        </label>
+                        <label class="field field--check">
+                          <input type="checkbox" name="is_active" id="productActive" checked />
+                          <span class="field__label">Produto ativo</span>
+                        </label>
+                      </div>
+                    </fieldset>
+                  </div>
+
+                  <aside class="calc-panel" aria-live="polite">
+                    <h4 class="calc-panel__title">O que sobra para você</h4>
+                    <p class="calc-panel__hero">
+                      <span class="value-currency" id="calcMarginValue">R$ 0,00</span>
+                      <small id="calcMarginPercent">0% do preço de venda</small>
+                    </p>
+                    <dl class="calc-panel__rows">
+                      <div><dt>Preço de venda</dt><dd class="value-currency" id="calcPrice">R$ 0,00</dd></div>
+                      <div><dt>Custo total</dt><dd class="value-currency" id="calcCost">R$ 0,00</dd></div>
+                      <div><dt>Taxas e imposto</dt><dd class="value-currency" id="calcFees">R$ 0,00</dd></div>
+                      <div><dt>Markup sobre o custo</dt><dd class="value-currency" id="calcMarkup">0%</dd></div>
+                    </dl>
+
+                    <div class="calc-panel__target">
+                      <label class="field">
+                        <span class="field__label">Quero uma margem de</span>
+                        <div class="calc-panel__target-row">
+                          <input type="number" id="calcTarget" min="0" max="99" step="1" value="30" />
+                          <span>%</span>
+                        </div>
+                      </label>
+                      <p class="calc-panel__suggestion" id="calcSuggestion">Cobre R$ 0,00</p>
+                    </div>
+                  </aside>
+                </div>
+
+                <p class="modal__error" id="productFormError" role="alert" hidden></p>
+
+                <div class="modal__actions modal__actions--split">
+                  <button class="ghost-button ghost-button--danger" type="button" id="productDelete" hidden>Excluir</button>
+                  <span class="modal__actions-group">
+                    <button class="ghost-button" type="button" data-close-product>Cancelar</button>
+                    <button class="primary-button" type="submit" id="productSubmit">Cadastrar</button>
+                  </span>
+                </div>
+              </form>
+            </div>
           </div>
         </section>
 
