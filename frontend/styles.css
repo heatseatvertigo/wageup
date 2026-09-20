@@ -1441,6 +1441,67 @@ select:focus {
   min-height: 1.2em;
 }
 
+.auth-success {
+  font-size: var(--text-sm);
+  color: var(--color-positive);
+  min-height: 1.2em;
+}
+
+.auth-success:empty,
+.auth-error:empty {
+  min-height: 0;
+}
+
+/* Recuperação de senha. As duas telas moram no mesmo cartão das abas
+   Entrar/Criar conta e reaproveitam .auth-form; o modificador abaixo esconde
+   as abas e o botão do Google enquanto elas estão abertas, porque nenhum dos
+   dois faz sentido no meio do fluxo. */
+
+.auth-card--recovery .auth-tabs,
+.auth-card--recovery .google-button-wrapper,
+.auth-card--recovery .google-button-fallback,
+.auth-card--recovery .auth-divider {
+  display: none;
+}
+
+.auth-form__title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-regular);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.auth-form__hint {
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* Ação textual secundária: "Esqueci minha senha", "Voltar para o login". */
+.auth-link {
+  align-self: center;
+  background: transparent;
+  border: none;
+  padding: var(--space-2);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+.auth-link:hover {
+  color: var(--color-brand-mid);
+}
+
+.auth-link:focus-visible {
+  outline: none;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-focus);
+}
+
 /* ============================================================
    ONBOARDING
    ============================================================ */

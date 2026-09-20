@@ -539,6 +539,7 @@
             <input name="email" type="email" placeholder="E-mail" required autocomplete="email" aria-label="E-mail" />
             <input name="password" type="password" placeholder="Senha" required autocomplete="current-password" aria-label="Senha" />
             <button class="primary-button" type="submit">Entrar</button>
+            <button class="auth-link" type="button" data-auth-goto="forgot">Esqueci minha senha</button>
           </form>
           <form class="auth-form" id="registerForm" role="tabpanel" aria-labelledby="tab-register">
             <input name="name" placeholder="Seu nome" required autocomplete="name" aria-label="Seu nome" />
@@ -547,7 +548,28 @@
             <input name="password" type="password" minlength="8" placeholder="Senha com 8+ caracteres" required autocomplete="new-password" aria-label="Senha (mínimo 8 caracteres)" />
             <button class="primary-button" type="submit">Criar conta</button>
           </form>
+
+          <!-- Recuperação de senha: pedido do link -->
+          <form class="auth-form" id="forgotForm" aria-label="Recuperar senha">
+            <h3 class="auth-form__title">Recuperar senha</h3>
+            <p class="auth-form__hint">Informe o e-mail da sua conta. Se ela existir, enviamos um link para você criar uma senha nova.</p>
+            <input name="email" type="email" placeholder="E-mail" required autocomplete="email" aria-label="E-mail da conta" />
+            <button class="primary-button" type="submit">Enviar link</button>
+            <button class="auth-link" type="button" data-auth-goto="login">← Voltar para o login</button>
+          </form>
+
+          <!-- Recuperação de senha: nova senha (aberta pelo link do e-mail) -->
+          <form class="auth-form" id="resetForm" aria-label="Definir nova senha">
+            <h3 class="auth-form__title">Nova senha</h3>
+            <p class="auth-form__hint">Escolha a senha que você vai usar para entrar na Wage Up.</p>
+            <input name="password" type="password" minlength="8" placeholder="Senha com 8+ caracteres" required autocomplete="new-password" aria-label="Nova senha (mínimo 8 caracteres)" />
+            <input name="password_confirm" type="password" minlength="8" placeholder="Repita a senha" required autocomplete="new-password" aria-label="Repita a nova senha" />
+            <button class="primary-button" type="submit">Salvar senha</button>
+            <button class="auth-link" type="button" data-auth-goto="login">← Voltar para o login</button>
+          </form>
+
           <p class="auth-error" id="authError" role="alert"></p>
+          <p class="auth-success" id="authSuccess" role="status"></p>
         </div>
       </div>
     </section>

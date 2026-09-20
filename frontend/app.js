@@ -56,6 +56,12 @@ let txRange = { start: null, end: null };
 
 const siteShell = document.querySelector(".site-shell");
 const authShell = document.querySelector("#auth");
+
+// uid e token do link de recuperação de senha, guardados só em memória
+// enquanto a tela de nova senha está aberta. Declarado aqui, e não junto da
+// função que o preenche, porque o boot chama essa função antes — um `let`
+// abaixo dela cairia na temporal dead zone.
+let passwordResetLink = null;
 const onboardingShell = document.querySelector("#onboarding");
 const appShell = document.querySelector("#app");
 const sidebar = document.querySelector(".sidebar");
@@ -226,6 +232,76 @@ document.querySelector("#loginForm").addEventListener("submit", async (event) =>
 document.querySelector("#registerForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   await submitAuthForm("/auth/register/", event.currentTarget);
+});
+
+// Ações textuais do cartão de auth ("Esqueci minha senha", "Voltar para o
+// login"). Atributo próprio porque data-auth-tab pertence às abas e carrega
+// estado de aria-selected que estes botões não têm.
+document.querySelectorAll("[data-auth-goto]").forEach((button) => {
+  button.addEventListener("click", () => setAuthTab(button.dataset.authGoto));
+});
+
+document.querySelector("#forgotForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const error = document.querySelector("#authError");
+  const success = document.querySelector("#authSuccess");
+  error.textContent = "";
+  success.textContent = "";
+
+  const submitButton = form.querySelector("button[type=submit]");
+  submitButton.disabled = true;
+  try {
+    const data = await apiRequest("/auth/password-reset/", {
+      method: "POST",
+      body: JSON.stringify({ email: new FormData(form).get("email") }),
+      skipAuth: true
+    });
+    form.reset();
+    // A mensagem vem do backend e é a mesma existindo a conta ou não.
+    success.textContent = data.detail;
+  } catch (requestError) {
+    error.textContent = requestError.message;
+  } finally {
+    submitButton.disabled = false;
+  }
+});
+
+document.querySelector("#resetForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const error = document.querySelector("#authError");
+  error.textContent = "";
+  document.querySelector("#authSuccess").textContent = "";
+
+  const fields = new FormData(form);
+  const password = fields.get("password");
+  if (password !== fields.get("password_confirm")) {
+    error.textContent = "As duas senhas precisam ser iguais.";
+    return;
+  }
+  if (!passwordResetLink) {
+    error.textContent = "Link inválido ou expirado. Peça um novo.";
+    return;
+  }
+
+  const submitButton = form.querySelector("button[type=submit]");
+  submitButton.disabled = true;
+  try {
+    await apiRequest("/auth/password-reset/confirm/", {
+      method: "POST",
+      body: JSON.stringify({ ...passwordResetLink, password }),
+      skipAuth: true
+    });
+    form.reset();
+    passwordResetLink = null;
+    setAuthTab("login");
+    document.querySelector("#authSuccess").textContent = "Senha alterada. Entre com a senha nova.";
+  } catch (requestError) {
+    error.textContent = requestError.message;
+  } finally {
+    submitButton.disabled = false;
+  }
 });
 
 document.querySelector("#onboardingForm").addEventListener("submit", async (event) => {
@@ -841,12 +917,36 @@ document.querySelectorAll("#chartLegend .chart-legend__item").forEach((button) =
 });
 
 render();
-bootstrapSession();
+// O link do e-mail vence a sessão salva: quem chega por ele quer trocar a
+// senha, mesmo que o navegador ainda tenha um token válido guardado.
+if (!openPasswordResetFromLink()) bootstrapSession();
 initGoogleSignIn();
 setDemoView("overview");
 startWordRotator();
 
 // ─── Auth & Session ───────────────────────────────────────────────────────────
+
+function openPasswordResetFromLink() {
+  const params = new URLSearchParams(window.location.search);
+  const linkUid = params.get("uid");
+  const linkToken = params.get("token");
+  if (!linkUid || !linkToken) return false;
+
+  passwordResetLink = { uid: linkUid, token: linkToken };
+
+  // Tira uid e token da barra de endereço. Sem isso o token fica no histórico
+  // do navegador e é reenviado se a pessoa recarregar a página depois de já
+  // ter trocado a senha — o que só produziria um erro de link já usado.
+  history.replaceState(null, "", window.location.pathname);
+
+  siteShell.classList.add("is-hidden");
+  appShell.classList.add("is-hidden");
+  onboardingShell.classList.add("is-hidden");
+  authShell.classList.remove("is-hidden");
+  setAuthTab("reset");
+  window.scrollTo({ top: 0, behavior: "instant" });
+  return true;
+}
 
 async function bootstrapSession() {
   if (!authToken) return;
@@ -912,7 +1012,12 @@ function setAuthTab(tabName) {
   document.querySelectorAll(".auth-form").forEach((form) => {
     form.classList.toggle("active", form.id === `${tabName}Form`);
   });
+  // Nas telas de recuperação o cartão esconde as abas e o Google: no meio do
+  // fluxo nenhum dos dois leva a lugar nenhum.
+  const isRecovery = tabName === "forgot" || tabName === "reset";
+  document.querySelector(".auth-card").classList.toggle("auth-card--recovery", isRecovery);
   document.querySelector("#authError").textContent = "";
+  document.querySelector("#authSuccess").textContent = "";
 }
 
 async function submitAuthForm(path, formElement) {

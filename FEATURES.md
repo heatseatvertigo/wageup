@@ -1,7 +1,7 @@
 # WageUp — O que a plataforma faz hoje
 
 > Documento de **funcionalidades** (visão de produto). Para arquitetura técnica, ver [`CLAUDE.md`](CLAUDE.md).
-> Última atualização: 2026-09-05.
+> Última atualização: 2026-09-19.
 
 Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que já está pronto, o que está pela metade e o que ainda não existe**. Sempre que uma feature for concluída ou alterada, atualize esta lista.
 
@@ -15,6 +15,17 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 - [x] Logout
 - [x] Cada conta nova ganha automaticamente um "negócio" (`Business`) vinculado a ela — é o que permite isolar os dados de cada usuário
 - [x] Onboarding inicial (tela para o usuário preencher nome do negócio antes de usar a plataforma)
+
+**Recuperação de senha:**
+- [x] Pedido do link pela API (`POST /api/auth/password-reset/`) — o e-mail chega com um link válido por 2 horas
+- [x] Troca da senha pelo link (`POST /api/auth/password-reset/confirm/`)
+- [x] O link deixa de valer assim que a senha é trocada, e a sessão antiga é derrubada junto — quem redefine a senha costuma estar expulsando um invasor
+- [x] A resposta é a mesma existindo a conta ou não, para a rota não virar um verificador de quem tem cadastro na plataforma
+- [x] Em desenvolvimento o e-mail é impresso no terminal do `runserver`: dá para testar o fluxo inteiro sem configurar provedor
+- [x] Link "Esqueci minha senha" na tela de login, com tela de pedido e tela de nova senha
+- [x] O link do e-mail abre direto a tela de nova senha; `uid` e `token` saem da barra de endereço assim que são lidos, para não ficarem no histórico do navegador
+- [x] Confirmação da senha em dois campos, conferida antes de chamar a API
+- [ ] **SMTP em produção** — o código está pronto, falta preencher `EMAIL_HOST` e as credenciais de um provedor
 
 **Papéis de usuário:**
 - **admin** — definido pela lista de e-mails em `WAGEUP_ADMIN_EMAILS`. Tem acesso ao módulo financeiro completo (transações + cobranças PIX).
@@ -103,8 +114,8 @@ Endpoints: `POST /api/finance/assistant/`, `GET|POST /api/finance/assistant/conv
 - [x] Em produção: HTTPS obrigatório, HSTS, cookies com `Secure`, API navegável do DRF desligada e recusa de subir com a `SECRET_KEY` de exemplo
 - [x] Webhook da Abacate Pay só funciona com segredo configurado, comparado em tempo constante. Sem o segredo, qualquer um poderia marcar uma cobrança como paga
 - [x] Logs da aplicação aparecem na saída do servidor (antes se perdiam)
-- [x] Testes automatizados: 31 casos cobrindo a leitura de OFX, a importação ponta a ponta, o cálculo de margem e a foto de produto
-- [ ] Testes dos demais módulos (contas, pagamentos, marketing) — ainda não existem
+- [x] Testes automatizados: 49 casos cobrindo a leitura de OFX, a importação ponta a ponta, o cálculo de margem, a foto de produto, a recuperação de senha e a entrega de e-mail pelo Resend
+- [ ] Testes dos demais módulos (pagamentos, marketing) — ainda não existem
 
 ---
 
@@ -115,7 +126,7 @@ Com base no `Escopo TCC.pdf`, os itens abaixo ainda não foram implementados:
 1. **Recomendações automáticas de ações de marketing** baseadas no desempenho do negócio.
 2. **Geração de imagens para campanhas de marketing**.
 
-Fora do escopo do PDF, mas pendente: **testes automatizados dos demais módulos** e os leitores de extrato em **CSV** e **PDF**.
+Fora do escopo do PDF, mas pendente: o **SMTP de produção** (o código está pronto, falta contratar o provedor e preencher as variáveis), os **testes automatizados dos módulos restantes** (produtos, pagamentos, marketing — contas já tem) e os leitores de extrato em **CSV** e **PDF**.
 
 ---
 
