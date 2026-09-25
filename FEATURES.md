@@ -87,8 +87,8 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 - [x] Os números que vão para a IA saem do produto no banco (preço, custo e **margem real**, com embalagem, frete, taxa e imposto descontados), não do que o navegador mandou. O prompt ainda avisa a IA para não sugerir desconto maior que a margem
 - [x] Histórico de campanhas geradas, vinculado ao negócio e ao produto
 - [x] **Recomendações automáticas de ação** (`GET /api/marketing/recommendations/`): devolve o que divulgar em seguida, na ordem produto em prejuízo (revisar preço antes) → produto de margem alta nunca divulgado → produto com estoque baixo (repor antes) → melhor margem do catálogo. Cada item já traz produto, canal e objetivo resolvidos
-- [x] Sem `ANTHROPIC_API_KEY`, ou se a chamada falhar, as recomendações saem de regras locais sobre os mesmos números — a tela nunca fica vazia por configuração
-- [x] Cada recomendação já vem com produto, canal e objetivo resolvidos: o botão "Usar no formulário" preenche o gerador de campanha
+- [x] Sem `ANTHROPIC_API_KEY`, ou se a chamada falhar, as recomendações saem de regras locais sobre os mesmos números
+- [ ] **Tela das recomendações** — o painel foi retirado; a rota existe e está testada, falta decidir como apresentar
 - [x] **Geração da imagem da campanha**: sai junto com o texto, a partir da "ideia de imagem" que a própria campanha escreveu — texto e imagem falam da mesma coisa
 - [x] Cloudflare Workers AI (FLUX.1-schnell) quando há `CLOUDFLARE_ACCOUNT_ID` e `CLOUDFLARE_API_TOKEN`; o plano free dá ~500 imagens de 1024x1024 por dia
 - [x] Pollinations.ai como alternativa sem chave, ligada por `MARKETING_IMAGE_FALLBACK`. Opt-in de propósito: não pede chave, mas demora e põe marca d'água
@@ -98,10 +98,8 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 ## 6. Visão geral / Dashboard
 
 - [x] Tela inicial com resumo do negócio (produtos cadastrados, transações recentes, indicadores financeiros para admins)
-- [x] Insights por IA com base nos dados financeiros, recebíveis e produtos — botão "Gerar insights com IA" na Visão geral (`GET /api/finance/insights/`), com fallback local por regras quando não há `ANTHROPIC_API_KEY` ou a chamada à IA falha
-- [x] O painel some para quem é **member**: a rota é só de admin, e pedir daria 403
-- [x] É botão, não carregamento automático: a Visão geral abre no login e cada geração é uma chamada de IA paga — quem quer o diagnóstico pede
-- [x] O insight que aponta problema (saída acima da entrada, reposição, pendência) vem com rótulo "Merece atenção" além da borda — cor não é o único indicador
+- [x] Insights por IA com base nos dados financeiros, recebíveis e produtos (`GET /api/finance/insights/`), só admin, com fallback local por regras quando não há `ANTHROPIC_API_KEY` ou a chamada à IA falha
+- [ ] **Tela dos insights** — o painel foi retirado; a rota existe e está testada, falta decidir como apresentar
 
 ## 7. Assistente financeiro (somente admin)
 
@@ -164,8 +162,6 @@ Fora do escopo do PDF, mas pendente: as **variáveis do Resend no Render** e um 
 | Financeiro | Login como admin → aba "Financeiro" → lançar transação |
 | PIX | Login como admin → aba "Financeiro" → "Cobrança PIX" → preencher e gerar |
 | Marketing IA | Menu "Marketing" → preencher prompt/canal/objetivo → gerar campanha |
-| Insights da Visão geral | Login como admin → "Visão geral" → "Gerar insights com IA". Entrar como member: o painel não deve aparecer |
-| Recomendações de marketing | Menu "Marketing" → o painel "O que divulgar agora" carrega sozinho → "Usar no formulário" preenche o gerador. Um produto com margem negativa deve aparecer como "Revise o preço", não como oportunidade |
 | Imagem da campanha | Com `CLOUDFLARE_ACCOUNT_ID`/`CLOUDFLARE_API_TOKEN` (ou `MARKETING_IMAGE_FALLBACK=True`), gerar uma campanha: a prévia à direita troca o texto pela imagem. Sem provedor, fica a prévia em texto e a campanha sai igual |
 | Importar extrato | Login como admin → "Movimentações" → "Importar extrato" → anexar um `.ofx` → conferir a lista → "Importar". Reenviar o mesmo arquivo deve trazer tudo desmarcado como "Já importado" |
 | Assistente financeiro | Login como admin → abrir o chat → perguntar sobre os números; recarregar a página e conferir que a conversa continua lá |
