@@ -4,6 +4,7 @@ Dois pontos: o caminho de falha (chave invalida ou provedor fora do ar nao
 pode deixar o usuario sem campanha nenhuma) e os numeros que vao para a IA,
 que saem do produto no banco e nao do corpo da requisicao.
 """
+import base64
 from decimal import Decimal
 from unittest.mock import Mock, patch
 
@@ -340,12 +341,23 @@ class RecomendacoesTests(TestCase):
 
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 64
+JPEG = b"\xff\xd8\xff\xe0" + b"0" * 64
 
 
-def _resposta_imagem(status_code=200, content=PNG, content_type="image/png", text=""):
+def _resposta_cloudflare(status_code=200, imagem=JPEG, corpo=None, text=""):
+    """A Cloudflare responde JSON com a imagem em base64, nao os bytes crus."""
+    resposta = Mock(status_code=status_code, ok=200 <= status_code < 300)
+    if corpo is None:
+        corpo = {"success": True, "result": {"image": base64.b64encode(imagem).decode()}}
+    resposta.json.return_value = corpo
+    resposta.text = text
+    return resposta
+
+
+def _resposta_pollinations(status_code=200, content=PNG, content_type="image/png"):
+    """O Pollinations devolve os bytes da imagem direto no corpo."""
     resposta = Mock(status_code=status_code, ok=200 <= status_code < 300, content=content)
     resposta.headers = {"Content-Type": content_type}
-    resposta.text = text
     return resposta
 
 
@@ -388,13 +400,13 @@ class GeracaoDeImagemTests(SimpleTestCase):
     @patch("apps.marketing.images.requests.get")
     @patch("apps.marketing.images.requests.post")
     def test_usa_cloudflare_quando_ha_chave(self, post, get):
-        post.return_value = _resposta_imagem()
+        post.return_value = _resposta_cloudflare()
 
         provider, conteudo, content_type = gerar_imagem("bolo em close")
 
         self.assertEqual(provider, "cloudflare")
-        self.assertEqual(conteudo, PNG)
-        self.assertEqual(content_type, "image/png")
+        self.assertEqual(conteudo, JPEG)
+        self.assertEqual(content_type, "image/jpeg")
         get.assert_not_called()
         self.assertIn("flux-1-schnell", post.call_args.args[0])
         self.assertEqual(post.call_args.kwargs["headers"]["Authorization"], "Bearer token")
@@ -402,11 +414,21 @@ class GeracaoDeImagemTests(SimpleTestCase):
         self.assertIn("bolo em close", post.call_args.kwargs["json"]["prompt"])
         self.assertIn("product photography", post.call_args.kwargs["json"]["prompt"])
 
+    @patch("apps.marketing.images.requests.post")
+    def test_nao_manda_largura_e_altura_para_a_cloudflare(self, post):
+        # O FLUX.1-schnell recusa a requisicao inteira com 400 se receber
+        # width ou height: "Additional or unevaluated properties not allowed".
+        post.return_value = _resposta_cloudflare()
+
+        gerar_imagem("bolo")
+
+        self.assertEqual(set(post.call_args.kwargs["json"]), {"prompt"})
+
     @override_settings(CLOUDFLARE_ACCOUNT_ID="", CLOUDFLARE_API_TOKEN="")
     @patch("apps.marketing.images.requests.get")
     @patch("apps.marketing.images.requests.post")
     def test_sem_chave_da_cloudflare_vai_para_pollinations(self, post, get):
-        get.return_value = _resposta_imagem(content_type="image/jpeg")
+        get.return_value = _resposta_pollinations(content_type="image/jpeg")
 
         provider, _, content_type = gerar_imagem("bolo")
 
@@ -418,7 +440,7 @@ class GeracaoDeImagemTests(SimpleTestCase):
     @patch("apps.marketing.images.requests.post")
     def test_cloudflare_fora_do_ar_cai_em_pollinations(self, post, get):
         post.side_effect = requests.Timeout()
-        get.return_value = _resposta_imagem()
+        get.return_value = _resposta_pollinations()
 
         provider, _, _ = gerar_imagem("bolo")
 
@@ -426,13 +448,13 @@ class GeracaoDeImagemTests(SimpleTestCase):
 
     @patch("apps.marketing.images.requests.get")
     @patch("apps.marketing.images.requests.post")
-    def test_cloudflare_respondendo_json_com_200_nao_vira_imagem(self, post, get):
-        # Cota estourada devolve 200 com JSON. Gravar isso deixaria um texto
-        # de erro no lugar da foto.
-        post.return_value = _resposta_imagem(
-            content=b'{"success": false}', content_type="application/json", text='{"success": false}'
+    def test_cloudflare_com_success_false_nao_vira_imagem(self, post, get):
+        # Cota estourada ou token sem permissao volta 200 com success false.
+        # Sem conferir, o base64 ausente viraria imagem vazia.
+        post.return_value = _resposta_cloudflare(
+            corpo={"success": False, "errors": [{"message": "out of neurons"}], "result": None}
         )
-        get.return_value = _resposta_imagem()
+        get.return_value = _resposta_pollinations()
 
         provider, conteudo, _ = gerar_imagem("bolo")
 
@@ -441,12 +463,36 @@ class GeracaoDeImagemTests(SimpleTestCase):
 
     @patch("apps.marketing.images.requests.get")
     @patch("apps.marketing.images.requests.post")
+    def test_base64_invalido_da_cloudflare_nao_vira_imagem(self, post, get):
+        post.return_value = _resposta_cloudflare(corpo={"success": True, "result": {"image": "nao!!"}})
+        get.return_value = _resposta_pollinations()
+
+        provider, _, _ = gerar_imagem("bolo")
+
+        self.assertEqual(provider, "pollinations")
+
+    @patch("apps.marketing.images.requests.get")
+    @patch("apps.marketing.images.requests.post")
     def test_imagem_acima_do_limite_e_descartada(self, post, get):
-        grande = b"0" * (400 * 1024 + 1)
-        post.return_value = _resposta_imagem(content=grande)
-        get.return_value = _resposta_imagem(content=grande)
+        grande = b"0" * (1024 * 1024 + 1)
+        post.return_value = _resposta_cloudflare(imagem=grande)
+        get.return_value = _resposta_pollinations(content=grande)
 
         self.assertIsNone(gerar_imagem("bolo"))
+
+    @patch("apps.marketing.images.requests.get")
+    @patch("apps.marketing.images.requests.post")
+    def test_jpeg_de_1024_do_flux_cabe_no_limite(self, post, get):
+        # O FLUX devolve por volta de 540 KB, acima do teto de 400 KB da foto
+        # de produto. Este caso trava o teto em algo que a imagem real cabe.
+        real = b"0" * (600 * 1024)
+        post.return_value = _resposta_cloudflare(imagem=real)
+
+        provider, conteudo, _ = gerar_imagem("bolo")
+
+        self.assertEqual(provider, "cloudflare")
+        self.assertEqual(len(conteudo), len(real))
+        get.assert_not_called()
 
     @patch("apps.marketing.images.requests.get", side_effect=requests.ConnectionError())
     @patch("apps.marketing.images.requests.post", side_effect=requests.ConnectionError())
@@ -482,7 +528,7 @@ class ImagemDaCampanhaTests(TestCase):
     )
     @patch("apps.marketing.images.requests.get")
     def test_campanha_guarda_a_imagem_gerada(self, get):
-        get.return_value = _resposta_imagem()
+        get.return_value = _resposta_pollinations()
 
         resposta = self._gerar()
 
@@ -511,7 +557,7 @@ class ImagemDaCampanhaTests(TestCase):
     )
     @patch("apps.marketing.images.requests.get")
     def test_rota_serve_a_imagem_com_etag(self, get):
-        get.return_value = _resposta_imagem()
+        get.return_value = _resposta_pollinations()
         campaign_id = self._gerar().data["campaign_id"]
 
         resposta = self.client.get(f"/api/marketing/campaigns/{campaign_id}/image/")
@@ -532,7 +578,7 @@ class ImagemDaCampanhaTests(TestCase):
     )
     @patch("apps.marketing.images.requests.get")
     def test_campanha_de_outro_negocio_nao_entrega_a_imagem(self, get):
-        get.return_value = _resposta_imagem()
+        get.return_value = _resposta_pollinations()
         campaign_id = self._gerar().data["campaign_id"]
 
         User = get_user_model()

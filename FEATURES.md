@@ -93,7 +93,7 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 - [x] Cloudflare Workers AI (FLUX.1-schnell) quando há `CLOUDFLARE_ACCOUNT_ID` e `CLOUDFLARE_API_TOKEN`; o plano free dá ~500 imagens de 1024x1024 por dia
 - [x] Pollinations.ai como alternativa sem chave, ligada por `MARKETING_IMAGE_FALLBACK`. Opt-in de propósito: não pede chave, mas demora e põe marca d'água
 - [x] Sem provedor nenhum, a campanha sai só com o texto — a geração nunca derruba o que já foi escrito
-- [x] A imagem fica no banco (`CampaignImage`), como a foto de produto: o disco do Render é efêmero. Rota autenticada e filtrada por negócio
+- [x] A imagem fica no banco (`CampaignImage`), como a foto de produto: o disco do Render é efêmero. Rota autenticada e filtrada por negócio. O FLUX sai sempre em 1024x1024 e o JPEG dá por volta de 540 KB, então o teto aqui é 1 MB (a foto de produto, que chega reduzida pelo navegador, para em 400 KB)
 
 ## 6. Visão geral / Dashboard
 
@@ -136,7 +136,7 @@ Endpoints: `POST /api/finance/assistant/`, `GET|POST /api/finance/assistant/conv
 - [x] Em produção: HTTPS obrigatório, HSTS, cookies com `Secure`, API navegável do DRF desligada e recusa de subir com a `SECRET_KEY` de exemplo
 - [x] Webhook da Abacate Pay só funciona com segredo configurado, comparado em tempo constante. Sem o segredo, qualquer um poderia marcar uma cobrança como paga
 - [x] Logs da aplicação aparecem na saída do servidor (antes se perdiam)
-- [x] Testes automatizados: 89 casos — produtos 16 (margem, preço sugerido, foto), financeiro 20 (leitura de OFX, importação ponta a ponta e os insights), contas 14 (recuperação de senha e entrega pelo Resend), marketing 34 (margem real no prompt, isolamento por negócio, recomendações e a geração de imagem)
+- [x] Testes automatizados: 92 casos — produtos 16 (margem, preço sugerido, foto), financeiro 20 (leitura de OFX, importação ponta a ponta e os insights), contas 14 (recuperação de senha e entrega pelo Resend), marketing 37 (margem real no prompt, isolamento por negócio, recomendações e a geração de imagem)
 - [ ] Testes de **pagamentos** (PIX/Abacate Pay) — ainda não existem
 - [ ] Testes mais largos de **marketing**: os 4 casos cobrem o fallback sem chave, não a geração com a IA de verdade
 

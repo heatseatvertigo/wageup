@@ -50,7 +50,9 @@ class CampaignImage(models.Model):
     listagem de campanhas nao arrastar os bytes junto.
     """
 
-    MAX_BYTES = 400 * 1024
+    # Maior que o teto da foto de produto: a foto chega reduzida pelo
+    # navegador, esta sai do modelo. Ver images.MAX_BYTES.
+    MAX_BYTES = 1024 * 1024
 
     campaign = models.OneToOneField(
         MarketingCampaign, on_delete=models.CASCADE, related_name="image"

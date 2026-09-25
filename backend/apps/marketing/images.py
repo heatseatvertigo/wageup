@@ -24,6 +24,8 @@ O prompt nao e inventado aqui. A campanha ja pede a IA de texto uma "Ideia de
 imagem"; esse trecho descreve o que o dono do negocio quer ver e vira o prompt
 da imagem. Sem ele, monta-se um prompt do nome do produto e do canal.
 """
+import base64
+import binascii
 import logging
 import re
 from urllib.parse import quote
@@ -37,15 +39,17 @@ logger = logging.getLogger(__name__)
 CLOUDFLARE_MODEL = "@cf/black-forest-labs/flux-1-schnell"
 POLLINATIONS_URL = "https://image.pollinations.ai/prompt/{prompt}"
 
-# Quadrado: o formato que serve tanto para o feed do Instagram quanto para o
-# WhatsApp sem corte.
+# O FLUX.1-schnell na Cloudflare nao aceita largura e altura: sai sempre
+# 1024x1024, que e o quadrado do feed do Instagram e do WhatsApp sem corte.
+# Os dois parametros ficam so para o Pollinations, que aceita.
 LARGURA = ALTURA = 1024
 
 TIMEOUT = 45
 
-# Mesmo teto da foto de produto. O que passar disso nao cabe no banco sem
-# encher a tabela de campanhas.
-MAX_BYTES = 400 * 1024
+# Maior que o teto da foto de produto (400 KB) de proposito: a foto chega
+# reduzida pelo navegador, esta aqui sai do modelo e um JPEG de 1024x1024 do
+# FLUX da por volta de 540 KB. Uma imagem por campanha, entao 1 MB cabe.
+MAX_BYTES = 1024 * 1024
 
 # "Ideia de imagem" e um dos quatro blocos que o prompt da campanha pede. O
 # titulo pode vir com ou sem os asteriscos do markdown.
@@ -98,7 +102,9 @@ def _cloudflare(prompt):
     resposta = requests.post(
         url,
         headers={"Authorization": f"Bearer {token}"},
-        json={"prompt": prompt, "width": LARGURA, "height": ALTURA},
+        # So `prompt`: o modelo recusa a requisicao inteira com 400 se receber
+        # largura e altura ("Additional or unevaluated properties").
+        json={"prompt": prompt},
         timeout=TIMEOUT,
     )
     if not resposta.ok:
@@ -106,14 +112,27 @@ def _cloudflare(prompt):
             f"Cloudflare recusou a geracao ({resposta.status_code}): {resposta.text[:200]}"
         )
 
-    # A Cloudflare responde com os bytes da imagem, mas em caso de erro de
-    # conta ou de cota devolve JSON com 200. Conferir o tipo evita gravar um
-    # texto de erro no lugar da imagem.
-    content_type = resposta.headers.get("Content-Type", "")
-    if not content_type.startswith("image/"):
-        raise ImageGenerationError(f"Cloudflare devolveu {content_type}: {resposta.text[:200]}")
+    # A resposta e JSON, nao os bytes: {"result": {"image": "<base64>"},
+    # "success": true}. Cota estourada ou token sem permissao tambem volta em
+    # JSON, com success false, entao o campo e conferido antes de decodificar.
+    try:
+        corpo = resposta.json()
+    except ValueError as exc:
+        raise ImageGenerationError("Cloudflare devolveu um corpo que nao e JSON.") from exc
 
-    return resposta.content, content_type.split(";")[0].strip()
+    if not corpo.get("success"):
+        raise ImageGenerationError(f"Cloudflare respondeu com erro: {corpo.get('errors')}")
+
+    em_base64 = (corpo.get("result") or {}).get("image")
+    if not em_base64:
+        raise ImageGenerationError("Cloudflare respondeu sem imagem.")
+
+    try:
+        conteudo = base64.b64decode(em_base64, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ImageGenerationError("Cloudflare devolveu um base64 invalido.") from exc
+
+    return conteudo, "image/jpeg"
 
 
 def _pollinations(prompt):
