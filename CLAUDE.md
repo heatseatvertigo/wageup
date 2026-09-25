@@ -166,6 +166,7 @@ GET             /api/payments/summary/       # Consolidação de recebíveis
 POST            /api/payments/<id>/check/    # Sincroniza status com a Abacate Pay
 POST            /api/payments/webhooks/abacatepay/   # Webhook de confirmação
 POST            /api/marketing/chat/         # Gera campanha (Claude Haiku se ANTHROPIC_API_KEY estiver set)
+GET             /api/marketing/recommendations/  # O que divulgar em seguida, pela margem real do catálogo
 GET/POST        /api/marketing/campaigns/
 GET             /api/health/                 # Health check (aberto, sem throttle)
 ```
@@ -198,9 +199,11 @@ GET             /api/health/                 # Health check (aberto, sem throttl
 
 12. **A rota da foto exige autenticação**, e `<img src>` não manda o token. A tela busca a imagem com `fetch` e monta um object URL. A alternativa seria uma rota pública protegida só pelo UUID, o que troca segurança por conveniência.
 
-13. **O cálculo de margem mora no modelo `Product`**, em `variable_cost`, `fee_amount`, `margin_value`, `margin_percent` e `markup_percent`. O serializer expõe esses valores prontos. A tela repete a fórmula em `productMargin()` apenas para responder enquanto o usuário digita — mudou a conta no Python, mude no JavaScript.
+13. **Quem consome margem lê do modelo, nunca de preço menos custo**: marketing (`marketing/views.py`, `marketing/recommendations.py`) e insights (`finance/insights.py`) usam `Product.margin_value`. A conta simples ignora embalagem, taxa de cartão e imposto, e com ela a IA recomenda desconto sobre um lucro que não existe. Nas rotas de marketing, os números vêm do banco pelo id do produto — o cliente manda o id, não os valores.
 
-14. **Deduplicação por `Transaction.external_id`**, com unicidade por business: o FITID do OFX quando existe, senão uma impressão digital do conteúdo. É o que faz reimportar o mesmo extrato não duplicar. Qualquer formato novo (CSV, PDF) precisa devolver um `external_id` estável — sem isso, a importação suja o financeiro em vez de ajudar.
+14. **O cálculo de margem mora no modelo `Product`**, em `variable_cost`, `fee_amount`, `margin_value`, `margin_percent` e `markup_percent`. O serializer expõe esses valores prontos. A tela repete a fórmula em `productMargin()` apenas para responder enquanto o usuário digita — mudou a conta no Python, mude no JavaScript.
+
+15. **Deduplicação por `Transaction.external_id`**, com unicidade por business: o FITID do OFX quando existe, senão uma impressão digital do conteúdo. É o que faz reimportar o mesmo extrato não duplicar. Qualquer formato novo (CSV, PDF) precisa devolver um `external_id` estável — sem isso, a importação suja o financeiro em vez de ajudar.
 
 ---
 
@@ -227,6 +230,7 @@ Para domínio próprio: configurar `CUSTOM_DOMAIN=seudominio.com` nas variáveis
 - [backend/apps/accounts/tests.py](backend/apps/accounts/tests.py) — testes da recuperação de senha
 - [backend/apps/payments/services.py](backend/apps/payments/services.py) — cliente Abacate Pay
 - [backend/apps/marketing/views.py](backend/apps/marketing/views.py) — `_call_claude()` para IA
+- [backend/apps/marketing/recommendations.py](backend/apps/marketing/recommendations.py) — recomendações de ação a partir do catálogo
 - [backend/apps/finance/assistant.py](backend/apps/finance/assistant.py) — assistente financeiro (DeepSeek/Claude/local)
 - [backend/apps/finance/insights.py](backend/apps/finance/insights.py) — insights do dashboard
 - [backend/apps/finance/statements/](backend/apps/finance/statements/) — leitura de extrato bancário, um módulo por formato

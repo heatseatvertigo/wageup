@@ -771,7 +771,10 @@ document.querySelector("#campaignForm").addEventListener("submit", async (event)
   const goal = form.get("goal");
   const channel = form.get("channel");
   const prompt = form.get("prompt").trim() || "criar uma campanha rápida";
-  const margin = product ? product.price - product.cost : 0;
+  // margin_value vem do backend com outros custos, taxa e imposto descontados.
+  // Preco menos custo daria um lucro que nao existe — a mesma conta que o
+  // cadastro de produtos existe para corrigir.
+  const margin = product ? Number(product.margin_value ?? 0) : 0;
   const output = document.querySelector("#campaignOutput");
   const preview = document.querySelector("#imagePreview");
 
@@ -791,6 +794,9 @@ document.querySelector("#campaignForm").addEventListener("submit", async (event)
   preview.innerHTML = answer.imageLabel;
   formEl.reset();
   renderCampaignOptions();
+  // O produto deixou de ser "nunca divulgado": a próxima leitura precisa ser
+  // nova, senão a tela continua sugerindo estrear o que já saiu.
+  recommendationsState.carregadas = false;
   output.scrollTop = output.scrollHeight;
 });
 
@@ -1153,6 +1159,9 @@ function setView(viewName) {
   appShell.classList.add("is-rail");
   if (viewName === "overview") { renderSummary(); renderCalendar(); renderSemesterChart(); }
   if (viewName === "payments") loadPayments();
+  // As recomendações custam uma chamada de IA: carregam ao abrir o módulo, uma
+  // vez por sessão, e só de novo no botão "Atualizar" ou após gerar campanha.
+  if (viewName === "app-marketing") loadRecommendations();
   // A conversa vive no servidor: ao abrir a tela, restaura o histórico.
   if (viewName === "finance-assistant" && !currentConversationId) startNewConversation();
 }
@@ -2884,6 +2893,117 @@ document.querySelector("#assistantInput")?.addEventListener("keydown", (event) =
   }
 });
 
+// ─── Marketing: recomendações de ação ────────────────────────────────────────
+
+// Cada recomendação já vem com produto, canal e objetivo resolvidos pelo
+// backend. Clicar em "Usar" só preenche o formulário de campanha — quem gera
+// continua sendo o usuário, que pode ajustar o texto antes.
+function applyRecommendation(reco) {
+  const form = document.querySelector("#campaignForm");
+  if (!form) return;
+
+  if (reco.product_id) {
+    const select = form.querySelector("[name='product']");
+    if (select && [...select.options].some((o) => o.value === reco.product_id)) {
+      select.value = reco.product_id;
+    }
+  }
+  const goal = form.querySelector("[name='goal']");
+  if (goal && reco.goal) goal.value = reco.goal;
+  const channel = form.querySelector("[name='channel']");
+  if (channel && reco.channel) {
+    const opcao = [...channel.options].find((o) => o.value === reco.channel || o.textContent === reco.channel);
+    if (opcao) channel.value = opcao.value;
+  }
+  const prompt = form.querySelector("[name='prompt']");
+  if (prompt) prompt.value = reco.title;
+
+  prompt?.focus();
+  form.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+// Recomendação que pede cuidado antes de divulgar (prejuízo, estoque baixo)
+// recebe rótulo e borda próprios — o texto diz o motivo, a cor não decide só.
+const RECO_ALERTA = /preço|reponha|prejuízo|estoque/i;
+
+function renderRecommendations(recomendacoes, provider) {
+  const list = document.querySelector("#recosList");
+  if (!list) return;
+
+  if (!recomendacoes.length) {
+    list.innerHTML = `<p class="recos__empty">Cadastre um produto com preço e custo para receber recomendações.</p>`;
+    return;
+  }
+
+  list.innerHTML = recomendacoes
+    .map((reco, indice) => {
+      const alerta = RECO_ALERTA.test(`${reco.title} ${reco.text}`);
+      const produto = reco.product_name
+        ? `<span class="reco__meta">${escapeHtml(reco.product_name)} · ${escapeHtml(reco.channel)}</span>`
+        : `<span class="reco__meta">${escapeHtml(reco.channel)}</span>`;
+      return `
+        <article class="reco${alerta ? " reco--alerta" : ""}">
+          <span class="reco__tag">${alerta ? "Revisar antes de divulgar" : "Oportunidade"}</span>
+          <h5 class="reco__title">${escapeHtml(reco.title)}</h5>
+          <p class="reco__text">${highlightMoney(reco.text)}</p>
+          <div class="reco__foot">
+            ${produto}
+            <button class="ghost-button" type="button" data-reco="${indice}">Usar no formulário</button>
+          </div>
+        </article>`;
+    })
+    .join("");
+
+  const sub = document.querySelector("#recosSub");
+  if (sub) {
+    sub.textContent = provider === "anthropic"
+      ? "Sugestões da IA a partir da margem real e do estoque do seu catálogo."
+      : "Sugestões a partir da margem real e do estoque do seu catálogo.";
+  }
+
+  list.querySelectorAll("[data-reco]").forEach((botao) => {
+    botao.addEventListener("click", () => {
+      applyRecommendation(recomendacoes[Number(botao.dataset.reco)]);
+    });
+  });
+}
+
+// O valor monetário no meio da frase precisa sair em mono, como manda o design
+// system. O escape vem primeiro: o texto pode ter vindo da IA.
+function highlightMoney(texto) {
+  return escapeHtml(texto).replace(
+    /R\$\s?[\d.]+,\d{2}/g,
+    (valor) => `<span class="reco__value">${valor}</span>`
+  );
+}
+
+let recommendationsState = { carregando: false, carregadas: false };
+
+async function loadRecommendations({ force = false } = {}) {
+  const list = document.querySelector("#recosList");
+  if (!list || recommendationsState.carregando) return;
+  if (recommendationsState.carregadas && !force) return;
+
+  recommendationsState.carregando = true;
+  list.innerHTML = `<p class="recos__empty">Analisando seu catálogo...</p>`;
+  try {
+    const data = await apiRequest("/marketing/recommendations/");
+    renderRecommendations(data.recommendations || [], data.provider);
+    recommendationsState.carregadas = true;
+  } catch {
+    // Sem recomendação a tela de campanha continua utilizável: não é erro que
+    // justifique bloquear o módulo.
+    list.innerHTML = `<p class="recos__empty">Não foi possível carregar as recomendações agora.</p>`;
+  } finally {
+    recommendationsState.carregando = false;
+  }
+}
+
+document.querySelector("#recosReload")?.addEventListener("click", () => {
+  recommendationsState.carregadas = false;
+  loadRecommendations({ force: true });
+});
+
 // ─── Marketing AI ─────────────────────────────────────────────────────────────
 
 function campaignHeadline(goal, productName) {
@@ -2904,6 +3024,16 @@ function imagePrompt(goal, productName) {
   return prompts[goal] || prompts.promocao;
 }
 
+// O texto da IA vem com **negrito** no estilo markdown. O escape vem antes de
+// qualquer tag, para o texto do modelo nunca virar HTML; so depois os pares de
+// ** viram <strong>. Trocar cada ** por <strong> abriria a tag e nunca a
+// fecharia.
+function formatCampaignText(rawText) {
+  return escapeHtml(rawText)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replaceAll("\n", "<br>");
+}
+
 async function askMarketingAi({ product, goal, channel, prompt, margin }) {
   try {
     const response = await fetch(`${apiBaseUrl}/marketing/chat/`, {
@@ -2915,7 +3045,7 @@ async function askMarketingAi({ product, goal, channel, prompt, margin }) {
       const data = await response.json();
       const rawText = data.message || data.text || "";
       return {
-        html: escapeHtml(rawText).replaceAll("\n", "<br>").replaceAll("**", "<strong>").replace(/<strong>(.*?)<\/strong>/g, "<strong>$1</strong>"),
+        html: formatCampaignText(rawText),
         imageLabel: escapeHtml(data.image_label || `${product.name}<br>${channel}`)
       };
     }
