@@ -5043,38 +5043,41 @@ td:first-child { font-weight: var(--weight-medium); }
 }
 
 
-/* ─── Marketing: recomendações de ação ─── */
-.recos {
+/* ─── Cartões de IA: recomendações de marketing e insights do dashboard ─── */
+/* O bloco .ai-* é compartilhado pelos dois painéis: o card é o mesmo, muda o
+   que cada tela coloca dentro. .recos e .insights só posicionam o painel. */
+.recos,
+.insights {
   margin-bottom: var(--space-6);
   display: grid;
   gap: var(--space-4);
 }
-.recos__head {
+.ai-panel__head {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-3);
 }
-.recos__title {
+.ai-panel__title {
   margin: 0;
   font-size: var(--text-base);
   font-weight: var(--weight-semibold);
   color: var(--color-text-primary);
 }
-.recos__sub {
+.ai-panel__sub {
   margin: var(--space-1) 0 0;
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
 }
-.recos__list {
+.ai-list {
   display: grid;
   gap: var(--space-3);
 }
 @media (min-width: 900px) {
-  .recos__list { grid-template-columns: repeat(2, 1fr); }
+  .ai-list { grid-template-columns: repeat(2, 1fr); }
 }
-.reco {
+.ai-card {
   display: grid;
   gap: var(--space-2);
   padding: var(--space-4);
@@ -5082,48 +5085,48 @@ td:first-child { font-weight: var(--weight-medium); }
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
 }
-/* Ação que pede cuidado (prejuízo, estoque baixo) não é oportunidade: a borda
-   e o rótulo diferenciam, nunca a cor sozinha. */
-.reco--alerta {
+/* Item que pede cuidado (prejuízo, estoque baixo, despesa acima da receita)
+   não é oportunidade: a borda e o rótulo diferenciam, nunca a cor sozinha. */
+.ai-card--alerta {
   border-color: var(--color-border-strong);
   background: var(--color-surface-muted);
 }
-.reco__tag {
+.ai-card__tag {
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   color: var(--color-text-secondary);
 }
-.reco--alerta .reco__tag { color: var(--color-warning); }
-.reco__title {
+.ai-card--alerta .ai-card__tag { color: var(--color-warning); }
+.ai-card__title {
   margin: 0;
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
   color: var(--color-text-primary);
 }
-.reco__text {
+.ai-card__text {
   margin: 0;
   font-size: var(--text-sm);
   line-height: 1.5;
   color: var(--color-text-secondary);
 }
-.reco__value {
+.ai-card__value {
   font-family: var(--font-mono);
   font-weight: var(--weight-medium);
   letter-spacing: -0.01em;
   color: var(--color-text-primary);
 }
-.reco__foot {
+.ai-card__foot {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   margin-top: var(--space-1);
 }
-.reco__meta {
+.ai-card__meta {
   font-size: var(--text-xs);
   color: var(--color-text-secondary);
 }
-.recos__empty {
+.ai-panel__empty {
   margin: 0;
   font-size: var(--text-sm);
   color: var(--color-text-secondary);

@@ -1158,7 +1158,7 @@ function setView(viewName) {
   // A navegação fica recolhida em trilha de ícones em toda a plataforma e se
   // abre ao passar o mouse ou receber foco pelo teclado.
   appShell.classList.add("is-rail");
-  if (viewName === "overview") { renderSummary(); renderCalendar(); renderSemesterChart(); }
+  if (viewName === "overview") { renderSummary(); renderCalendar(); renderSemesterChart(); syncInsightsPanel(); }
   if (viewName === "payments") loadPayments();
   // As recomendações custam uma chamada de IA: carregam ao abrir o módulo, uma
   // vez por sessão, e só de novo no botão "Atualizar" ou após gerar campanha.
@@ -2894,6 +2894,68 @@ document.querySelector("#assistantInput")?.addEventListener("keydown", (event) =
   }
 });
 
+// ─── Visão geral: insights do negócio ────────────────────────────────────────
+
+// A rota é `IsAdminRole`, então o painel some para quem é member: pedir os
+// insights daria 403 e um erro sem utilidade na tela.
+// Ao contrário das recomendações de marketing, aqui é botão e não carregamento
+// automático: a Visão geral é a tela que abre no login, e cada geração é uma
+// chamada de IA paga. Quem quer o diagnóstico pede.
+
+// Insight que aponta problema (prejuízo, saída acima da entrada, reposição)
+// recebe rótulo próprio. O texto diz o motivo; a cor não decide sozinha.
+const INSIGHT_ALERTA = /acima|prejuízo|reveja|repos|pendente|nenhuma entrada/i;
+
+function renderInsights(insights) {
+  const list = document.querySelector("#insightsList");
+  if (!list) return;
+
+  if (!insights.length) {
+    list.innerHTML = `<p class="ai-panel__empty">Ainda não há dados suficientes. Lance uma movimentação ou cadastre um produto.</p>`;
+    return;
+  }
+
+  list.innerHTML = insights
+    .map((insight) => {
+      const alerta = INSIGHT_ALERTA.test(`${insight.title} ${insight.text}`);
+      return `
+        <article class="ai-card${alerta ? " ai-card--alerta" : ""}">
+          <span class="ai-card__tag">${alerta ? "Merece atenção" : "Leitura do negócio"}</span>
+          <h5 class="ai-card__title">${escapeHtml(insight.title)}</h5>
+          <p class="ai-card__text">${highlightMoney(insight.text)}</p>
+        </article>`;
+    })
+    .join("");
+}
+
+let insightsCarregando = false;
+
+async function loadInsights() {
+  const list = document.querySelector("#insightsList");
+  const botao = document.querySelector("#insightsButton");
+  if (!list || insightsCarregando) return;
+
+  insightsCarregando = true;
+  if (botao) botao.disabled = true;
+  list.innerHTML = `<p class="ai-panel__empty">Analisando os números do seu negócio...</p>`;
+  try {
+    const data = await apiRequest("/finance/insights/");
+    renderInsights(data.insights || []);
+    if (botao) botao.textContent = "Gerar de novo";
+  } catch {
+    list.innerHTML = `<p class="ai-panel__empty">Não foi possível gerar os insights agora. Tente de novo em instantes.</p>`;
+  } finally {
+    insightsCarregando = false;
+    if (botao) botao.disabled = false;
+  }
+}
+
+function syncInsightsPanel() {
+  document.querySelector("#insightsPanel")?.classList.toggle("is-hidden", !canAccessFinance());
+}
+
+document.querySelector("#insightsButton")?.addEventListener("click", loadInsights);
+
 // ─── Marketing: recomendações de ação ────────────────────────────────────────
 
 // Cada recomendação já vem com produto, canal e objetivo resolvidos pelo
@@ -2932,7 +2994,7 @@ function renderRecommendations(recomendacoes, provider) {
   if (!list) return;
 
   if (!recomendacoes.length) {
-    list.innerHTML = `<p class="recos__empty">Cadastre um produto com preço e custo para receber recomendações.</p>`;
+    list.innerHTML = `<p class="ai-panel__empty">Cadastre um produto com preço e custo para receber recomendações.</p>`;
     return;
   }
 
@@ -2940,14 +3002,14 @@ function renderRecommendations(recomendacoes, provider) {
     .map((reco, indice) => {
       const alerta = RECO_ALERTA.test(`${reco.title} ${reco.text}`);
       const produto = reco.product_name
-        ? `<span class="reco__meta">${escapeHtml(reco.product_name)} · ${escapeHtml(reco.channel)}</span>`
-        : `<span class="reco__meta">${escapeHtml(reco.channel)}</span>`;
+        ? `<span class="ai-card__meta">${escapeHtml(reco.product_name)} · ${escapeHtml(reco.channel)}</span>`
+        : `<span class="ai-card__meta">${escapeHtml(reco.channel)}</span>`;
       return `
-        <article class="reco${alerta ? " reco--alerta" : ""}">
-          <span class="reco__tag">${alerta ? "Revisar antes de divulgar" : "Oportunidade"}</span>
-          <h5 class="reco__title">${escapeHtml(reco.title)}</h5>
-          <p class="reco__text">${highlightMoney(reco.text)}</p>
-          <div class="reco__foot">
+        <article class="ai-card${alerta ? " ai-card--alerta" : ""}">
+          <span class="ai-card__tag">${alerta ? "Revisar antes de divulgar" : "Oportunidade"}</span>
+          <h5 class="ai-card__title">${escapeHtml(reco.title)}</h5>
+          <p class="ai-card__text">${highlightMoney(reco.text)}</p>
+          <div class="ai-card__foot">
             ${produto}
             <button class="ghost-button" type="button" data-reco="${indice}">Usar no formulário</button>
           </div>
@@ -2974,7 +3036,7 @@ function renderRecommendations(recomendacoes, provider) {
 function highlightMoney(texto) {
   return escapeHtml(texto).replace(
     /R\$\s?[\d.]+,\d{2}/g,
-    (valor) => `<span class="reco__value">${valor}</span>`
+    (valor) => `<span class="ai-card__value">${valor}</span>`
   );
 }
 
@@ -2986,7 +3048,7 @@ async function loadRecommendations({ force = false } = {}) {
   if (recommendationsState.carregadas && !force) return;
 
   recommendationsState.carregando = true;
-  list.innerHTML = `<p class="recos__empty">Analisando seu catálogo...</p>`;
+  list.innerHTML = `<p class="ai-panel__empty">Analisando seu catálogo...</p>`;
   try {
     const data = await apiRequest("/marketing/recommendations/");
     renderRecommendations(data.recommendations || [], data.provider);
@@ -2994,7 +3056,7 @@ async function loadRecommendations({ force = false } = {}) {
   } catch {
     // Sem recomendação a tela de campanha continua utilizável: não é erro que
     // justifique bloquear o módulo.
-    list.innerHTML = `<p class="recos__empty">Não foi possível carregar as recomendações agora.</p>`;
+    list.innerHTML = `<p class="ai-panel__empty">Não foi possível carregar as recomendações agora.</p>`;
   } finally {
     recommendationsState.carregando = false;
   }
