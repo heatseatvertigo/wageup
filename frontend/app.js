@@ -771,7 +771,10 @@ document.querySelector("#campaignForm").addEventListener("submit", async (event)
   const goal = form.get("goal");
   const channel = form.get("channel");
   const prompt = form.get("prompt").trim() || "criar uma campanha rápida";
-  const margin = product ? product.price - product.cost : 0;
+  // margin_value vem do backend com outros custos, taxa e imposto descontados.
+  // Preco menos custo daria um lucro que nao existe — a mesma conta que o
+  // cadastro de produtos existe para corrigir.
+  const margin = product ? Number(product.margin_value ?? 0) : 0;
   const output = document.querySelector("#campaignOutput");
   const preview = document.querySelector("#imagePreview");
 
@@ -2904,6 +2907,16 @@ function imagePrompt(goal, productName) {
   return prompts[goal] || prompts.promocao;
 }
 
+// O texto da IA vem com **negrito** no estilo markdown. O escape vem antes de
+// qualquer tag, para o texto do modelo nunca virar HTML; so depois os pares de
+// ** viram <strong>. Trocar cada ** por <strong> abriria a tag e nunca a
+// fecharia.
+function formatCampaignText(rawText) {
+  return escapeHtml(rawText)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replaceAll("\n", "<br>");
+}
+
 async function askMarketingAi({ product, goal, channel, prompt, margin }) {
   try {
     const response = await fetch(`${apiBaseUrl}/marketing/chat/`, {
@@ -2915,7 +2928,7 @@ async function askMarketingAi({ product, goal, channel, prompt, margin }) {
       const data = await response.json();
       const rawText = data.message || data.text || "";
       return {
-        html: escapeHtml(rawText).replaceAll("\n", "<br>").replaceAll("**", "<strong>").replace(/<strong>(.*?)<\/strong>/g, "<strong>$1</strong>"),
+        html: formatCampaignText(rawText),
         imageLabel: escapeHtml(data.image_label || `${product.name}<br>${channel}`)
       };
     }
