@@ -22,6 +22,7 @@ services:
       #   GOOGLE_CLIENT_ID      (opcional, para login Google)
       #   RESEND_API_KEY        -> e-mail de recuperacao de senha (sem ela o link so vai pro log)
       #   DEFAULT_FROM_EMAIL    -> remetente; tem que ser de dominio verificado no Resend
+      #   CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_API_TOKEN -> imagem da campanha (sem elas, campanha sai so com texto)
       #
       # Com DJANGO_DEBUG=False o projeto exige SECRET_KEY propria e recusa o
       # webhook da Abacate Pay sem ABACATE_PAY_WEBHOOK_SECRET.

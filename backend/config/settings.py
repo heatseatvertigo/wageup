@@ -218,6 +218,19 @@ DEEPSEEK_BASE_URL = env("DEEPSEEK_BASE_URL", default="https://api.deepseek.com")
 DEEPSEEK_MODEL = env("DEEPSEEK_MODEL", default="deepseek-chat")
 GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID", default="")
 
+# Geracao da imagem da campanha (apps/marketing/images.py). A Anthropic nao
+# gera imagem, entao este e outro provedor. Sem as duas variaveis, o gerador
+# cai no Pollinations, que nao pede chave; sem nenhum dos dois, a campanha sai
+# sem imagem em vez de quebrar.
+CLOUDFLARE_ACCOUNT_ID = env("CLOUDFLARE_ACCOUNT_ID", default="")
+CLOUDFLARE_API_TOKEN = env("CLOUDFLARE_API_TOKEN", default="")
+
+# O Pollinations nao pede chave, entao so a configuracao acima nao basta para
+# decidir se ele roda: ligado por padrao, toda campanha esperaria por ele ate
+# 45 segundos e sairia com marca d'agua. Fica opt-in — quem nao configurar
+# nada gera campanha sem imagem, que e o comportamento util por default.
+MARKETING_IMAGE_FALLBACK = env.bool("MARKETING_IMAGE_FALLBACK", default=False)
+
 # ---------------------------------------------------------------------------
 # E-mail (recuperacao de senha)
 # ---------------------------------------------------------------------------

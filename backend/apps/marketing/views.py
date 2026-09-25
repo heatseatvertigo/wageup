@@ -1,8 +1,10 @@
+import hashlib
 import logging
 from decimal import Decimal, InvalidOperation
 
 import anthropic as anthropic_sdk
 from django.conf import settings
+from django.http import HttpResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated
@@ -11,7 +13,8 @@ from rest_framework.response import Response
 from apps.accounts.throttles import AIRateThrottle
 from apps.businesses.models import Business
 from apps.products.models import Product
-from .models import MarketingCampaign
+from .images import extrair_prompt, gerar_imagem
+from .models import CampaignImage, MarketingCampaign
 from .recommendations import build_recommendations
 from .serializers import MarketingCampaignSerializer
 
@@ -136,14 +139,77 @@ def marketing_chat(request):
         metadata={"source": provider},
     )
 
+    tem_imagem = _gerar_imagem_da_campanha(campaign, product_name, channel)
+
     return Response(
         {
             "campaign_id": str(campaign.id),
             "message": campaign.generated_text,
             "image_label": f"{product_name}\n{channel}",
+            "has_image": tem_imagem,
         },
         status=status.HTTP_201_CREATED,
     )
+
+
+def _gerar_imagem_da_campanha(campaign, product_name, channel):
+    """Gera e guarda a imagem. Devolve se deu certo.
+
+    A imagem e um extra: se nenhum provedor responder, a campanha ja esta
+    gravada e o texto ja e util. Por isso nada aqui propaga excecao.
+    """
+    prompt = extrair_prompt(campaign.generated_text, product_name, channel)
+    try:
+        resultado = gerar_imagem(prompt)
+    except Exception:
+        logger.exception("Falha inesperada ao gerar a imagem da campanha.")
+        return False
+
+    if resultado is None:
+        return False
+
+    provider, conteudo, content_type = resultado
+    CampaignImage.objects.update_or_create(
+        campaign=campaign,
+        defaults={
+            "content_type": content_type,
+            "data": conteudo,
+            "checksum": hashlib.sha256(conteudo).hexdigest(),
+            "provider": provider,
+            "prompt": prompt,
+        },
+    )
+    return True
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+@throttle_classes([])
+def campaign_image(request, campaign_id):
+    """Serve a imagem da campanha.
+
+    Rota autenticada e filtrada por business, como a foto de produto: a
+    campanha fala de preco e margem do negocio. Sem throttle de IA — aqui nao
+    se gera nada, so se le o que ja esta no banco.
+    """
+    business = Business.objects.filter(owner=request.user).first()
+    imagem = CampaignImage.objects.filter(
+        campaign__id=campaign_id, campaign__business=business
+    ).first()
+    if business is None or imagem is None:
+        return Response(
+            {"detail": "Esta campanha nao tem imagem."}, status=status.HTTP_404_NOT_FOUND
+        )
+
+    etag = f'"{imagem.checksum}"'
+    if request.headers.get("If-None-Match") == etag:
+        return HttpResponse(status=status.HTTP_304_NOT_MODIFIED)
+
+    resposta = HttpResponse(bytes(imagem.data), content_type=imagem.content_type)
+    resposta["ETag"] = etag
+    # A imagem da campanha nunca muda depois de gerada.
+    resposta["Cache-Control"] = "private, max-age=86400"
+    return resposta
 
 
 def _call_claude(dados, goal, channel, prompt, business_name):
@@ -181,7 +247,9 @@ def _call_claude(dados, goal, channel, prompt, business_name):
         f"Pedido do usuário: {prompt}\n\n"
         f"Estruture a resposta com:\n"
         f"**Chamada principal:** (headline curta e impactante)\n"
-        f"**Ideia de imagem:** (descrição visual objetiva)\n"
+        f"**Ideia de imagem:** (descreva só a cena: o produto, o cenário e a luz. "
+        f"Nada de texto, logo, selo ou embalagem escrita — quem gera a imagem "
+        f"desenha letra embolada e estraga a foto)\n"
         f"**Legenda:** (texto para postar no {channel}, com emojis se fizer sentido)\n"
         f"**CTA:** (chamada para ação direta)\n\n"
         f"Seja direto, não use linguagem corporativa e adapte o tom para o {channel}.\n"
@@ -210,7 +278,8 @@ def _build_demo_campaign(product_name, goal, channel, margin):
     return (
         f"Campanha para {channel}\n\n"
         f"**Chamada principal:** {headline}\n\n"
-        f"**Ideia de imagem:** foto clara de {product_name}, produto em destaque e CTA visivel.\n\n"
+        f"**Ideia de imagem:** foto clara de {product_name} sobre uma mesa, "
+        f"luz natural, produto em destaque.\n\n"
         f"**Legenda:** Hoje e um bom dia para garantir {product_name}. "
         f"Margem estimada de R$ {margin:.2f} por unidade.\n\n"
         f"**CTA:** Chame no direct ou finalize pelo PIX."

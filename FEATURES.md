@@ -89,7 +89,11 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 - [x] **Recomendações automáticas de ação** (`GET /api/marketing/recommendations/`): devolve o que divulgar em seguida, na ordem produto em prejuízo (revisar preço antes) → produto de margem alta nunca divulgado → produto com estoque baixo (repor antes) → melhor margem do catálogo. Cada item já traz produto, canal e objetivo resolvidos
 - [x] Sem `ANTHROPIC_API_KEY`, ou se a chamada falhar, as recomendações saem de regras locais sobre os mesmos números
 - [ ] **Tela das recomendações** — o painel foi retirado; a rota existe e está testada, falta decidir como apresentar
-- [ ] Geração de imagens para campanhas (campo `image_url` existe no modelo, mas não é preenchido automaticamente ainda)
+- [x] **Geração da imagem da campanha**: sai junto com o texto, a partir da "ideia de imagem" que a própria campanha escreveu — texto e imagem falam da mesma coisa
+- [x] Cloudflare Workers AI (FLUX.1-schnell) quando há `CLOUDFLARE_ACCOUNT_ID` e `CLOUDFLARE_API_TOKEN`; o plano free dá ~500 imagens de 1024x1024 por dia
+- [x] Pollinations.ai como alternativa sem chave, ligada por `MARKETING_IMAGE_FALLBACK`. Opt-in de propósito: não pede chave, mas demora e põe marca d'água
+- [x] Sem provedor nenhum, a campanha sai só com o texto — a geração nunca derruba o que já foi escrito
+- [x] A imagem fica no banco (`CampaignImage`), como a foto de produto: o disco do Render é efêmero. Rota autenticada e filtrada por negócio. O FLUX sai sempre em 1024x1024 e o JPEG dá por volta de 540 KB, então o teto aqui é 1 MB (a foto de produto, que chega reduzida pelo navegador, para em 400 KB)
 
 ## 6. Visão geral / Dashboard
 
@@ -130,7 +134,7 @@ Endpoints: `POST /api/finance/assistant/`, `GET|POST /api/finance/assistant/conv
 - [x] Em produção: HTTPS obrigatório, HSTS, cookies com `Secure`, API navegável do DRF desligada e recusa de subir com a `SECRET_KEY` de exemplo
 - [x] Webhook da Abacate Pay só funciona com segredo configurado, comparado em tempo constante. Sem o segredo, qualquer um poderia marcar uma cobrança como paga
 - [x] Logs da aplicação aparecem na saída do servidor (antes se perdiam)
-- [x] Testes automatizados: 73 casos — produtos 16 (margem, preço sugerido, foto), financeiro 20 (leitura de OFX, importação ponta a ponta e os insights), contas 14 (recuperação de senha e entrega pelo Resend), marketing 23 (margem real no prompt, isolamento por negócio e as recomendações)
+- [x] Testes automatizados: 92 casos — produtos 16 (margem, preço sugerido, foto), financeiro 20 (leitura de OFX, importação ponta a ponta e os insights), contas 14 (recuperação de senha e entrega pelo Resend), marketing 37 (margem real no prompt, isolamento por negócio, recomendações e a geração de imagem)
 - [ ] Testes de **pagamentos** (PIX/Abacate Pay) — ainda não existem
 - [ ] Testes mais largos de **marketing**: os 4 casos cobrem o fallback sem chave, não a geração com a IA de verdade
 
@@ -140,7 +144,7 @@ Endpoints: `POST /api/finance/assistant/`, `GET|POST /api/finance/assistant/conv
 
 Com base no `Escopo TCC.pdf`, os itens abaixo ainda não foram implementados:
 
-1. **Geração de imagens para campanhas de marketing**. A Anthropic não gera imagem (só lê). Opções gratuitas levantadas: Cloudflare Workers AI (10.000 Neurons/dia, FLUX.1-schnell, ~500 imagens/dia), Pollinations.ai (sem chave, ~1 req/15s, marca d'água) e Hugging Face (~US$ 0,10/mês, escala de demo). Metade do caminho já existe: `MarketingCampaign.image_url` está no modelo e o prompt da campanha já produz uma "Ideia de imagem" que serve de prompt.
+Nada. Os dois itens do escopo foram implementados — recomendações de marketing e geração de imagens.
 
 Fora do escopo do PDF, mas pendente: as **variáveis do Resend no Render** e um **domínio verificado** para o e-mail chegar a qualquer usuário (o código está pronto e testado), os **testes automatizados de pagamentos**, e os leitores de extrato em **CSV** e **PDF**.
 
@@ -158,6 +162,7 @@ Fora do escopo do PDF, mas pendente: as **variáveis do Resend no Render** e um 
 | Financeiro | Login como admin → aba "Financeiro" → lançar transação |
 | PIX | Login como admin → aba "Financeiro" → "Cobrança PIX" → preencher e gerar |
 | Marketing IA | Menu "Marketing" → preencher prompt/canal/objetivo → gerar campanha |
+| Imagem da campanha | Com `CLOUDFLARE_ACCOUNT_ID`/`CLOUDFLARE_API_TOKEN` (ou `MARKETING_IMAGE_FALLBACK=True`), gerar uma campanha: a prévia à direita troca o texto pela imagem. Sem provedor, fica a prévia em texto e a campanha sai igual |
 | Importar extrato | Login como admin → "Movimentações" → "Importar extrato" → anexar um `.ofx` → conferir a lista → "Importar". Reenviar o mesmo arquivo deve trazer tudo desmarcado como "Já importado" |
 | Assistente financeiro | Login como admin → abrir o chat → perguntar sobre os números; recarregar a página e conferir que a conversa continua lá |
 | Admin/banco de dados | Acessar `/admin/` logado como superusuário Django |
