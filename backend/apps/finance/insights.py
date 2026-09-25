@@ -13,7 +13,9 @@ from apps.finance.models import Transaction
 from apps.payments.models import Payment
 from apps.products.models import Product
 
-LOW_STOCK_THRESHOLD = 8
+# Usado so para o produto que ficou sem `min_stock` definido: sem um limite
+# proprio, "estoque baixo" precisa de algum ponto de corte.
+LOW_STOCK_FALLBACK = 8
 
 
 def brl(value):
@@ -32,8 +34,16 @@ def gather_metrics(business):
     pending = payments.filter(status=Payment.Status.PENDING).aggregate(t=Sum("amount"))["t"] or 0
 
     products = list(Product.objects.filter(business=business))
-    low_stock = [p for p in products if p.stock <= LOW_STOCK_THRESHOLD]
-    best_margin = max(products, key=lambda p: p.price - p.cost, default=None)
+    # `is_low_stock` respeita o min_stock que o dono cadastrou; o limite fixo
+    # entra so quando ele nao definiu nenhum.
+    low_stock = [
+        p for p in products
+        if p.is_low_stock or (p.min_stock == 0 and p.stock <= LOW_STOCK_FALLBACK)
+    ]
+    # margin_value desconta outros custos, taxa e imposto. Ordenar por
+    # preco menos custo elegeria como "melhor margem" um produto que, depois
+    # das taxas, rende menos que outro.
+    best_margin = max(products, key=lambda p: p.margin_value, default=None)
 
     return {
         "income": float(income),
@@ -45,7 +55,7 @@ def gather_metrics(business):
         "low_stock_count": len(low_stock),
         "low_stock_names": [p.name for p in low_stock[:5]],
         "best_margin_name": best_margin.name if best_margin else None,
-        "best_margin_value": float(best_margin.price - best_margin.cost) if best_margin else 0.0,
+        "best_margin_value": float(best_margin.margin_value) if best_margin else 0.0,
     }
 
 

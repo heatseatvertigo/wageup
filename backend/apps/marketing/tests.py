@@ -162,3 +162,167 @@ class DadosDoProdutoTests(TestCase):
         resposta = self._pedir("bolo")
 
         self.assertEqual(resposta.status_code, 201)
+
+
+class RecomendacoesTests(TestCase):
+    """As recomendacoes saem dos numeros do catalogo, com ou sem IA."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username="mei@wageup.local", email="mei@wageup.local", password="x"
+        )
+        UserProfile.objects.create(user=self.user, role="member")
+        self.business = Business.objects.create(owner=self.user, name="Negocio")
+        self.client = APIClient()
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Token {Token.objects.create(user=self.user).key}"
+        )
+
+    def _produto(self, nome, price, cost, **extra):
+        return Product.objects.create(
+            business=self.business,
+            name=nome,
+            price=Decimal(price),
+            cost=Decimal(cost),
+            **extra,
+        )
+
+    def _pedir(self):
+        return self.client.get("/api/marketing/recommendations/")
+
+    @override_settings(ANTHROPIC_API_KEY="")
+    def test_sem_produto_orienta_cadastrar(self):
+        resposta = self._pedir()
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(len(resposta.data["recommendations"]), 1)
+        self.assertIn("catálogo", resposta.data["recommendations"][0]["title"].lower())
+
+    @override_settings(ANTHROPIC_API_KEY="")
+    def test_prejuizo_vira_recomendacao_de_rever_preco_nao_de_divulgar(self):
+        # 50 - (45 + 10) - 11% de 50 = -10,50 por unidade.
+        self._produto("Brigadeiro", "50", "45", other_costs="10", fee_percent="5", tax_percent="6")
+
+        recomendacoes = self._pedir().data["recommendations"]
+
+        primeira = recomendacoes[0]
+        self.assertIn("preço", primeira["title"].lower())
+        self.assertIn("prejuízo", primeira["text"].lower())
+
+    @override_settings(ANTHROPIC_API_KEY="")
+    def test_estoque_baixo_recomenda_repor_antes_de_divulgar(self):
+        self._produto("Bolo", "100", "40", stock=2, min_stock=10)
+
+        textos = " ".join(r["title"] + r["text"] for r in self._pedir().data["recommendations"])
+
+        self.assertIn("Reponha", textos)
+
+    @override_settings(ANTHROPIC_API_KEY="")
+    def test_produto_nunca_divulgado_de_melhor_margem_vem_primeiro(self):
+        bom = self._produto("Bolo caro", "200", "50", stock=30)
+        self._produto("Bolo barato", "20", "15", stock=30)
+
+        recomendacoes = self._pedir().data["recommendations"]
+
+        self.assertEqual(recomendacoes[0]["product_id"], str(bom.id))
+        self.assertEqual(recomendacoes[0]["goal"], "lancamento")
+
+    @override_settings(ANTHROPIC_API_KEY="")
+    def test_produto_ja_divulgado_nao_e_tratado_como_estreia(self):
+        produto = self._produto("Bolo", "200", "50", stock=30)
+        MarketingCampaign.objects.create(
+            business=self.business, product=produto, prompt="p", channel="Instagram", goal="promocao"
+        )
+
+        titulos = [r["title"] for r in self._pedir().data["recommendations"]]
+
+        self.assertNotIn("Estreie a divulgação", titulos)
+
+    @override_settings(ANTHROPIC_API_KEY="")
+    def test_produto_inativo_fica_fora(self):
+        self._produto("Fora de linha", "500", "10", is_active=False)
+        ativo = self._produto("Bolo", "100", "40")
+
+        recomendacoes = self._pedir().data["recommendations"]
+
+        ids = {r["product_id"] for r in recomendacoes}
+        self.assertEqual(ids, {str(ativo.id)})
+
+    @override_settings(ANTHROPIC_API_KEY="")
+    def test_produto_de_outro_negocio_nao_entra(self):
+        User = get_user_model()
+        outro = User.objects.create_user(username="z@w.local", email="z@w.local", password="x")
+        Product.objects.create(
+            business=Business.objects.create(owner=outro, name="Outro"),
+            name="Alheio", price=Decimal("999"), cost=Decimal("1"),
+        )
+
+        recomendacoes = self._pedir().data["recommendations"]
+
+        self.assertNotIn("Alheio", " ".join(str(r) for r in recomendacoes))
+
+    @override_settings(ANTHROPIC_API_KEY="chave")
+    @patch("apps.marketing.recommendations.anthropic_sdk.Anthropic")
+    def test_a_ia_recebe_a_margem_real_do_catalogo(self, sdk):
+        sdk.return_value.messages.create.return_value.content = [
+            type("Bloco", (), {"text": '[{"title": "T", "text": "X", "product_name": "Bolo", "channel": "WhatsApp", "goal": "promocao"}]'})()
+        ]
+        self._produto("Bolo", "100", "40", other_costs="10", fee_percent="5", tax_percent="6")
+
+        resposta = self._pedir()
+
+        enviado = sdk.return_value.messages.create.call_args.kwargs["messages"][0]["content"]
+        self.assertIn("margem real R$ 39,00", enviado)
+        self.assertEqual(resposta.data["provider"], "anthropic")
+        self.assertEqual(resposta.data["recommendations"][0]["channel"], "WhatsApp")
+
+    @override_settings(ANTHROPIC_API_KEY="chave")
+    @patch("apps.marketing.recommendations.anthropic_sdk.Anthropic")
+    def test_produto_inventado_pela_ia_nao_vira_id(self, sdk):
+        sdk.return_value.messages.create.return_value.content = [
+            type("Bloco", (), {"text": '[{"title": "T", "text": "X", "product_name": "Produto que nao existe", "channel": "Instagram", "goal": "promocao"}]'})()
+        ]
+        self._produto("Bolo", "100", "40")
+
+        recomendacoes = self._pedir().data["recommendations"]
+
+        self.assertIsNone(recomendacoes[0]["product_id"])
+
+    @override_settings(ANTHROPIC_API_KEY="chave")
+    @patch("apps.marketing.recommendations.anthropic_sdk.Anthropic")
+    def test_canal_e_objetivo_fora_da_lista_caem_no_padrao(self, sdk):
+        sdk.return_value.messages.create.return_value.content = [
+            type("Bloco", (), {"text": '[{"title": "T", "text": "X", "product_name": "Bolo", "channel": "LinkedIn", "goal": "viralizar"}]'})()
+        ]
+        self._produto("Bolo", "100", "40")
+
+        recomendacao = self._pedir().data["recommendations"][0]
+
+        self.assertEqual(recomendacao["channel"], "Instagram")
+        self.assertEqual(recomendacao["goal"], "promocao")
+
+    @override_settings(ANTHROPIC_API_KEY="chave")
+    @patch("apps.marketing.recommendations.anthropic_sdk.Anthropic")
+    def test_ia_fora_do_ar_cai_nas_regras_locais(self, sdk):
+        sdk.return_value.messages.create.side_effect = RuntimeError("provedor fora")
+        self._produto("Bolo", "100", "40")
+
+        resposta = self._pedir()
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(resposta.data["provider"], "local-demo")
+        self.assertTrue(resposta.data["recommendations"])
+
+    @override_settings(ANTHROPIC_API_KEY="chave")
+    @patch("apps.marketing.recommendations.anthropic_sdk.Anthropic")
+    def test_resposta_sem_json_cai_nas_regras_locais(self, sdk):
+        sdk.return_value.messages.create.return_value.content = [
+            type("Bloco", (), {"text": "Claro! Aqui vao minhas sugestoes..."})()
+        ]
+        self._produto("Bolo", "100", "40")
+
+        self.assertTrue(self._pedir().data["recommendations"])
+
+    def test_sem_login_nao_recomenda(self):
+        self.assertEqual(APIClient().get("/api/marketing/recommendations/").status_code, 401)

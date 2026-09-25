@@ -12,6 +12,7 @@ from apps.accounts.throttles import AIRateThrottle
 from apps.businesses.models import Business
 from apps.products.models import Product
 from .models import MarketingCampaign
+from .recommendations import build_recommendations
 from .serializers import MarketingCampaignSerializer
 
 logger = logging.getLogger(__name__)
@@ -214,3 +215,21 @@ def _build_demo_campaign(product_name, goal, channel, margin):
         f"Margem estimada de R$ {margin:.2f} por unidade.\n\n"
         f"**CTA:** Chame no direct ou finalize pelo PIX."
     )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+@throttle_classes([AIRateThrottle])
+def marketing_recommendations(request):
+    """Acoes de marketing sugeridas a partir do desempenho do negocio.
+
+    GET porque nao cria nada: a resposta e uma leitura do catalogo. O throttle
+    de IA continua valendo, porque o caminho com ANTHROPIC_API_KEY chama o
+    modelo e cada chamada custa.
+    """
+    business = Business.objects.filter(owner=request.user).first()
+    if business is None:
+        return Response({"provider": "local-demo", "recommendations": []})
+
+    provider, recomendacoes = build_recommendations(business)
+    return Response({"provider": provider, "recommendations": recomendacoes})

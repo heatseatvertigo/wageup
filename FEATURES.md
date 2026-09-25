@@ -84,9 +84,12 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 
 - [x] Gerar texto de campanha de marketing a partir de um prompt, canal (ex.: Instagram, WhatsApp) e objetivo (ex.: aumentar vendas)
 - [x] Integração real com a Anthropic (modelo Claude Haiku) — com fallback local (texto de demonstração) quando não há `ANTHROPIC_API_KEY` configurada
-- [x] Histórico de campanhas geradas, vinculado ao negócio e (opcionalmente) a um produto
+- [x] Os números que vão para a IA saem do produto no banco (preço, custo e **margem real**, com embalagem, frete, taxa e imposto descontados), não do que o navegador mandou. O prompt ainda avisa a IA para não sugerir desconto maior que a margem
+- [x] Histórico de campanhas geradas, vinculado ao negócio e ao produto
+- [x] **Recomendações automáticas de ação** (`GET /api/marketing/recommendations/`): a tela abre dizendo o que divulgar em seguida, na ordem produto em prejuízo (revisar preço antes) → produto de margem alta nunca divulgado → produto com estoque baixo (repor antes) → melhor margem do catálogo
+- [x] Cada recomendação já vem com produto, canal e objetivo resolvidos: o botão "Usar no formulário" preenche o gerador de campanha, e quem clica em Gerar continua sendo o usuário
+- [x] Sem `ANTHROPIC_API_KEY`, ou se a chamada falhar, as recomendações saem de regras locais sobre os mesmos números — a tela nunca fica vazia por configuração
 - [ ] Geração de imagens para campanhas (campo `image_url` existe no modelo, mas não é preenchido automaticamente ainda)
-- [ ] Recomendações automáticas de ações de marketing baseadas no desempenho do negócio (ainda não implementado — está no escopo do TCC)
 
 ## 6. Visão geral / Dashboard
 
@@ -126,7 +129,7 @@ Endpoints: `POST /api/finance/assistant/`, `GET|POST /api/finance/assistant/conv
 - [x] Em produção: HTTPS obrigatório, HSTS, cookies com `Secure`, API navegável do DRF desligada e recusa de subir com a `SECRET_KEY` de exemplo
 - [x] Webhook da Abacate Pay só funciona com segredo configurado, comparado em tempo constante. Sem o segredo, qualquer um poderia marcar uma cobrança como paga
 - [x] Logs da aplicação aparecem na saída do servidor (antes se perdiam)
-- [x] Testes automatizados: 49 casos — produtos 16 (margem, preço sugerido, foto), financeiro 15 (leitura de OFX e importação ponta a ponta), contas 14 (recuperação de senha e entrega pelo Resend), marketing 4
+- [x] Testes automatizados: 68 casos — produtos 16 (margem, preço sugerido, foto), financeiro 15 (leitura de OFX e importação ponta a ponta), contas 14 (recuperação de senha e entrega pelo Resend), marketing 23 (margem real no prompt, isolamento por negócio e as recomendações)
 - [ ] Testes de **pagamentos** (PIX/Abacate Pay) — ainda não existem
 - [ ] Testes mais largos de **marketing**: os 4 casos cobrem o fallback sem chave, não a geração com a IA de verdade
 
@@ -136,8 +139,7 @@ Endpoints: `POST /api/finance/assistant/`, `GET|POST /api/finance/assistant/conv
 
 Com base no `Escopo TCC.pdf`, os itens abaixo ainda não foram implementados:
 
-1. **Recomendações automáticas de ações de marketing** baseadas no desempenho do negócio.
-2. **Geração de imagens para campanhas de marketing**.
+1. **Geração de imagens para campanhas de marketing**.
 
 Fora do escopo do PDF, mas pendente: as **variáveis do Resend no Render** e um **domínio verificado** para o e-mail chegar a qualquer usuário (o código está pronto e testado), os **testes automatizados de pagamentos**, e os leitores de extrato em **CSV** e **PDF**.
 
@@ -155,6 +157,7 @@ Fora do escopo do PDF, mas pendente: as **variáveis do Resend no Render** e um 
 | Financeiro | Login como admin → aba "Financeiro" → lançar transação |
 | PIX | Login como admin → aba "Financeiro" → "Cobrança PIX" → preencher e gerar |
 | Marketing IA | Menu "Marketing" → preencher prompt/canal/objetivo → gerar campanha |
+| Recomendações de marketing | Menu "Marketing" → o painel "O que divulgar agora" carrega sozinho → "Usar no formulário" preenche o gerador. Um produto com margem negativa deve aparecer como "Revise o preço", não como oportunidade |
 | Importar extrato | Login como admin → "Movimentações" → "Importar extrato" → anexar um `.ofx` → conferir a lista → "Importar". Reenviar o mesmo arquivo deve trazer tudo desmarcado como "Já importado" |
 | Assistente financeiro | Login como admin → abrir o chat → perguntar sobre os números; recarregar a página e conferir que a conversa continua lá |
 | Admin/banco de dados | Acessar `/admin/` logado como superusuário Django |

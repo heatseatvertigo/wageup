@@ -5034,3 +5034,89 @@ td:first-child { font-weight: var(--weight-medium); }
   box-shadow: var(--shadow-focus);
 }
 
+
+/* ─── Marketing: recomendações de ação ─── */
+.recos {
+  margin-bottom: var(--space-6);
+  display: grid;
+  gap: var(--space-4);
+}
+.recos__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.recos__title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+.recos__sub {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+.recos__list {
+  display: grid;
+  gap: var(--space-3);
+}
+@media (min-width: 900px) {
+  .recos__list { grid-template-columns: repeat(2, 1fr); }
+}
+.reco {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+/* Ação que pede cuidado (prejuízo, estoque baixo) não é oportunidade: a borda
+   e o rótulo diferenciam, nunca a cor sozinha. */
+.reco--alerta {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-muted);
+}
+.reco__tag {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+}
+.reco--alerta .reco__tag { color: var(--color-warning); }
+.reco__title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+.reco__text {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+.reco__value {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-medium);
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+.reco__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+.reco__meta {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+.recos__empty {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
