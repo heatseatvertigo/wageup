@@ -3987,6 +3987,14 @@ td:first-child { font-weight: var(--weight-medium); }
   line-height: var(--leading-relaxed);
 }
 
+/* A imagem gerada ocupa a prévia inteira; o quadro já tem o raio e a borda. */
+.image-lab__img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: var(--radius-lg);
+}
+
 .image-lab > small {
   font-size: var(--text-xs);
   color: var(--color-text-disabled);

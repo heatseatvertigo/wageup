@@ -792,6 +792,7 @@ document.querySelector("#campaignForm").addEventListener("submit", async (event)
   output.insertAdjacentHTML("beforeend", `<article class="assistant-message">${answer.html}</article>`);
 
   preview.innerHTML = answer.imageLabel;
+  if (answer.campaignId) showCampaignImage(preview, answer.campaignId);
   formEl.reset();
   renderCampaignOptions();
   // O produto deixou de ser "nunca divulgado": a próxima leitura precisa ser
@@ -3034,6 +3035,31 @@ function formatCampaignText(rawText) {
     .replaceAll("\n", "<br>");
 }
 
+// A rota da imagem exige o token, e <img src> não manda cabeçalho. Mesma
+// solução da foto de produto: busca com fetch e monta um object URL.
+async function showCampaignImage(preview, campaignId) {
+  try {
+    const response = await fetch(`${apiBaseUrl}/marketing/campaigns/${campaignId}/image/`, {
+      headers: { Authorization: `Token ${authToken}` }
+    });
+    if (!response.ok) return;
+
+    const objectUrl = URL.createObjectURL(await response.blob());
+    const img = new Image();
+    img.className = "image-lab__img";
+    img.alt = "Imagem gerada para a campanha";
+    // Só troca a prévia depois que a imagem carrega: assim o texto não pisca
+    // para um quadro vazio se o carregamento falhar.
+    img.onload = () => {
+      preview.replaceChildren(img);
+    };
+    img.onerror = () => URL.revokeObjectURL(objectUrl);
+    img.src = objectUrl;
+  } catch {
+    // Sem imagem a prévia de texto continua servindo.
+  }
+}
+
 async function askMarketingAi({ product, goal, channel, prompt, margin }) {
   try {
     const response = await fetch(`${apiBaseUrl}/marketing/chat/`, {
@@ -3046,7 +3072,8 @@ async function askMarketingAi({ product, goal, channel, prompt, margin }) {
       const rawText = data.message || data.text || "";
       return {
         html: formatCampaignText(rawText),
-        imageLabel: escapeHtml(data.image_label || `${product.name}<br>${channel}`)
+        imageLabel: escapeHtml(data.image_label || `${product.name}<br>${channel}`),
+        campaignId: data.has_image ? data.campaign_id : null
       };
     }
   } catch {

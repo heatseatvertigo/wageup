@@ -113,6 +113,8 @@ Arquivo `.env` na raiz do projeto (não commitado). Ver `.env.example` para refe
 | `DEEPSEEK_BASE_URL` | Endpoint da DeepSeek (default `https://api.deepseek.com`) |
 | `DEEPSEEK_MODEL` | Modelo da DeepSeek (default `deepseek-chat`) |
 | `GOOGLE_CLIENT_ID` | Client ID do Google — habilita o login com Google |
+| `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_API_TOKEN` | Cloudflare Workers AI — gera a imagem da campanha |
+| `MARKETING_IMAGE_FALLBACK` | Liga o Pollinations.ai como alternativa sem chave (default `False`) |
 | `RESEND_API_KEY` | Chave do Resend — entrega o e-mail de recuperação pela API HTTP |
 | `EMAIL_HOST` | Servidor SMTP, alternativa ao Resend — sem nenhum dos dois o e-mail sai no console (dev) |
 | `EMAIL_PORT` / `EMAIL_USE_TLS` | Ajuste do SMTP (default 587 / True) |
@@ -167,6 +169,7 @@ POST            /api/payments/<id>/check/    # Sincroniza status com a Abacate P
 POST            /api/payments/webhooks/abacatepay/   # Webhook de confirmação
 POST            /api/marketing/chat/         # Gera campanha (Claude Haiku se ANTHROPIC_API_KEY estiver set)
 GET             /api/marketing/recommendations/  # O que divulgar em seguida, pela margem real do catálogo
+GET             /api/marketing/campaigns/<uuid>/image/   # Imagem da campanha, guardada no banco
 GET/POST        /api/marketing/campaigns/
 GET             /api/health/                 # Health check (aberto, sem throttle)
 ```
@@ -203,7 +206,11 @@ GET             /api/health/                 # Health check (aberto, sem throttl
 
 14. **O cálculo de margem mora no modelo `Product`**, em `variable_cost`, `fee_amount`, `margin_value`, `margin_percent` e `markup_percent`. O serializer expõe esses valores prontos. A tela repete a fórmula em `productMargin()` apenas para responder enquanto o usuário digita — mudou a conta no Python, mude no JavaScript.
 
-15. **Deduplicação por `Transaction.external_id`**, com unicidade por business: o FITID do OFX quando existe, senão uma impressão digital do conteúdo. É o que faz reimportar o mesmo extrato não duplicar. Qualquer formato novo (CSV, PDF) precisa devolver um `external_id` estável — sem isso, a importação suja o financeiro em vez de ajudar.
+15. **A imagem da campanha não vem da Anthropic**: a Anthropic lê imagem, não gera. Quem gera é a Cloudflare Workers AI (FLUX.1-schnell), com o Pollinations.ai como alternativa sem chave. O prompt da imagem sai do trecho "Ideia de imagem" que a IA de texto já escreveu — gerar um prompt separado produziria uma imagem que não combina com a legenda. O Pollinations é **opt-in** (`MARKETING_IMAGE_FALLBACK`) porque não pede chave: ligado por padrão, toda campanha esperaria por ele e sairia com marca d'água.
+
+16. **A imagem da campanha mora no banco**, em `CampaignImage`, pelo mesmo motivo da foto de produto: o disco do Render é efêmero. Tabela à parte para a listagem de campanhas não arrastar os bytes. A rota exige autenticação e filtra por business, então a tela busca com `fetch` e monta um object URL — `<img src>` não manda token.
+
+17. **Deduplicação por `Transaction.external_id`**, com unicidade por business: o FITID do OFX quando existe, senão uma impressão digital do conteúdo. É o que faz reimportar o mesmo extrato não duplicar. Qualquer formato novo (CSV, PDF) precisa devolver um `external_id` estável — sem isso, a importação suja o financeiro em vez de ajudar.
 
 ---
 
@@ -231,6 +238,7 @@ Para domínio próprio: configurar `CUSTOM_DOMAIN=seudominio.com` nas variáveis
 - [backend/apps/payments/services.py](backend/apps/payments/services.py) — cliente Abacate Pay
 - [backend/apps/marketing/views.py](backend/apps/marketing/views.py) — `_call_claude()` para IA
 - [backend/apps/marketing/recommendations.py](backend/apps/marketing/recommendations.py) — recomendações de ação a partir do catálogo
+- [backend/apps/marketing/images.py](backend/apps/marketing/images.py) — geração da imagem da campanha (Cloudflare/Pollinations)
 - [backend/apps/finance/assistant.py](backend/apps/finance/assistant.py) — assistente financeiro (DeepSeek/Claude/local)
 - [backend/apps/finance/insights.py](backend/apps/finance/insights.py) — insights do dashboard
 - [backend/apps/finance/statements/](backend/apps/finance/statements/) — leitura de extrato bancário, um módulo por formato
