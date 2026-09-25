@@ -88,7 +88,10 @@ def _traduzir_para_o_modelo(prompt):
     """
     return (
         f"product photography, {prompt}, natural light, clean background, "
-        f"commercial quality, sharp focus, no text, no watermark"
+        f"commercial quality, sharp focus, "
+        # O modelo desenha letra embolada quando tenta escrever. O prompt da
+        # campanha ja evita pedir texto; isto e a segunda barreira.
+        f"no text, no lettering, no logo, no packaging labels, no watermark"
     )
 
 
