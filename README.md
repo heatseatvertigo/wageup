@@ -70,6 +70,7 @@ $env:SECRET_KEY=(.\.venv\Scripts\python -c "from django.core.management.utils im
 | Arquivo | Conteúdo |
 |---|---|
 | [`FEATURES.md`](FEATURES.md) | O que a plataforma faz hoje, em linguagem de produto |
+| [`WAGEUP-DOCUMENTO-DO-PROJETO.md`](WAGEUP-DOCUMENTO-DO-PROJETO.md) | O que é o projeto: pesquisa sobre o MEI, problema, proposta, escopo e roadmap |
 | [`DOCUMENTACAO-TCC.md`](DOCUMENTACAO-TCC.md) | Documentação completa para o artigo do TCC (arquitetura, IA, PIX, segurança, decisões) |
 | [`CLAUDE.md`](CLAUDE.md) | Arquitetura, variáveis de ambiente, endpoints e regras de segurança |
 | [`design-system.md`](design-system.md) | Cores, tipografia e componentes do frontend |
