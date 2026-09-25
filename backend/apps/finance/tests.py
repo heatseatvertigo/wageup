@@ -268,3 +268,82 @@ class ImportacaoEndpointTests(TestCase):
         ).data
         # O mesmo FITID em outro negocio nao e duplicata: a unicidade e por negocio.
         self.assertEqual(preview["duplicates"], 0)
+
+
+class InsightsTests(TestCase):
+    """Os insights do dashboard leem a margem do modelo e sao so de admin."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.admin = User.objects.create_user(
+            username="admin@wageup.local", email="admin@wageup.local", password="x"
+        )
+        UserProfile.objects.create(user=self.admin, role="admin")
+        self.business = Business.objects.create(owner=self.admin, name="Negocio")
+        self.client = APIClient()
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Token {Token.objects.create(user=self.admin).key}"
+        )
+
+    def _produto(self, nome, **campos):
+        from apps.products.models import Product
+
+        return Product.objects.create(business=self.business, name=nome, **campos)
+
+    def test_melhor_margem_considera_taxas_e_nao_so_preco_menos_custo(self):
+        # Por preco menos custo o "Caro" ganharia (60 contra 45). Descontadas
+        # embalagem, taxa e imposto, quem rende mais e o "Enxuto".
+        self._produto(
+            "Caro", price=Decimal("200"), cost=Decimal("140"),
+            other_costs=Decimal("30"), fee_percent=Decimal("5"), tax_percent=Decimal("6"),
+        )
+        self._produto(
+            "Enxuto", price=Decimal("100"), cost=Decimal("55"),
+            other_costs=Decimal("0"), fee_percent=Decimal("2"), tax_percent=Decimal("0"),
+        )
+
+        insights = self.client.get("/api/finance/insights/").data["insights"]
+
+        melhor = next(i for i in insights if "margem" in i["title"].lower())
+        self.assertIn("Enxuto", melhor["text"])
+
+    def test_estoque_baixo_respeita_o_min_stock_cadastrado(self):
+        # 12 unidades com minimo 20: baixo para este produto, embora acima do
+        # limite fixo de 8 que a versao anterior usava para todo mundo.
+        self._produto(
+            "Torta", price=Decimal("50"), cost=Decimal("20"), stock=12, min_stock=20
+        )
+
+        insights = self.client.get("/api/finance/insights/").data["insights"]
+
+        estoque = next(i for i in insights if i["title"] == "Estoque")
+        self.assertIn("1 produto", estoque["text"])
+
+    def test_member_nao_acessa(self):
+        User = get_user_model()
+        member = User.objects.create_user(
+            username="mei@wageup.local", email="mei@wageup.local", password="x"
+        )
+        UserProfile.objects.create(user=member, role="member")
+        cliente = APIClient()
+        cliente.credentials(HTTP_AUTHORIZATION=f"Token {Token.objects.create(user=member).key}")
+
+        self.assertEqual(cliente.get("/api/finance/insights/").status_code, 403)
+
+    def test_sem_login_nao_acessa(self):
+        self.assertEqual(APIClient().get("/api/finance/insights/").status_code, 401)
+
+    def test_produto_de_outro_negocio_nao_entra_nos_insights(self):
+        from apps.products.models import Product
+
+        User = get_user_model()
+        outro = User.objects.create_user(username="z@w.local", email="z@w.local", password="x")
+        Product.objects.create(
+            business=Business.objects.create(owner=outro, name="Outro"),
+            name="Alheio", price=Decimal("999"), cost=Decimal("1"),
+        )
+        self._produto("Meu", price=Decimal("100"), cost=Decimal("40"))
+
+        insights = self.client.get("/api/finance/insights/").data["insights"]
+
+        self.assertNotIn("Alheio", " ".join(i["text"] for i in insights))
