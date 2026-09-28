@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import MarketingCampaign
+from .models import MarketingCampaign, MarketingConversation
 
 
 @admin.register(MarketingCampaign)
@@ -18,3 +18,11 @@ class MarketingCampaignAdmin(admin.ModelAdmin):
     @admin.display(description="Dono")
     def owner_email(self, obj):
         return obj.business.owner.email if obj.business else "-"
+
+
+@admin.register(MarketingConversation)
+class MarketingConversationAdmin(admin.ModelAdmin):
+    list_display = ["title", "business", "updated_at"]
+    search_fields = ["title", "business__owner__email"]
+    ordering = ["-updated_at"]
+    readonly_fields = ["id", "created_at", "updated_at"]

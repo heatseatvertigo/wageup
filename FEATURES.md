@@ -82,7 +82,8 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 
 ## 5. Marketing com Inteligência Artificial
 
-- [x] Gerar texto de campanha de marketing a partir de um prompt, canal (ex.: Instagram, WhatsApp) e objetivo (ex.: aumentar vendas)
+- [x] Chat de marketing com pedido livre (post, campanha, legenda, ideias de vídeo, mensagem para clientes), no mesmo formato do assistente financeiro, com histórico de conversas
+- [x] A IA conhece o catálogo e a margem real de cada produto; o produto e o canal saem do próprio pedido
 - [x] Integração real com a Anthropic (modelo Claude Haiku) — com fallback local (texto de demonstração) quando não há `ANTHROPIC_API_KEY` configurada
 - [x] Os números que vão para a IA saem do produto no banco (preço, custo e **margem real**, com embalagem, frete, taxa e imposto descontados), não do que o navegador mandou. O prompt ainda avisa a IA para não sugerir desconto maior que a margem
 - [x] Histórico de campanhas geradas, vinculado ao negócio e ao produto
@@ -161,8 +162,8 @@ Fora do escopo do PDF, mas pendente: as **variáveis do Resend no Render** e um 
 | Produtos | Menu "Produtos" → cadastrar/editar/remover |
 | Financeiro | Login como admin → aba "Financeiro" → lançar transação |
 | PIX | Login como admin → aba "Financeiro" → "Cobrança PIX" → preencher e gerar |
-| Marketing IA | Menu "Marketing" → preencher prompt/canal/objetivo → gerar campanha |
-| Imagem da campanha | Com `CLOUDFLARE_ACCOUNT_ID`/`CLOUDFLARE_API_TOKEN` (ou `MARKETING_IMAGE_FALLBACK=True`), gerar uma campanha: a prévia à direita troca o texto pela imagem. Sem provedor, fica a prévia em texto e a campanha sai igual |
+| Marketing IA | Menu "Marketing" → escrever o pedido (ou escolher uma sugestão) → a IA responde no chat |
+| Imagem da campanha | Com `CLOUDFLARE_ACCOUNT_ID`/`CLOUDFLARE_API_TOKEN` (ou `MARKETING_IMAGE_FALLBACK=True`), pedir uma campanha ou post: a imagem aparece dentro da resposta, com botão para baixar. Sem provedor, a campanha sai só com o texto |
 | Importar extrato | Login como admin → "Movimentações" → "Importar extrato" → anexar um `.ofx` → conferir a lista → "Importar". Reenviar o mesmo arquivo deve trazer tudo desmarcado como "Já importado" |
 | Assistente financeiro | Login como admin → abrir o chat → perguntar sobre os números; recarregar a página e conferir que a conversa continua lá |
 | Admin/banco de dados | Acessar `/admin/` logado como superusuário Django |

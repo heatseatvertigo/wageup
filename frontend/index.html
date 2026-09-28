@@ -1401,39 +1401,59 @@
           </div>
         </section>
 
-        <section class="view" id="app-marketing">
-          <div class="work-panel">
-            <div class="panel-heading">
-              <h3>Marketing com IA</h3>
-              <span>Campanhas baseadas no seu catálogo</span>
-            </div>
-            <div class="marketing-chat-layout">
-              <div class="chat-panel">
-                <div class="chat-thread" id="campaignOutput">
-                  <article class="assistant-message">Escolha um produto, defina o objetivo e descreva o que você quer. A IA vai gerar uma campanha personalizada para o seu negócio.</article>
+        <section class="view view--full" id="app-marketing">
+          <div class="assistant-shell" id="marketingShell">
+
+            <aside class="chat-aside" id="marketingAside" aria-label="Campanhas e conversas anteriores">
+              <div class="chat-aside__head">
+                <span class="chat-aside__label">Campanhas</span>
+                <button class="icon-btn icon-btn--sm" type="button" id="marketingNew"
+                        title="Nova conversa" aria-label="Começar nova conversa">
+                  <span class="material-symbols-rounded" aria-hidden="true">edit_square</span>
+                </button>
+              </div>
+              <div class="chat-aside__list" id="marketingHistoryList"></div>
+            </aside>
+
+            <div class="chatbox">
+              <header class="chatbox__bar">
+                <button class="icon-btn" type="button" id="marketingAsideToggle"
+                        aria-expanded="true" aria-controls="marketingAside"
+                        title="Mostrar ou esconder conversas" aria-label="Mostrar ou esconder conversas">
+                  <span class="material-symbols-rounded" aria-hidden="true">menu</span>
+                </button>
+                <p class="chatbox__conversation" id="marketingTitle">Nova conversa</p>
+              </header>
+
+              <div class="chatbox__thread" id="marketingThread" role="log" aria-live="polite" aria-label="Conversa com a IA de marketing"></div>
+
+              <div class="chatbox__foot">
+                <div class="chatbox__suggestions" id="marketingSuggestions">
+                  <!-- Montadas pelo app.js a partir do catálogo. -->
+                  <div class="chatbox__suggestion-list" id="marketingSuggestionList" role="listbox" aria-label="Pedidos sugeridos"></div>
+                  <div class="chatbox__hint">
+                    <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
+                    <span><kbd>↵</kbd> selecionar</span>
+                    <span><kbd>esc</kbd> fechar</span>
+                  </div>
                 </div>
-                <form class="campaign-builder" id="campaignForm">
-                  <select name="product" id="campaignProduct" aria-label="Produto"></select>
-                  <select name="goal" aria-label="Objetivo">
-                    <option value="promocao">Promoção</option>
-                    <option value="lancamento">Lançamento</option>
-                    <option value="relacionamento">Relacionamento</option>
-                  </select>
-                  <select name="channel" aria-label="Canal">
-                    <option>Instagram</option>
-                    <option>WhatsApp</option>
-                    <option>TikTok</option>
-                  </select>
-                  <input name="prompt" placeholder="Ex.: vender mais no fim de semana" aria-label="Contexto da campanha (opcional)" />
-                  <button class="primary-button" type="submit">Gerar</button>
+
+                <form class="chatbox__composer" id="marketingForm">
+                  <input id="marketingInput" name="message" autocomplete="off" required maxlength="2000"
+                         placeholder="Peça um post, uma campanha, uma legenda…" aria-label="Seu pedido"
+                         aria-controls="marketingSuggestionList" />
+                  <div class="chatbox__composer-row">
+                    <span class="chatbox__provider">
+                      <i class="chatbox__dot" aria-hidden="true"></i>Usa os produtos e a margem real do seu catálogo
+                    </span>
+                    <button class="chatbox__send" type="submit" id="marketingSend" aria-label="Enviar pedido">
+                      <span class="material-symbols-rounded" aria-hidden="true">arrow_upward</span>
+                    </button>
+                  </div>
                 </form>
               </div>
-              <aside class="image-lab">
-                <span>Prévia da campanha</span>
-                <div id="imagePreview">Kit Festa<br>fim de semana</div>
-                <small>A imagem é gerada a partir da "ideia de imagem" da própria campanha. Sem provedor configurado, fica só a prévia em texto.</small>
-              </aside>
             </div>
+
           </div>
         </section>
 
@@ -1514,7 +1534,7 @@
             <div class="help-grid">
               <article><strong>1. Produtos</strong><p>Cadastre seu catálogo com nome, custo, preço e estoque. A margem é calculada automaticamente.</p></article>
               <article><strong>2. Financeiro</strong><p>Registre entradas e saídas para alimentar os gráficos e ver o lucro estimado do período.</p></article>
-              <article><strong>3. Marketing</strong><p>Selecione um produto, defina o objetivo e canal — a IA gera o texto da campanha na hora.</p></article>
+              <article><strong>3. Marketing</strong><p>Peça do seu jeito — um post, uma campanha, uma legenda. A IA já conhece seus produtos e a margem de cada um.</p></article>
             </div>
           </div>
         </section>
