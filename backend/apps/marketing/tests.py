@@ -29,57 +29,20 @@ SEM_IMAGEM = override_settings(
 )
 
 
-@SEM_IMAGEM
-class CampanhaTests(TestCase):
-    def setUp(self):
-        User = get_user_model()
-        user = User.objects.create_user(username="mei@wageup.local", email="mei@wageup.local", password="x")
-        UserProfile.objects.create(user=user, role="member")
-        self.business = Business.objects.create(owner=user, name="Negocio")
-        self.client = APIClient()
-        self.client.credentials(HTTP_AUTHORIZATION=f"Token {Token.objects.create(user=user).key}")
-
-    def _pedir(self):
-        return self.client.post(
-            "/api/marketing/chat/",
-            {"prompt": "promover o bolo", "channel": "Instagram", "goal": "vender"},
-            format="json",
-        )
-
-    @override_settings(ANTHROPIC_API_KEY="")
-    def test_sem_chave_responde_com_o_texto_local(self):
-        resposta = self._pedir()
-
-        self.assertEqual(resposta.status_code, 201)
-        self.assertTrue(resposta.data["message"])
-        self.assertEqual(MarketingCampaign.objects.get().provider, "local-demo")
-
-    @override_settings(ANTHROPIC_API_KEY="chave-invalida")
-    @patch("apps.marketing.views._call_claude", side_effect=Exception("401 authentication_error"))
-    def test_chave_invalida_cai_no_texto_local_em_vez_de_erro_500(self, _falha):
-        resposta = self._pedir()
-
-        # Antes esta chamada devolvia 500 e o usuario ficava sem campanha.
-        self.assertEqual(resposta.status_code, 201)
-        self.assertTrue(resposta.data["message"])
-        self.assertEqual(MarketingCampaign.objects.get().provider, "local-demo")
-
-    @override_settings(ANTHROPIC_API_KEY="chave-boa")
-    @patch("apps.marketing.views._call_claude", return_value="Texto gerado pela IA")
-    def test_com_chave_valida_usa_a_ia(self, _chamada):
-        resposta = self._pedir()
-
-        self.assertEqual(resposta.data["message"], "Texto gerado pela IA")
-        self.assertEqual(MarketingCampaign.objects.get().provider, "anthropic")
-
-    def test_sem_login_nao_gera_campanha(self):
-        self.assertEqual(APIClient().post("/api/marketing/chat/", {}, format="json").status_code, 401)
+def _texto(texto):
+    """Resposta falsa do SDK da Anthropic com o texto dado."""
+    return [type("Bloco", (), {"text": texto})()]
 
 
-@SEM_IMAGEM
-class DadosDoProdutoTests(TestCase):
-    """Os numeros da campanha saem do produto, nao do corpo da requisicao."""
+CAMPANHA_DA_IA = (
+    "**Chamada principal:** Bolo quentinho\n"
+    "**Ideia de imagem:** bolo sobre mesa de madeira, luz de janela\n"
+    "**Legenda:** Hoje tem bolo!\n"
+    "**CTA:** Chama no direct"
+)
 
+
+class _ChatBase(TestCase):
     def setUp(self):
         User = get_user_model()
         self.user = User.objects.create_user(
@@ -103,77 +66,160 @@ class DadosDoProdutoTests(TestCase):
             tax_percent=Decimal("6"),
         )
 
-    def _pedir(self, product=None):
-        corpo = {"prompt": "promover", "channel": "Instagram", "goal": "promocao"}
-        if product is not None:
-            corpo["product"] = product
+    def _pedir(self, mensagem="cria um post do bolo de cenoura", conversation_id=None):
+        corpo = {"message": mensagem}
+        if conversation_id:
+            corpo["conversation_id"] = conversation_id
         return self.client.post("/api/marketing/chat/", corpo, format="json")
 
+
+@SEM_IMAGEM
+class ChatDeMarketingTests(_ChatBase):
+    """O usuario escreve o pedido que quiser; a falha do provedor nao o deixa sem resposta."""
+
     @override_settings(ANTHROPIC_API_KEY="")
-    def test_campanha_fica_vinculada_ao_produto(self):
-        resposta = self._pedir({"id": str(self.produto.id)})
+    def test_sem_chave_responde_com_o_texto_local(self):
+        resposta = self._pedir()
+
+        self.assertEqual(resposta.status_code, 201)
+        self.assertIn("Bolo de cenoura", resposta.data["message"])
+        self.assertEqual(MarketingCampaign.objects.get().provider, "local-demo")
+
+    @override_settings(ANTHROPIC_API_KEY="chave-invalida")
+    @patch("apps.marketing.assistant._call_claude", side_effect=Exception("401 authentication_error"))
+    def test_chave_invalida_cai_no_texto_local_em_vez_de_erro_500(self, _falha):
+        resposta = self._pedir()
+
+        self.assertEqual(resposta.status_code, 201)
+        self.assertTrue(resposta.data["message"])
+        self.assertEqual(resposta.data["provider"], "local-demo")
+
+    @override_settings(ANTHROPIC_API_KEY="chave-boa")
+    @patch("apps.marketing.assistant._call_claude", return_value=CAMPANHA_DA_IA)
+    def test_campanha_da_ia_vira_registro_ligado_ao_produto_citado(self, _chamada):
+        resposta = self._pedir("faz um post do bolo de cenoura pro whatsapp")
 
         campanha = MarketingCampaign.objects.get(id=resposta.data["campaign_id"])
+        self.assertEqual(campanha.provider, "anthropic")
         self.assertEqual(campanha.product, self.produto)
+        self.assertEqual(campanha.channel, "WhatsApp")
+        self.assertEqual(campanha.generated_text, CAMPANHA_DA_IA)
+
+    @override_settings(ANTHROPIC_API_KEY="chave-boa")
+    @patch("apps.marketing.assistant._call_claude", return_value="#bolo #confeitaria #docesfeitosamao")
+    def test_resposta_que_nao_e_campanha_nao_vira_registro(self, _chamada):
+        resposta = self._pedir("me passa hashtags boas")
+
+        self.assertEqual(resposta.status_code, 201)
+        self.assertIsNone(resposta.data["campaign_id"])
+        self.assertFalse(resposta.data["has_image"])
+        self.assertEqual(MarketingCampaign.objects.count(), 0)
+
+    def test_mensagem_vazia_e_recusada(self):
+        self.assertEqual(self._pedir("   ").status_code, 400)
+
+    def test_sem_login_nao_gera_campanha(self):
+        self.assertEqual(APIClient().post("/api/marketing/chat/", {}, format="json").status_code, 401)
+
+
+@SEM_IMAGEM
+class ContextoDaIaTests(_ChatBase):
+    """Os numeros que a IA recebe saem do catalogo, nao do cliente."""
 
     @override_settings(ANTHROPIC_API_KEY="chave")
-    @patch("apps.marketing.views.anthropic_sdk.Anthropic")
-    def test_a_ia_recebe_a_margem_real_e_nao_preco_menos_custo(self, sdk):
-        sdk.return_value.messages.create.return_value.content = [
-            type("Bloco", (), {"text": "campanha"})()
-        ]
+    @patch("apps.marketing.assistant.anthropic_sdk.Anthropic")
+    def test_a_ia_recebe_o_catalogo_com_a_margem_real(self, sdk):
+        sdk.return_value.messages.create.return_value.content = _texto("ok")
 
-        self._pedir({"id": str(self.produto.id)})
+        self._pedir("o que eu divulgo essa semana?")
 
-        enviado = sdk.return_value.messages.create.call_args.kwargs["messages"][0]["content"]
-        self.assertIn("Margem real por unidade: R$ 39.00", enviado)
-        self.assertIn("Margem sobre o preço: 39.00%", enviado)
-        self.assertNotIn("60.00", enviado)
+        system = sdk.return_value.messages.create.call_args.kwargs["system"]
+        self.assertIn("Bolo de cenoura", system)
+        self.assertIn("margem real R$ 39,00", system)
+        self.assertNotIn("60,00", system)
 
     @override_settings(ANTHROPIC_API_KEY="chave")
-    @patch("apps.marketing.views.anthropic_sdk.Anthropic")
-    def test_numeros_do_corpo_sao_ignorados_quando_o_produto_existe(self, sdk):
-        sdk.return_value.messages.create.return_value.content = [
-            type("Bloco", (), {"text": "campanha"})()
-        ]
-
-        # Preco inflado no corpo: o cliente nao dita o que a IA recebe.
-        self._pedir({"id": str(self.produto.id), "name": "Outro nome", "price": "999", "cost": "1"})
-
-        enviado = sdk.return_value.messages.create.call_args.kwargs["messages"][0]["content"]
-        self.assertIn("Bolo de cenoura", enviado)
-        self.assertIn("R$ 100.00", enviado)
-        self.assertNotIn("999", enviado)
-
-    @override_settings(ANTHROPIC_API_KEY="")
-    def test_produto_de_outro_negocio_nao_e_usado(self):
+    @patch("apps.marketing.assistant.anthropic_sdk.Anthropic")
+    def test_produto_de_outro_negocio_nao_entra_no_contexto(self, sdk):
+        sdk.return_value.messages.create.return_value.content = _texto("ok")
         User = get_user_model()
         outro = User.objects.create_user(username="z@w.local", email="z@w.local", password="x")
-        alheio = Product.objects.create(
+        Product.objects.create(
             business=Business.objects.create(owner=outro, name="Outro"),
             name="Produto alheio",
             price=Decimal("50"),
             cost=Decimal("10"),
         )
 
-        resposta = self._pedir({"id": str(alheio.id)})
+        self._pedir("cria um post do Produto alheio")
 
-        campanha = MarketingCampaign.objects.get(id=resposta.data["campaign_id"])
-        self.assertIsNone(campanha.product)
+        system = sdk.return_value.messages.create.call_args.kwargs["system"]
+        self.assertNotIn("Produto alheio", system)
+
+    @override_settings(ANTHROPIC_API_KEY="chave")
+    @patch("apps.marketing.assistant.anthropic_sdk.Anthropic")
+    def test_historico_vem_do_banco_e_segue_a_conversa(self, sdk):
+        sdk.return_value.messages.create.return_value.content = _texto(CAMPANHA_DA_IA)
+        primeira = self._pedir("post do bolo de cenoura pro whatsapp")
+        conversa = primeira.data["conversation"]["id"]
+
+        sdk.return_value.messages.create.return_value.content = _texto(CAMPANHA_DA_IA)
+        segunda = self._pedir("agora mais curto", conversation_id=conversa)
+
+        enviado = sdk.return_value.messages.create.call_args.kwargs["messages"]
+        self.assertEqual([m["role"] for m in enviado], ["user", "assistant", "user"])
+        self.assertEqual(enviado[-1]["content"], "agora mais curto")
+        # Sem citar produto nem canal, herda os da campanha anterior.
+        campanha = MarketingCampaign.objects.get(id=segunda.data["campaign_id"])
+        self.assertEqual(campanha.product, self.produto)
+        self.assertEqual(campanha.channel, "WhatsApp")
+
+
+@SEM_IMAGEM
+class ConversasTests(_ChatBase):
+    @override_settings(ANTHROPIC_API_KEY="")
+    def test_lista_e_abre_a_conversa(self):
+        conversa = self._pedir().data["conversation"]
+
+        lista = self.client.get("/api/marketing/conversations/")
+        self.assertEqual([c["id"] for c in lista.data], [conversa["id"]])
+        self.assertEqual(lista.data[0]["title"], "cria um post do bolo de cenoura")
+
+        detalhe = self.client.get(f"/api/marketing/conversations/{conversa['id']}/")
+        self.assertEqual([m["role"] for m in detalhe.data["messages"]], ["user", "assistant"])
+        self.assertTrue(detalhe.data["messages"][1]["campaign_id"])
 
     @override_settings(ANTHROPIC_API_KEY="")
-    def test_preco_ilegivel_no_corpo_nao_derruba_a_rota(self):
-        # Sem id, os numeros vem do corpo. "R$ 100,00" quebrava com 500.
-        resposta = self._pedir({"name": "Bolo", "price": "R$ 100,00", "cost": "nao sei"})
+    def test_conversa_de_outro_negocio_nao_abre_nem_continua(self):
+        conversa = self._pedir().data["conversation"]["id"]
+        User = get_user_model()
+        outro = User.objects.create_user(username="z@w.local", email="z@w.local", password="x")
+        Business.objects.create(owner=outro, name="Outro")
+        intruso = APIClient()
+        intruso.credentials(HTTP_AUTHORIZATION=f"Token {Token.objects.create(user=outro).key}")
 
-        self.assertEqual(resposta.status_code, 201)
-        self.assertTrue(resposta.data["message"])
+        self.assertEqual(intruso.get(f"/api/marketing/conversations/{conversa}/").status_code, 404)
+        self.assertEqual(intruso.delete(f"/api/marketing/conversations/{conversa}/").status_code, 404)
+        resposta = intruso.post(
+            "/api/marketing/chat/", {"message": "oi", "conversation_id": conversa}, format="json"
+        )
+        self.assertNotEqual(resposta.data["conversation"]["id"], conversa)
 
     @override_settings(ANTHROPIC_API_KEY="")
-    def test_product_que_nao_e_objeto_nao_derruba_a_rota(self):
-        resposta = self._pedir("bolo")
+    def test_conversation_id_invalido_comeca_conversa_nova(self):
+        resposta = self._pedir(conversation_id="nao-e-uuid")
 
         self.assertEqual(resposta.status_code, 201)
+
+    @override_settings(ANTHROPIC_API_KEY="")
+    def test_apagar_conversa_mantem_a_campanha(self):
+        conversa = self._pedir().data["conversation"]["id"]
+
+        self.assertEqual(self.client.delete(f"/api/marketing/conversations/{conversa}/").status_code, 204)
+        self.assertEqual(MarketingCampaign.objects.count(), 1)
+
+    def test_sem_login_nao_lista(self):
+        self.assertEqual(APIClient().get("/api/marketing/conversations/").status_code, 401)
 
 
 class RecomendacoesTests(TestCase):
@@ -517,9 +563,7 @@ class ImagemDaCampanhaTests(TestCase):
 
     def _gerar(self):
         return self.client.post(
-            "/api/marketing/chat/",
-            {"prompt": "promover", "channel": "Instagram", "goal": "promocao"},
-            format="json",
+            "/api/marketing/chat/", {"message": "cria uma campanha para o Instagram"}, format="json"
         )
 
     @override_settings(

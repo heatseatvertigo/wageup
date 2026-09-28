@@ -78,6 +78,7 @@ const viewTitles = {
 
 // Views que vivem dentro do grupo "Financeiro" na navegação lateral.
 const FINANCE_VIEWS = ["finance", "payments", "finance-assistant"];
+const CHAT_VIEWS = ["finance-assistant", "app-marketing"];
 
 const demoContent = {
   overview: {
@@ -763,41 +764,6 @@ async function productImageUrl(produto) {
   }
 }
 
-document.querySelector("#campaignForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const formEl = event.currentTarget;
-  const form = new FormData(formEl);
-  const product = state.products.find((item) => item.id === form.get("product")) || state.products[0];
-  const goal = form.get("goal");
-  const channel = form.get("channel");
-  const prompt = form.get("prompt").trim() || "criar uma campanha rápida";
-  // margin_value vem do backend com outros custos, taxa e imposto descontados.
-  // Preco menos custo daria um lucro que nao existe — a mesma conta que o
-  // cadastro de produtos existe para corrigir.
-  const margin = product ? Number(product.margin_value ?? 0) : 0;
-  const output = document.querySelector("#campaignOutput");
-  const preview = document.querySelector("#imagePreview");
-
-  if (!product) {
-    output.innerHTML = `<article class="assistant-message">Cadastre um produto antes de gerar campanhas.</article>`;
-    return;
-  }
-
-  output.insertAdjacentHTML("beforeend", `<article class="user-message">${escapeHtml(prompt)}</article>`);
-  output.insertAdjacentHTML("beforeend", `<article class="assistant-message is-loading">Gerando campanha para ${escapeHtml(product.name)}...</article>`);
-  output.scrollTop = output.scrollHeight;
-
-  const answer = await askMarketingAi({ product, goal, channel, prompt, margin });
-  output.querySelector(".is-loading").remove();
-  output.insertAdjacentHTML("beforeend", `<article class="assistant-message">${answer.html}</article>`);
-
-  preview.innerHTML = answer.imageLabel;
-  if (answer.campaignId) showCampaignImage(preview, answer.campaignId);
-  formEl.reset();
-  renderCampaignOptions();
-  output.scrollTop = output.scrollHeight;
-});
-
 document.querySelector("#refreshPaymentsBtn").addEventListener("click", () => loadPayments());
 
 // Filtro por status das cobranças
@@ -1150,15 +1116,16 @@ function setView(viewName) {
   }
 
   title.textContent = viewTitles[viewName] || "Wage Up";
-  // A tela do assistente esconde o título da página: a barra do chat basta.
-  document.querySelector(".dashboard")?.classList.toggle("is-chat", viewName === "finance-assistant");
+  // As telas de chat escondem o título da página: a barra do chat basta.
+  document.querySelector(".dashboard")?.classList.toggle("is-chat", CHAT_VIEWS.includes(viewName));
   // A navegação fica recolhida em trilha de ícones em toda a plataforma e se
   // abre ao passar o mouse ou receber foco pelo teclado.
   appShell.classList.add("is-rail");
   if (viewName === "overview") { renderSummary(); renderCalendar(); renderSemesterChart(); }
   if (viewName === "payments") loadPayments();
   // A conversa vive no servidor: ao abrir a tela, restaura o histórico.
-  if (viewName === "finance-assistant" && !currentConversationId) startNewConversation();
+  if (viewName === "finance-assistant") financeChat.ensureStarted();
+  if (viewName === "app-marketing") marketingChat.ensureStarted();
 }
 
 function setDemoView(viewName) {
@@ -1219,7 +1186,6 @@ function render() {
   renderSummary();
   renderTransactions();
   renderProducts();
-  renderCampaignOptions();
   renderCalendar();
   renderSemesterChart();
 }
@@ -2228,17 +2194,6 @@ function renderProducts() {
   });
 }
 
-function renderCampaignOptions() {
-  const select = document.querySelector("#campaignProduct");
-  select.innerHTML = "";
-  state.products.forEach((product) => {
-    const option = document.createElement("option");
-    option.value = product.id;
-    option.textContent = product.name;
-    select.appendChild(option);
-  });
-}
-
 // ─── Criar cobrança e acompanhar o pagamento ────────────────────────────────
 
 const PIX_POLL_MS = 3000;
@@ -2632,71 +2587,22 @@ function chargeDrawerEscHandler(event) {
   if (event.key === "Escape") closeChargeDrawer();
 }
 
-// ─── Assistente financeiro ──────────────────────────────────────────────────
+// ─── Chat com IA (assistente financeiro e marketing) ─────────────────────────
+
+// As duas telas de IA têm o mesmo formato: histórico de conversas à esquerda,
+// thread no centro, sugestões e campo livre embaixo. O que muda é a rota, a
+// saudação, as sugestões e como a resposta é desenhada — por isso um
+// controlador só, configurado por tela.
 
 const ASSISTANT_GREETING =
   "Oi! Eu leio os números do seu negócio e explico em português claro. " +
   "Posso dizer quanto sobrou no mês, comparar com os anteriores, apontar " +
   "qual produto rende mais e quais cobranças ainda não foram pagas.";
 
-// A conversa mora no servidor: aqui guardamos só qual está aberta.
-let currentConversationId = null;
-let assistantBusy = false;
-let suggestionIndex = -1;
-
-function assistantThread() {
-  return document.querySelector("#assistantThread");
-}
-
-function appendAssistantMessage(role, text, variant) {
-  const thread = assistantThread();
-  if (!thread) return null;
-
-  const article = document.createElement("article");
-  article.className = `msg msg--${role === "user" ? "user" : "bot"}`;
-  if (variant) article.classList.add(`msg--${variant}`);
-
-  // Parágrafos entram como texto, nunca como HTML.
-  String(text).split(/\n{2,}/).forEach((paragraph) => {
-    const p = document.createElement("p");
-    p.textContent = paragraph.replace(/\n/g, " ").trim();
-    article.appendChild(p);
-  });
-
-  thread.appendChild(article);
-  thread.scrollTop = thread.scrollHeight;
-  return article;
-}
-
-function setSuggestionsVisible(visible) {
-  document.querySelector("#assistantSuggestions")?.classList.toggle("is-hidden", !visible);
-  if (!visible) highlightSuggestion(-1);
-}
-
-function suggestionButtons() {
-  return [...document.querySelectorAll("#assistantSuggestionList .suggestion")];
-}
-
-function highlightSuggestion(index) {
-  const items = suggestionButtons();
-  suggestionIndex = index;
-  items.forEach((item, i) => {
-    const active = i === index;
-    item.classList.toggle("is-active", active);
-    item.setAttribute("aria-selected", String(active));
-    if (active) item.scrollIntoView({ block: "nearest" });
-  });
-}
-
-function setAssistantBusy(busy) {
-  assistantBusy = busy;
-  const send = document.querySelector("#assistantSend");
-  const input = document.querySelector("#assistantInput");
-  if (send) send.disabled = busy;
-  if (input) input.disabled = busy;
-}
-
-// ─── Histórico de conversas ─────────────────────────────────────────────────
+const MARKETING_GREETING =
+  "Oi! Me diga o que você quer divulgar e do jeito que preferir: um post, uma " +
+  "campanha, uma legenda, ideias de vídeo, uma mensagem para os clientes. " +
+  "Eu já conheço os produtos do seu catálogo e a margem real de cada um.";
 
 // Agrupa por quando a conversa foi mexida pela última vez: saber "quando"
 // ajuda a reencontrar uma conversa tanto quanto o título.
@@ -2715,198 +2621,284 @@ function conversationGroup(updatedAt) {
   return "Anteriores";
 }
 
-async function loadConversations() {
-  const list = document.querySelector("#chatHistoryList");
-  if (!list) return;
-
-  let conversas = [];
-  try {
-    conversas = await apiRequest("/finance/assistant/conversations/");
-  } catch {
-    list.innerHTML = `<p class="chat-aside__empty">Não foi possível carregar as conversas.</p>`;
-    return;
-  }
-
-  if (!conversas.length) {
-    list.innerHTML = `<p class="chat-aside__empty">Suas conversas aparecem aqui depois da primeira pergunta.</p>`;
-    return;
-  }
-
-  const grupos = new Map();
-  conversas.forEach((conversa) => {
-    const chave = conversationGroup(conversa.updated_at);
-    if (!grupos.has(chave)) grupos.set(chave, []);
-    grupos.get(chave).push(conversa);
+// Parágrafos entram como texto, nunca como HTML.
+function renderPlainParagraphs(article, text) {
+  String(text).split(/\n{2,}/).forEach((paragraph) => {
+    const p = document.createElement("p");
+    p.textContent = paragraph.replace(/\n/g, " ").trim();
+    article.appendChild(p);
   });
+}
 
-  list.innerHTML = [...grupos.entries()].map(([rotulo, itens]) => `
-    <div class="chat-group">
-      <p class="chat-group__label">${escapeHtml(rotulo)}</p>
-      ${itens.map((conversa) => `
-        <div class="chat-item${conversa.id === currentConversationId ? " is-active" : ""}">
-          <button class="chat-item__open" type="button" data-abrir="${escapeHtml(conversa.id)}"
-                  title="${escapeHtml(conversa.title || "Nova conversa")}">${escapeHtml(conversa.title || "Nova conversa")}</button>
-          <button class="chat-item__delete" type="button" data-apagar="${escapeHtml(conversa.id)}" aria-label="Apagar conversa">
-            <span class="material-symbols-rounded" aria-hidden="true">delete</span>
-          </button>
-        </div>`).join("")}
-    </div>`).join("");
+function createChat(cfg) {
+  const $ = (id) => document.getElementById(id);
+  let currentId = null;
+  let busy = false;
+  let suggestionIndex = -1;
 
-  list.querySelectorAll("[data-abrir]").forEach((botao) => {
-    botao.addEventListener("click", () => {
-      openConversation(botao.dataset.abrir);
-      // No celular a lista cobre o chat: escolher uma conversa recolhe.
-      if (window.matchMedia("(max-width: 768px)").matches) setAsideOpen(false);
+  function thread() {
+    return $(cfg.ids.thread);
+  }
+
+  function appendMessage(role, text, variant, extra) {
+    const el = thread();
+    if (!el) return null;
+
+    const article = document.createElement("article");
+    article.className = `msg msg--${role === "user" ? "user" : "bot"}`;
+    if (variant) article.classList.add(`msg--${variant}`);
+
+    if (role !== "user" && !variant && cfg.renderBot) cfg.renderBot(article, text, extra || {});
+    else renderPlainParagraphs(article, text);
+
+    el.appendChild(article);
+    el.scrollTop = el.scrollHeight;
+    return article;
+  }
+
+  function suggestionButtons() {
+    return [...document.querySelectorAll(`#${cfg.ids.suggestionList} .suggestion`)];
+  }
+
+  function setSuggestionsVisible(visible) {
+    $(cfg.ids.suggestions)?.classList.toggle("is-hidden", !visible || !suggestionButtons().length);
+    if (!visible) highlightSuggestion(-1);
+  }
+
+  function highlightSuggestion(index) {
+    suggestionIndex = index;
+    suggestionButtons().forEach((item, i) => {
+      const active = i === index;
+      item.classList.toggle("is-active", active);
+      item.setAttribute("aria-selected", String(active));
+      if (active) item.scrollIntoView({ block: "nearest" });
     });
-  });
-  list.querySelectorAll("[data-apagar]").forEach((botao) => {
-    botao.addEventListener("click", () => deleteConversation(botao.dataset.apagar));
-  });
-}
-
-function setAsideOpen(open) {
-  const shell = document.querySelector("#assistantShell");
-  const toggle = document.querySelector("#asideToggle");
-  if (!shell) return;
-  shell.classList.toggle("is-collapsed", !open);
-  toggle?.setAttribute("aria-expanded", String(open));
-}
-
-function setAssistantTitle(texto) {
-  const el = document.querySelector("#assistantTitle");
-  if (el) el.textContent = texto || "Nova conversa";
-}
-
-async function openConversation(id) {
-  const thread = assistantThread();
-  if (!thread) return;
-
-  try {
-    const conversa = await apiRequest(`/finance/assistant/conversations/${id}/`);
-    currentConversationId = conversa.id;
-    setAssistantTitle(conversa.title);
-    thread.innerHTML = "";
-    conversa.messages.forEach((m) => appendAssistantMessage(m.role, m.content));
-    setSuggestionsVisible(conversa.messages.length === 0);
-    loadConversations();
-  } catch {
-    appendAssistantMessage("bot", "Não foi possível abrir essa conversa.", "error");
   }
-}
 
-async function deleteConversation(id) {
-  try {
-    await apiRequest(`/finance/assistant/conversations/${id}/`, { method: "DELETE" });
-  } catch {
-    return;
+  // Sugestões dinâmicas (as do marketing citam produtos do catálogo) são
+  // redesenhadas a cada conversa nova; as fixas vêm prontas no HTML.
+  function renderSuggestions() {
+    if (!cfg.suggestions) return;
+    const list = $(cfg.ids.suggestionList);
+    if (!list) return;
+    list.innerHTML = cfg.suggestions().map((item) => `
+      <button class="suggestion" type="button" role="option" aria-selected="false" data-ask="${escapeHtml(item.ask)}">
+        <span class="suggestion__arrow" aria-hidden="true">→</span>${escapeHtml(item.label || item.ask)}
+      </button>`).join("");
   }
-  if (id === currentConversationId) startNewConversation();
-  else loadConversations();
-}
 
-function startNewConversation() {
-  const thread = assistantThread();
-  if (!thread) return;
-  currentConversationId = null;
-  setAssistantTitle(null);
-  thread.innerHTML = "";
-  appendAssistantMessage("bot", ASSISTANT_GREETING);
-  setSuggestionsVisible(true);
-  highlightSuggestion(-1);
-  loadConversations();
-  document.querySelector("#assistantInput")?.focus();
-}
+  function setBusy(value) {
+    busy = value;
+    const send = $(cfg.ids.send);
+    const input = $(cfg.ids.input);
+    if (send) send.disabled = value;
+    if (input) input.disabled = value;
+  }
 
-// ─── Perguntar ──────────────────────────────────────────────────────────────
+  function setTitle(texto) {
+    const el = $(cfg.ids.title);
+    if (el) el.textContent = texto || "Nova conversa";
+  }
 
-async function askAssistant(question) {
-  const text = String(question || "").trim();
-  if (!text || assistantBusy) return;
+  function setAsideOpen(open) {
+    const shell = $(cfg.ids.shell);
+    if (!shell) return;
+    shell.classList.toggle("is-collapsed", !open);
+    $(cfg.ids.toggle)?.setAttribute("aria-expanded", String(open));
+  }
 
-  setSuggestionsVisible(false);
-  appendAssistantMessage("user", text);
+  async function loadConversations() {
+    const list = $(cfg.ids.list);
+    if (!list) return;
 
-  const pending = appendAssistantMessage("bot", "Analisando seus números…", "pending");
-  setAssistantBusy(true);
+    let conversas = [];
+    try {
+      conversas = await apiRequest(cfg.conversationsPath);
+    } catch {
+      list.innerHTML = `<p class="chat-aside__empty">Não foi possível carregar as conversas.</p>`;
+      return;
+    }
 
-  try {
-    const data = await apiRequest("/finance/assistant/", {
-      method: "POST",
-      body: JSON.stringify({ message: text, conversation_id: currentConversationId })
+    if (!conversas.length) {
+      list.innerHTML = `<p class="chat-aside__empty">${escapeHtml(cfg.emptyHistory)}</p>`;
+      return;
+    }
+
+    const grupos = new Map();
+    conversas.forEach((conversa) => {
+      const chave = conversationGroup(conversa.updated_at);
+      if (!grupos.has(chave)) grupos.set(chave, []);
+      grupos.get(chave).push(conversa);
     });
-    pending?.remove();
-    appendAssistantMessage("bot", data.message);
-    currentConversationId = data.conversation.id;
-    setAssistantTitle(data.conversation.title);
-    loadConversations();
-  } catch (error) {
-    pending?.remove();
-    appendAssistantMessage("bot", error.message, "error");
-  } finally {
-    setAssistantBusy(false);
-    document.querySelector("#assistantInput")?.focus();
+
+    list.innerHTML = [...grupos.entries()].map(([rotulo, itens]) => `
+      <div class="chat-group">
+        <p class="chat-group__label">${escapeHtml(rotulo)}</p>
+        ${itens.map((conversa) => `
+          <div class="chat-item${conversa.id === currentId ? " is-active" : ""}">
+            <button class="chat-item__open" type="button" data-abrir="${escapeHtml(conversa.id)}"
+                    title="${escapeHtml(conversa.title || "Nova conversa")}">${escapeHtml(conversa.title || "Nova conversa")}</button>
+            <button class="chat-item__delete" type="button" data-apagar="${escapeHtml(conversa.id)}" aria-label="Apagar conversa">
+              <span class="material-symbols-rounded" aria-hidden="true">delete</span>
+            </button>
+          </div>`).join("")}
+      </div>`).join("");
+
+    list.querySelectorAll("[data-abrir]").forEach((botao) => {
+      botao.addEventListener("click", () => {
+        openConversation(botao.dataset.abrir);
+        // No celular a lista cobre o chat: escolher uma conversa recolhe.
+        if (window.matchMedia("(max-width: 768px)").matches) setAsideOpen(false);
+      });
+    });
+    list.querySelectorAll("[data-apagar]").forEach((botao) => {
+      botao.addEventListener("click", () => deleteConversation(botao.dataset.apagar));
+    });
   }
-}
 
-document.querySelector("#assistantForm")?.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const input = document.querySelector("#assistantInput");
-  const question = input.value;
-  input.value = "";
-  askAssistant(question);
-});
+  async function openConversation(id) {
+    const el = thread();
+    if (!el) return;
 
-document.querySelector("#assistantNew")?.addEventListener("click", () => startNewConversation());
+    try {
+      const conversa = await apiRequest(`${cfg.conversationsPath}${id}/`);
+      currentId = conversa.id;
+      setTitle(conversa.title);
+      el.innerHTML = "";
+      conversa.messages.forEach((m) => appendMessage(m.role, m.content, null, m));
+      setSuggestionsVisible(conversa.messages.length === 0);
+      loadConversations();
+    } catch {
+      appendMessage("bot", "Não foi possível abrir essa conversa.", "error");
+    }
+  }
 
-document.querySelector("#asideToggle")?.addEventListener("click", () => {
-  const recolhida = document.querySelector("#assistantShell")?.classList.contains("is-collapsed");
-  setAsideOpen(recolhida);
-});
+  async function deleteConversation(id) {
+    try {
+      await apiRequest(`${cfg.conversationsPath}${id}/`, { method: "DELETE" });
+    } catch {
+      return;
+    }
+    if (id === currentId) startNew();
+    else loadConversations();
+  }
 
+  function startNew() {
+    const el = thread();
+    if (!el) return;
+    currentId = null;
+    setTitle(null);
+    el.innerHTML = "";
+    appendMessage("bot", cfg.greeting, "greeting");
+    renderSuggestions();
+    setSuggestionsVisible(true);
+    highlightSuggestion(-1);
+    loadConversations();
+    $(cfg.ids.input)?.focus();
+  }
 
-suggestionButtons().forEach((item) => {
-  item.addEventListener("click", () => askAssistant(item.dataset.ask));
-});
+  async function ask(question) {
+    const text = String(question || "").trim();
+    if (!text || busy) return;
 
-// Teclado no campo: setas navegam as sugestões, Enter escolhe a destacada
-// (ou envia o que foi digitado) e Esc fecha a lista.
-document.querySelector("#assistantInput")?.addEventListener("keydown", (event) => {
-  const items = suggestionButtons();
-  const visible = !document.querySelector("#assistantSuggestions")?.classList.contains("is-hidden");
-
-  if (event.key === "ArrowDown" && visible && items.length) {
-    event.preventDefault();
-    highlightSuggestion((suggestionIndex + 1) % items.length);
-  } else if (event.key === "ArrowUp" && visible && items.length) {
-    event.preventDefault();
-    highlightSuggestion(suggestionIndex <= 0 ? items.length - 1 : suggestionIndex - 1);
-  } else if (event.key === "Enter" && visible && suggestionIndex >= 0) {
-    event.preventDefault();
-    askAssistant(items[suggestionIndex].dataset.ask);
-  } else if (event.key === "Escape" && visible) {
     setSuggestionsVisible(false);
+    appendMessage("user", text);
+
+    const pending = appendMessage("bot", cfg.pendingText, "pending");
+    setBusy(true);
+
+    try {
+      const data = await apiRequest(cfg.askPath, {
+        method: "POST",
+        body: JSON.stringify({ message: text, conversation_id: currentId })
+      });
+      pending?.remove();
+      appendMessage("bot", data.message, null, data);
+      currentId = data.conversation.id;
+      setTitle(data.conversation.title);
+      loadConversations();
+    } catch (error) {
+      pending?.remove();
+      appendMessage("bot", error.message, "error");
+    } finally {
+      setBusy(false);
+      $(cfg.ids.input)?.focus();
+    }
   }
+
+  $(cfg.ids.form)?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const input = $(cfg.ids.input);
+    const question = input.value;
+    input.value = "";
+    ask(question);
+  });
+
+  $(cfg.ids.newButton)?.addEventListener("click", () => startNew());
+
+  $(cfg.ids.toggle)?.addEventListener("click", () => {
+    setAsideOpen($(cfg.ids.shell)?.classList.contains("is-collapsed"));
+  });
+
+  // Delegado na lista: as sugestões do marketing são recriadas a cada conversa.
+  $(cfg.ids.suggestionList)?.addEventListener("click", (event) => {
+    const item = event.target.closest(".suggestion");
+    if (item) ask(item.dataset.ask);
+  });
+
+  // Teclado no campo: setas navegam as sugestões, Enter escolhe a destacada
+  // (ou envia o que foi digitado) e Esc fecha a lista.
+  $(cfg.ids.input)?.addEventListener("keydown", (event) => {
+    const items = suggestionButtons();
+    const visible = !$(cfg.ids.suggestions)?.classList.contains("is-hidden");
+
+    if (event.key === "ArrowDown" && visible && items.length) {
+      event.preventDefault();
+      highlightSuggestion((suggestionIndex + 1) % items.length);
+    } else if (event.key === "ArrowUp" && visible && items.length) {
+      event.preventDefault();
+      highlightSuggestion(suggestionIndex <= 0 ? items.length - 1 : suggestionIndex - 1);
+    } else if (event.key === "Enter" && visible && suggestionIndex >= 0) {
+      event.preventDefault();
+      ask(items[suggestionIndex].dataset.ask);
+    } else if (event.key === "Escape" && visible) {
+      setSuggestionsVisible(false);
+    }
+  });
+
+  // Ao abrir a tela sem conversa em andamento, recomeça e recarrega o
+  // histórico — a conversa vive no servidor.
+  function ensureStarted() {
+    if (currentId === null) startNew();
+  }
+
+  return { startNew, ensureStarted };
+}
+
+// ─── Assistente financeiro ──────────────────────────────────────────────────
+
+const financeChat = createChat({
+  ids: {
+    shell: "assistantShell",
+    toggle: "asideToggle",
+    list: "chatHistoryList",
+    newButton: "assistantNew",
+    title: "assistantTitle",
+    thread: "assistantThread",
+    suggestions: "assistantSuggestions",
+    suggestionList: "assistantSuggestionList",
+    form: "assistantForm",
+    input: "assistantInput",
+    send: "assistantSend"
+  },
+  askPath: "/finance/assistant/",
+  conversationsPath: "/finance/assistant/conversations/",
+  greeting: ASSISTANT_GREETING,
+  pendingText: "Analisando seus números…",
+  emptyHistory: "Suas conversas aparecem aqui depois da primeira pergunta."
 });
 
-// ─── Marketing AI ─────────────────────────────────────────────────────────────
-
-function campaignHeadline(goal, productName) {
-  const headlines = {
-    promocao: `${productName} com oferta especial por tempo limitado`,
-    lancamento: `Chegou ${productName}: feito para encantar no primeiro pedido`,
-    relacionamento: `Seu dia fica melhor com ${productName}`
-  };
-  return headlines[goal] || headlines.promocao;
-}
-
-function imagePrompt(goal, productName) {
-  const prompts = {
-    promocao: `foto clara de ${productName}, selo de oferta e fundo verde suave`,
-    lancamento: `${productName} em destaque, composição premium e textura bege`,
-    relacionamento: `cliente usando ${productName}, clima próximo e chamada acolhedora`
-  };
-  return prompts[goal] || prompts.promocao;
-}
+// ─── Marketing com IA ───────────────────────────────────────────────────────
 
 // O texto da IA vem com **negrito** no estilo markdown. O escape vem antes de
 // qualquer tag, para o texto do modelo nunca virar HTML; so depois os pares de
@@ -2918,61 +2910,100 @@ function formatCampaignText(rawText) {
     .replaceAll("\n", "<br>");
 }
 
+function renderMarketingReply(article, text, extra) {
+  String(text).split(/\n{2,}/).forEach((paragraph) => {
+    const p = document.createElement("p");
+    p.innerHTML = formatCampaignText(paragraph.trim());
+    article.appendChild(p);
+  });
+
+  const actions = document.createElement("div");
+  actions.className = "msg__actions";
+  const copy = document.createElement("button");
+  copy.type = "button";
+  copy.className = "msg__action";
+  copy.innerHTML = `<span class="material-symbols-rounded" aria-hidden="true">content_copy</span>Copiar texto`;
+  copy.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(String(text).replace(/\*\*/g, ""));
+      copy.lastChild.textContent = "Copiado";
+    } catch {
+      copy.lastChild.textContent = "Não foi possível copiar";
+    }
+  });
+  actions.appendChild(copy);
+  article.appendChild(actions);
+
+  if (extra.has_image && extra.campaign_id) showCampaignImage(article, actions, extra.campaign_id);
+}
+
 // A rota da imagem exige o token, e <img src> não manda cabeçalho. Mesma
 // solução da foto de produto: busca com fetch e monta um object URL.
-async function showCampaignImage(preview, campaignId) {
+async function showCampaignImage(article, actions, campaignId) {
   try {
     const response = await fetch(`${apiBaseUrl}/marketing/campaigns/${campaignId}/image/`, {
       headers: { Authorization: `Token ${authToken}` }
     });
     if (!response.ok) return;
 
-    const objectUrl = URL.createObjectURL(await response.blob());
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
     const img = new Image();
-    img.className = "image-lab__img";
+    img.className = "msg__image";
     img.alt = "Imagem gerada para a campanha";
-    // Só troca a prévia depois que a imagem carrega: assim o texto não pisca
-    // para um quadro vazio se o carregamento falhar.
     img.onload = () => {
-      preview.replaceChildren(img);
+      article.insertBefore(img, actions);
+      const download = document.createElement("a");
+      download.className = "msg__action";
+      download.href = objectUrl;
+      download.download = `campanha-${campaignId.slice(0, 8)}.${blob.type.includes("png") ? "png" : "jpg"}`;
+      download.innerHTML = `<span class="material-symbols-rounded" aria-hidden="true">download</span>Baixar imagem`;
+      actions.appendChild(download);
     };
     img.onerror = () => URL.revokeObjectURL(objectUrl);
     img.src = objectUrl;
   } catch {
-    // Sem imagem a prévia de texto continua servindo.
+    // Sem imagem o texto da campanha continua servindo.
   }
 }
 
-async function askMarketingAi({ product, goal, channel, prompt, margin }) {
-  try {
-    const response = await fetch(`${apiBaseUrl}/marketing/chat/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Token ${authToken}` },
-      body: JSON.stringify({ product, goal, channel, prompt })
-    });
-    if (response.ok) {
-      const data = await response.json();
-      const rawText = data.message || data.text || "";
-      return {
-        html: formatCampaignText(rawText),
-        imageLabel: escapeHtml(data.image_label || `${product.name}<br>${channel}`),
-        campaignId: data.has_image ? data.campaign_id : null
-      };
-    }
-  } catch {
-    // Fallback to local demo if API unavailable.
+// Sugestões que citam o catálogo de verdade: o produto de melhor margem é o
+// que mais vale divulgar. Sem produto, ficam as genéricas.
+function marketingSuggestions() {
+  const ativos = (state.products || []).filter((p) => p.is_active !== false);
+  const melhor = [...ativos].sort((a, b) => Number(b.margin_value ?? 0) - Number(a.margin_value ?? 0))[0];
+  const itens = [];
+  if (melhor) {
+    itens.push({ ask: `Crie um post para o Instagram divulgando ${melhor.name}` });
+    itens.push({ ask: `Escreva uma mensagem de WhatsApp oferecendo ${melhor.name} para meus clientes` });
   }
-
-  return {
-    html:
-      `<strong>Campanha para ${escapeHtml(channel)}</strong><br><br>` +
-      `<b>Chamada:</b> ${escapeHtml(campaignHeadline(goal, product.name))}<br><br>` +
-      `<b>Ideia de imagem:</b> ${escapeHtml(imagePrompt(goal, product.name))}<br><br>` +
-      `<b>Legenda:</b> Hoje é um bom dia para garantir ${escapeHtml(product.name)}. Visual caprichado, entrega rápida. Margem de ${formatMoney(margin)} por unidade.<br><br>` +
-      `<b>CTA:</b> Chame no direct ou finalize pelo PIX.`,
-    imageLabel: `${escapeHtml(product.name)}<br>${escapeHtml(channel)}`
-  };
+  itens.push({ ask: "Qual produto eu deveria divulgar essa semana e por quê?" });
+  itens.push({ ask: "Me dê 5 ideias de vídeos curtos para o TikTok" });
+  return itens;
 }
+
+const marketingChat = createChat({
+  ids: {
+    shell: "marketingShell",
+    toggle: "marketingAsideToggle",
+    list: "marketingHistoryList",
+    newButton: "marketingNew",
+    title: "marketingTitle",
+    thread: "marketingThread",
+    suggestions: "marketingSuggestions",
+    suggestionList: "marketingSuggestionList",
+    form: "marketingForm",
+    input: "marketingInput",
+    send: "marketingSend"
+  },
+  askPath: "/marketing/chat/",
+  conversationsPath: "/marketing/conversations/",
+  greeting: MARKETING_GREETING,
+  pendingText: "Criando…",
+  emptyHistory: "Suas campanhas e conversas aparecem aqui depois do primeiro pedido.",
+  suggestions: marketingSuggestions,
+  renderBot: renderMarketingReply
+});
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 

@@ -1,9 +1,7 @@
 import hashlib
 import logging
-from decimal import Decimal, InvalidOperation
 
-import anthropic as anthropic_sdk
-from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
@@ -12,9 +10,17 @@ from rest_framework.response import Response
 
 from apps.accounts.throttles import AIRateThrottle
 from apps.businesses.models import Business
-from apps.products.models import Product
+from .assistant import (
+    MAX_MESSAGE_CHARS,
+    canal_citado,
+    catalogo,
+    e_campanha,
+    objetivo_citado,
+    produto_citado,
+    responder,
+)
 from .images import extrair_prompt, gerar_imagem
-from .models import CampaignImage, MarketingCampaign
+from .models import CampaignImage, MarketingCampaign, MarketingConversation, MarketingMessage
 from .recommendations import build_recommendations
 from .serializers import MarketingCampaignSerializer
 
@@ -36,116 +42,158 @@ class MarketingCampaignViewSet(viewsets.ModelViewSet):
         serializer.save(business=business)
 
 
-def _to_decimal(valor):
-    """Converte o que veio no corpo da requisicao, sem derrubar a rota.
-
-    O front manda numero, mas o corpo e JSON livre: um "R$ 100,00" digitado
-    em qualquer integracao futura virava ValueError e 500. Valor ilegivel
-    conta como zero — a campanha sai sem o dado, nao com erro.
-    """
-    try:
-        return Decimal(str(valor or 0))
-    except (InvalidOperation, ValueError, TypeError):
-        return Decimal("0")
-
-
-def _dados_do_produto(request, business):
-    """Preco, custo e margem do produto, lidos do banco quando possivel.
-
-    O corpo da requisicao traz o id; os numeros vem do `Product`, nunca do
-    cliente. Sao duas razoes: a margem do modelo desconta outros custos,
-    taxa e imposto (`margin_value`), enquanto preco menos custo engana; e o
-    cliente nao deve ditar os numeros que vao para a IA.
-
-    Sem id valido — produto de outro negocio, produto apagado, requisicao
-    manual — cai no que veio no corpo, para a campanha continuar saindo.
-    """
-    payload = request.data.get("product") or {}
-    if not isinstance(payload, dict):
-        payload = {}
-
-    produto = None
-    product_id = payload.get("id")
-    if product_id and business:
-        # O filtro por business e o que impede pedir campanha com o produto
-        # de outra conta.
-        produto = Product.objects.filter(id=product_id, business=business).first()
-
-    if produto is not None:
-        return produto, {
-            "name": produto.name,
-            "price": produto.price,
-            "cost": produto.variable_cost,
-            "margin": produto.margin_value,
-            "margin_percent": produto.margin_percent,
-            "fees": produto.fee_amount,
-        }
-
-    price = _to_decimal(payload.get("price"))
-    cost = _to_decimal(payload.get("cost"))
-    return None, {
-        "name": payload.get("name") or "seu produto",
-        "price": price,
-        "cost": cost,
-        "margin": max(price - cost, Decimal("0")),
-        "margin_percent": None,
-        "fees": None,
+def _serialize_conversation(conversation):
+    return {
+        "id": str(conversation.id),
+        "title": conversation.title,
+        "updated_at": conversation.updated_at.isoformat(),
     }
+
+
+def _tem_imagem(campaign):
+    if campaign is None:
+        return False
+    try:
+        campaign.image
+    except CampaignImage.DoesNotExist:
+        return False
+    return True
+
+
+def _serialize_message(message):
+    return {
+        "role": message.role,
+        "content": message.content,
+        "created_at": message.created_at.isoformat(),
+        "campaign_id": str(message.campaign_id) if message.campaign_id else None,
+        "has_image": _tem_imagem(message.campaign),
+    }
+
+
+def _business_or_none(request):
+    return Business.objects.filter(owner=request.user).first()
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def marketing_conversations(request):
+    """Lista as conversas de marketing do negocio ou comeca uma nova."""
+    business = _business_or_none(request)
+    if not business:
+        return Response({"detail": "Nenhum negócio encontrado."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == "POST":
+        conversation = MarketingConversation.objects.create(business=business)
+        return Response(_serialize_conversation(conversation), status=status.HTTP_201_CREATED)
+
+    conversations = MarketingConversation.objects.filter(business=business)
+    return Response([_serialize_conversation(c) for c in conversations])
+
+
+@api_view(["GET", "DELETE"])
+@permission_classes([IsAuthenticated])
+def marketing_conversation_detail(request, conversation_id):
+    """Mensagens de uma conversa, ou remocao dela.
+
+    Apagar a conversa nao apaga as campanhas: elas continuam na listagem de
+    campanhas e seguem contando para as recomendacoes.
+    """
+    business = _business_or_none(request)
+    conversation = MarketingConversation.objects.filter(
+        id=conversation_id, business=business
+    ).first()
+    if business is None or conversation is None:
+        return Response({"detail": "Conversa não encontrada."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == "DELETE":
+        conversation.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    mensagens = conversation.messages.select_related("campaign__image")
+    return Response({
+        **_serialize_conversation(conversation),
+        "messages": [_serialize_message(m) for m in mensagens],
+    })
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 @throttle_classes([AIRateThrottle])
 def marketing_chat(request):
-    goal = request.data.get("goal") or "promocao"
-    channel = request.data.get("channel") or "Instagram"
-    prompt = request.data.get("prompt") or "criar uma campanha rapida"
+    """Recebe o pedido livre do usuario, responde e guarda a conversa.
 
-    business = Business.objects.filter(owner=request.user).first()
-    business_name = business.name if business else ""
+    O historico vem do banco, nao do cliente. Quando a resposta e uma campanha
+    (tem "Ideia de imagem"), ela vira uma MarketingCampaign e ganha imagem.
+    """
+    business = _business_or_none(request)
+    if not business:
+        return Response(
+            {"detail": "Nenhum negócio encontrado para este usuário."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
-    produto, dados = _dados_do_produto(request, business)
-    product_name = dados["name"]
-    price = dados["price"]
-    cost = dados["cost"]
-    margin = dados["margin"]
+    pedido = str(request.data.get("message") or "").strip()
+    if not pedido:
+        return Response({"detail": "Escreva o que você quer criar."}, status=status.HTTP_400_BAD_REQUEST)
+    pedido = pedido[:MAX_MESSAGE_CHARS]
 
-    generated_text = None
-    provider = "local-demo"
-    if settings.ANTHROPIC_API_KEY:
+    conversation = None
+    conversation_id = request.data.get("conversation_id")
+    if conversation_id:
         try:
-            generated_text = _call_claude(
-                dados, goal, channel, prompt, business_name
-            )
-            provider = "anthropic"
-        except Exception:
-            # Chave invalida ou provedor fora do ar nao pode virar erro 500: o
-            # usuario fica sem campanha nenhuma por um problema de
-            # configuracao. Mesmo caminho que os insights ja seguem.
-            logger.exception("Falha ao gerar campanha com a IA. Usando o texto local.")
+            conversation = MarketingConversation.objects.filter(
+                id=conversation_id, business=business
+            ).first()
+        except (ValueError, ValidationError):
+            conversation = None
+    if conversation is None:
+        conversation = MarketingConversation.objects.create(business=business)
+    if not conversation.title:
+        conversation.title = pedido[:80]
 
-    if generated_text is None:
-        generated_text = _build_demo_campaign(product_name, goal, channel, margin)
+    anteriores = list(conversation.messages.select_related("campaign"))
+    historico = [{"role": m.role, "content": m.content} for m in anteriores]
+    historico.append({"role": "user", "content": pedido})
 
-    campaign = MarketingCampaign.objects.create(
-        business=business,
-        product=produto,
-        prompt=prompt,
-        channel=channel,
-        goal=goal,
-        status=MarketingCampaign.Status.COMPLETED,
-        generated_text=generated_text,
-        provider=provider,
-        metadata={"source": provider},
+    # Produto e canal: o que o pedido cita, senao o da ultima campanha da
+    # conversa — "agora faz uma versao para o WhatsApp" continua falando do
+    # mesmo produto.
+    ultima = next((m.campaign for m in reversed(anteriores) if m.campaign), None)
+    produto = produto_citado(pedido, catalogo(business)) or (ultima.product if ultima else None)
+    canal = canal_citado(pedido) or (ultima.channel if ultima else None)
+
+    provider, resposta = responder(business, historico, produto=produto, canal=canal)
+
+    campaign = None
+    tem_imagem = False
+    if e_campanha(resposta):
+        campaign = MarketingCampaign.objects.create(
+            business=business,
+            product=produto,
+            prompt=pedido,
+            channel=canal or "Instagram",
+            goal=objetivo_citado(pedido),
+            status=MarketingCampaign.Status.COMPLETED,
+            generated_text=resposta,
+            provider=provider,
+            metadata={"source": provider, "conversation_id": str(conversation.id)},
+        )
+        tem_imagem = _gerar_imagem_da_campanha(
+            campaign, produto.name if produto else "o produto", campaign.channel
+        )
+
+    MarketingMessage.objects.create(conversation=conversation, role="user", content=pedido)
+    MarketingMessage.objects.create(
+        conversation=conversation, role="assistant", content=resposta, campaign=campaign
     )
-
-    tem_imagem = _gerar_imagem_da_campanha(campaign, product_name, channel)
+    conversation.save()
 
     return Response(
         {
-            "campaign_id": str(campaign.id),
-            "message": campaign.generated_text,
-            "image_label": f"{product_name}\n{channel}",
+            "provider": provider,
+            "message": resposta,
+            "conversation": _serialize_conversation(conversation),
+            "campaign_id": str(campaign.id) if campaign else None,
             "has_image": tem_imagem,
         },
         status=status.HTTP_201_CREATED,
@@ -210,80 +258,6 @@ def campaign_image(request, campaign_id):
     # A imagem da campanha nunca muda depois de gerada.
     resposta["Cache-Control"] = "private, max-age=86400"
     return resposta
-
-
-def _call_claude(dados, goal, channel, prompt, business_name):
-    goal_labels = {
-        "promocao": "promoção / oferta especial",
-        "lancamento": "lançamento de produto",
-        "relacionamento": "relacionamento com clientes",
-    }
-    goal_label = goal_labels.get(goal, goal)
-
-    system_prompt = (
-        "Você é um especialista em marketing digital para pequenos negócios brasileiros. "
-        "Crie campanhas objetivas, com linguagem informal e focadas em conversão. "
-        "Responda sempre em português brasileiro."
-    )
-
-    # A margem aqui e a do modelo: preco menos custo variavel menos taxa e
-    # imposto. Mandar preco menos custo faria a IA sugerir desconto sobre um
-    # lucro que nao existe.
-    linhas_margem = [f"Margem real por unidade: R$ {dados['margin']:.2f}"]
-    if dados["margin_percent"] is not None:
-        linhas_margem.append(f"Margem sobre o preço: {dados['margin_percent']:.2f}%")
-    if dados["fees"] is not None:
-        linhas_margem.append(f"Taxa de cartão/PIX e imposto já descontados: R$ {dados['fees']:.2f}")
-
-    user_message = (
-        f"Crie uma campanha de marketing para o seguinte contexto:\n\n"
-        f"Negócio: {business_name or 'microempreendedor'}\n"
-        f"Produto: {dados['name']}\n"
-        f"Preço de venda: R$ {dados['price']:.2f}\n"
-        f"Custo por unidade (inclui embalagem e frete): R$ {dados['cost']:.2f}\n"
-        + "".join(f"{linha}\n" for linha in linhas_margem) +
-        f"Objetivo da campanha: {goal_label}\n"
-        f"Canal: {channel}\n"
-        f"Pedido do usuário: {prompt}\n\n"
-        f"Estruture a resposta com:\n"
-        f"**Chamada principal:** (headline curta e impactante)\n"
-        f"**Ideia de imagem:** (descreva só a cena: o produto, o cenário e a luz. "
-        f"Nada de texto, logo, selo ou embalagem escrita — quem gera a imagem "
-        f"desenha letra embolada e estraga a foto)\n"
-        f"**Legenda:** (texto para postar no {channel}, com emojis se fizer sentido)\n"
-        f"**CTA:** (chamada para ação direta)\n\n"
-        f"Seja direto, não use linguagem corporativa e adapte o tom para o {channel}.\n"
-        f"Se sugerir desconto, respeite a margem real informada: um desconto "
-        f"maior que ela faz o negócio vender no prejuízo."
-    )
-
-    client = anthropic_sdk.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=800,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_message}],
-    )
-    return message.content[0].text
-
-
-def _build_demo_campaign(product_name, goal, channel, margin):
-    headlines = {
-        "promocao": f"{product_name} com oferta especial por tempo limitado",
-        "lancamento": f"Chegou {product_name}: feito para encantar no primeiro pedido",
-        "relacionamento": f"Seu dia fica melhor com {product_name}",
-    }
-    headline = headlines.get(goal, headlines["promocao"])
-
-    return (
-        f"Campanha para {channel}\n\n"
-        f"**Chamada principal:** {headline}\n\n"
-        f"**Ideia de imagem:** foto clara de {product_name} sobre uma mesa, "
-        f"luz natural, produto em destaque.\n\n"
-        f"**Legenda:** Hoje e um bom dia para garantir {product_name}. "
-        f"Margem estimada de R$ {margin:.2f} por unidade.\n\n"
-        f"**CTA:** Chame no direct ou finalize pelo PIX."
-    )
 
 
 @api_view(["GET"])

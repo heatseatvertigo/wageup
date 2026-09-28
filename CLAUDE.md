@@ -167,7 +167,9 @@ GET/POST        /api/payments/               # Só admin, gera PIX via Abacate P
 GET             /api/payments/summary/       # Consolidação de recebíveis
 POST            /api/payments/<id>/check/    # Sincroniza status com a Abacate Pay
 POST            /api/payments/webhooks/abacatepay/   # Webhook de confirmação
-POST            /api/marketing/chat/         # Gera campanha (Claude Haiku se ANTHROPIC_API_KEY estiver set)
+POST            /api/marketing/chat/         # Pedido livre ao chat de marketing (Claude Haiku se ANTHROPIC_API_KEY estiver set)
+GET/POST        /api/marketing/conversations/          # Lista ou cria conversa de marketing
+GET/DELETE      /api/marketing/conversations/<uuid>/   # Mensagens ou remoção
 GET             /api/marketing/recommendations/  # O que divulgar em seguida, pela margem real do catálogo
 GET             /api/marketing/campaigns/<uuid>/image/   # Imagem da campanha, guardada no banco
 GET/POST        /api/marketing/campaigns/
@@ -212,6 +214,8 @@ GET             /api/health/                 # Health check (aberto, sem throttl
 
 17. **Deduplicação por `Transaction.external_id`**, com unicidade por business: o FITID do OFX quando existe, senão uma impressão digital do conteúdo. É o que faz reimportar o mesmo extrato não duplicar. Qualquer formato novo (CSV, PDF) precisa devolver um `external_id` estável — sem isso, a importação suja o financeiro em vez de ajudar.
 
+18. **Marketing é um chat, não um formulário**: a tela usa o mesmo componente do assistente financeiro (`createChat()` em `app.js`) e o usuário escreve o pedido livremente. O histórico vive em `MarketingConversation`/`MarketingMessage`, no servidor. A IA recebe o catálogo inteiro com a margem real (`marketing/assistant.py`); o produto e o canal da campanha são deduzidos do nome citado no pedido, ou herdados da campanha anterior da conversa. Só a resposta que traz a seção "Ideia de imagem" vira `MarketingCampaign` e ganha imagem — pergunta solta ("que hashtag uso?") não gera imagem nem registro.
+
 ---
 
 ## Deploy no Render + Neon
@@ -236,7 +240,8 @@ Para domínio próprio: configurar `CUSTOM_DOMAIN=seudominio.com` nas variáveis
 - [backend/apps/accounts/email_backends.py](backend/apps/accounts/email_backends.py) — backend de e-mail via API do Resend
 - [backend/apps/accounts/tests.py](backend/apps/accounts/tests.py) — testes da recuperação de senha
 - [backend/apps/payments/services.py](backend/apps/payments/services.py) — cliente Abacate Pay
-- [backend/apps/marketing/views.py](backend/apps/marketing/views.py) — `_call_claude()` para IA
+- [backend/apps/marketing/views.py](backend/apps/marketing/views.py) — rotas do chat de marketing e das conversas
+- [backend/apps/marketing/assistant.py](backend/apps/marketing/assistant.py) — contexto do catálogo, prompt e chamada ao Claude do chat de marketing
 - [backend/apps/marketing/recommendations.py](backend/apps/marketing/recommendations.py) — recomendações de ação a partir do catálogo
 - [backend/apps/marketing/images.py](backend/apps/marketing/images.py) — geração da imagem da campanha (Cloudflare/Pollinations)
 - [backend/apps/finance/assistant.py](backend/apps/finance/assistant.py) — assistente financeiro (DeepSeek/Claude/local)

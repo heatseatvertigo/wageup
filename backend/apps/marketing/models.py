@@ -38,7 +38,59 @@ class MarketingCampaign(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
-# Create your models here.
+
+class MarketingConversation(models.Model):
+    """Uma conversa com a IA de marketing.
+
+    Mesmo desenho do assistente financeiro (finance.AssistantConversation): o
+    servidor guarda o historico, o cliente manda so a mensagem nova. Assim a
+    conversa sobrevive ao recarregar e o navegador nao forja o que foi dito.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    business = models.ForeignKey(
+        "businesses.Business",
+        on_delete=models.CASCADE,
+        related_name="marketing_conversations",
+    )
+    title = models.CharField(max_length=120, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return self.title or f"Conversa {self.id}"
+
+
+class MarketingMessage(models.Model):
+    class Role(models.TextChoices):
+        USER = "user", "Usuario"
+        ASSISTANT = "assistant", "Assistente"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    conversation = models.ForeignKey(
+        MarketingConversation,
+        on_delete=models.CASCADE,
+        related_name="messages",
+    )
+    role = models.CharField(max_length=16, choices=Role.choices)
+    content = models.TextField()
+    # Resposta que saiu como campanha (tem "Ideia de imagem") vira uma
+    # MarketingCampaign, que e quem guarda a imagem. Pergunta solta — "que
+    # hashtag uso?" — nao e campanha e fica sem.
+    campaign = models.ForeignKey(
+        MarketingCampaign,
+        on_delete=models.SET_NULL,
+        related_name="messages",
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
 
 
 class CampaignImage(models.Model):
