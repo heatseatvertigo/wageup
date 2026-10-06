@@ -167,14 +167,7 @@ def responder(business, historico, produto=None, canal=None):
     history = sanitize_history(historico)
     produtos = catalogo(business)
 
-    # Mesma ordem do assistente financeiro: DeepSeek, depois Anthropic. Se o
-    # primeiro falhar, tenta o segundo antes de cair na resposta local.
-    provedores = []
-    if settings.DEEPSEEK_API_KEY:
-        provedores.append(("deepseek", _call_deepseek_marketing))
-    if settings.ANTHROPIC_API_KEY:
-        provedores.append(("anthropic", _call_claude))
-
+    provedores = _provedores()
     falhou = False
     if history and provedores:
         system_prompt = f"{SYSTEM_PROMPT}\n{format_context(business, produtos)}"
@@ -196,6 +189,70 @@ def responder(business, historico, produto=None, canal=None):
         or (produtos[0].name if produtos else None)
     )
     return "local-demo", resposta_local(assunto, ultimo, canal, falhou=falhou)
+
+
+def _provedores():
+    """Mesma ordem do assistente financeiro: DeepSeek, depois Anthropic.
+
+    Se o primeiro falhar, quem chama tenta o segundo antes de desistir.
+    """
+    provedores = []
+    if settings.DEEPSEEK_API_KEY:
+        provedores.append(("deepseek", _call_deepseek_marketing))
+    if settings.ANTHROPIC_API_KEY:
+        provedores.append(("anthropic", _call_claude))
+    return provedores
+
+
+# O modelo de imagem (FLUX) entende ingles muito melhor que portugues, e le
+# ao pe da letra: "cachorro quente" virava um cachorro. A IA de texto ja esta
+# a mao, entao ela traduz a ideia e escolhe o estilo de anuncio que combina
+# com o que se vende.
+IMAGE_PROMPT_SYSTEM = (
+    "You write prompts for FLUX, a text-to-image model, to create social media "
+    "ad images for small Brazilian businesses: food sellers, bakers, snack bars, "
+    "barbers, nail designers, artisans.\n"
+    "Turn the idea you receive (in Portuguese) into ONE English prompt that makes "
+    "the product look irresistible and professional, like a paid ad from a good "
+    "local brand:\n"
+    "- hero close-up of the product, filling most of the frame;\n"
+    "- props and setting that fit what is sold (food: ingredients around, steam, "
+    "melting cheese, sauce, crumbs; beauty services: the finished result on hands "
+    "or hair; crafts: the item styled on a surface);\n"
+    "- bold lighting, rich saturated colors, shallow depth of field.\n"
+    "Keep Brazilian products recognizable by describing what they look like: "
+    "'cachorro quente' is a Brazilian hot dog (soft bun, sausage, tomato sauce, "
+    "corn, peas, crispy potato sticks on top), 'pastel' is a fried crispy pastry, "
+    "'coxinha' is a teardrop-shaped fried chicken croquette, 'brigadeiro' is a "
+    "chocolate truffle with sprinkles, 'pudim' is a caramel flan.\n"
+    "Never ask for text, letters, logos, labels or watermarks.\n"
+    "Answer with the prompt only, one line, under 70 words."
+)
+
+
+def prompt_da_imagem(ideia, assunto=None):
+    """A ideia de imagem em ingles, pronta para o FLUX. None se nao houver IA.
+
+    Falha aqui nao derruba nada: quem chama segue com a ideia original e um
+    glossario minimo (images.traduzir_termos).
+    """
+    pedido = f"Produto: {assunto}\nIdeia de imagem: {ideia}" if assunto else f"Ideia de imagem: {ideia}"
+    for nome, _ in _provedores():
+        try:
+            if nome == "deepseek":
+                texto = _call_deepseek(
+                    IMAGE_PROMPT_SYSTEM, [{"role": "user", "content": pedido}],
+                    max_tokens=200, temperature=0.4,
+                )
+            else:
+                texto = _call_claude(IMAGE_PROMPT_SYSTEM, [{"role": "user", "content": pedido}])
+        except Exception:
+            logger.exception("Falha ao montar o prompt da imagem com %s.", nome)
+            continue
+        linha = " ".join(str(texto or "").split()).strip().strip('"')
+        if linha:
+            return linha[:600]
+    return None
 
 
 def _call_deepseek_marketing(system_prompt, history):

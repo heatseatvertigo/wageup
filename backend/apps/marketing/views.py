@@ -18,6 +18,7 @@ from .assistant import (
     e_campanha,
     objetivo_citado,
     produto_citado,
+    prompt_da_imagem,
     responder,
 )
 from .images import extrair_prompt, gerar_imagem
@@ -183,7 +184,9 @@ def marketing_chat(request):
             metadata={"source": provider, "conversation_id": str(conversation.id)},
         )
         tem_imagem = _gerar_imagem_da_campanha(
-            campaign, produto.name if produto else "o produto", campaign.channel
+            campaign,
+            produto.name if produto else (assunto_do_pedido(pedido) or "o produto"),
+            campaign.channel,
         )
 
     MarketingMessage.objects.create(conversation=conversation, role="user", content=pedido)
@@ -210,9 +213,12 @@ def _gerar_imagem_da_campanha(campaign, product_name, channel):
     A imagem e um extra: se nenhum provedor responder, a campanha ja esta
     gravada e o texto ja e util. Por isso nada aqui propaga excecao.
     """
-    prompt = extrair_prompt(campaign.generated_text, product_name, channel)
+    ideia = extrair_prompt(campaign.generated_text, product_name, channel)
+    # A IA de texto traduz e escolhe o estilo; sem ela, segue a ideia original.
+    em_ingles = prompt_da_imagem(ideia, product_name)
+    prompt = em_ingles or ideia
     try:
-        resultado = gerar_imagem(prompt)
+        resultado = gerar_imagem(prompt, pronto=bool(em_ingles))
     except Exception:
         logger.exception("Falha inesperada ao gerar a imagem da campanha.")
         return False

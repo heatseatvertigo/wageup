@@ -28,6 +28,7 @@ import base64
 import binascii
 import logging
 import re
+import unicodedata
 from urllib.parse import quote
 
 import requests
@@ -79,19 +80,57 @@ def extrair_prompt(texto_da_campanha, product_name, channel):
     return f"foto publicitaria de {product_name}, produto em destaque, para {channel}"
 
 
-def _traduzir_para_o_modelo(prompt):
-    """Os modelos de imagem entendem ingles muito melhor que portugues.
+# Sem IA de texto para traduzir, ao menos os produtos mais comuns de um MEI
+# nao viram outra coisa ("cachorro quente" desenhava um cachorro).
+GLOSSARIO = {
+    "cachorro quente": "Brazilian hot dog in a soft bun with sausage, sauce, corn and crispy potato sticks",
+    "cachorro-quente": "Brazilian hot dog in a soft bun with sausage, sauce, corn and crispy potato sticks",
+    "batata recheada": "baked potato loaded with melted cheese and toppings",
+    "pastel": "crispy Brazilian fried pastry",
+    "coxinha": "teardrop-shaped Brazilian fried chicken croquette",
+    "brigadeiro": "Brazilian chocolate truffle with chocolate sprinkles",
+    "pudim": "caramel flan pudding",
+    "bolo de cenoura": "carrot cake with chocolate glaze",
+    "bolo": "cake",
+    "pao de mel": "chocolate-covered honey cake",
+    "marmita": "home-style lunch box meal with rice, beans and meat",
+    "acai": "acai bowl with toppings",
+    "hamburguer": "juicy burger",
+    "salgados": "assorted Brazilian savory snacks",
+    "torta": "pie",
+    "sorvete": "ice cream",
+    "unhas": "manicured nails with nail art",
+    "corte de cabelo": "fresh men's haircut",
+}
 
-    Nao ha traducao aqui: o que se faz e acrescentar o enquadramento em ingles
-    ao redor da ideia em portugues, que e o suficiente para o modelo entender
-    o tipo de foto esperado.
+
+def traduzir_termos(texto):
+    """Troca os nomes de produto conhecidos pelo equivalente em ingles."""
+    sem_acento = "".join(
+        c for c in unicodedata.normalize("NFKD", texto or "") if not unicodedata.combining(c)
+    ).lower()
+    for termo in sorted(GLOSSARIO, key=len, reverse=True):
+        sem_acento = re.sub(rf"\b{re.escape(termo)}\b", GLOSSARIO[termo], sem_acento)
+    return sem_acento
+
+
+def _traduzir_para_o_modelo(prompt, pronto=False):
+    """Prepara o prompt para o modelo de imagem.
+
+    `pronto` e o prompt que a IA de texto ja escreveu em ingles, com estilo
+    escolhido para o produto: so recebe as travas. Sem ele, a ideia em
+    portugues passa pelo glossario e ganha um enquadramento de anuncio.
     """
+    # O modelo desenha letra embolada quando tenta escrever. O prompt da
+    # campanha ja evita pedir texto; isto e a segunda barreira.
+    travas = "no text, no lettering, no logo, no packaging labels, no watermark"
+    if pronto:
+        return f"{prompt}, {travas}"
     return (
-        f"product photography, {prompt}, natural light, clean background, "
-        f"commercial quality, sharp focus, "
-        # O modelo desenha letra embolada quando tenta escrever. O prompt da
-        # campanha ja evita pedir texto; isto e a segunda barreira.
-        f"no text, no lettering, no logo, no packaging labels, no watermark"
+        f"appetizing advertising photo for a small business social media post, "
+        f"{traduzir_termos(prompt)}, hero close-up of the product, bold lighting, "
+        f"rich saturated colors, shallow depth of field, commercial quality, sharp focus, "
+        f"{travas}"
     )
 
 
@@ -161,13 +200,13 @@ def _pollinations(prompt):
     return resposta.content, content_type.split(";")[0].strip()
 
 
-def gerar_imagem(prompt):
+def gerar_imagem(prompt, pronto=False):
     """Devolve (provider, bytes, content_type), ou None se nenhum provedor deu.
 
     Falha de um provedor nao interrompe: tenta o proximo. Falha de todos
     devolve None e quem chamou segue sem imagem.
     """
-    prompt_final = _traduzir_para_o_modelo(prompt)
+    prompt_final = _traduzir_para_o_modelo(prompt, pronto=pronto)
 
     for nome, funcao in (("cloudflare", _cloudflare), ("pollinations", _pollinations)):
         try:
