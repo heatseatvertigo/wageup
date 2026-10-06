@@ -123,6 +123,45 @@ class ChatDeMarketingTests(_ChatBase):
 
 
 @SEM_IMAGEM
+class RespostaLocalTests(_ChatBase):
+    """Sem IA, a resposta local fala do que foi pedido e diz por que e local."""
+
+    @override_settings(ANTHROPIC_API_KEY="")
+    def test_sem_produto_citado_usa_o_assunto_do_pedido(self):
+        resposta = self._pedir("faca uma foto com um post para o meu novo anuncio de pudim")
+
+        self.assertIn("garantir pudim", resposta.data["message"])
+        self.assertNotIn("Bolo de cenoura", resposta.data["message"])
+        self.assertIn("falta a ANTHROPIC_API_KEY", resposta.data["message"])
+        # O assunto chega ao prompt da imagem pela "Ideia de imagem".
+        campanha = MarketingCampaign.objects.get(id=resposta.data["campaign_id"])
+        self.assertIsNone(campanha.product)
+        self.assertIn("foto clara de pudim", campanha.generated_text)
+
+    @override_settings(ANTHROPIC_API_KEY="chave")
+    @patch("apps.marketing.assistant._call_claude", side_effect=Exception("timeout"))
+    def test_falha_da_ia_nao_diz_que_falta_configurar(self, _falha):
+        resposta = self._pedir()
+
+        self.assertIn("não respondeu agora", resposta.data["message"])
+        self.assertNotIn("falta a ANTHROPIC_API_KEY", resposta.data["message"])
+
+    def test_assunto_do_pedido(self):
+        from .assistant import assunto_do_pedido
+
+        casos = {
+            "faca uma foto com um post para o meu novo anuncio de pudim": "pudim",
+            "Crie um post para o Instagram divulgando Bolo de cenoura": "Bolo de cenoura",
+            "campanha de lançamento da torta de limão": "torta de limão",
+            "quero vender meu brownie no instagram": "brownie",
+            "me dá 5 ideias de vídeos curtos para o TikTok": None,
+        }
+        for pedido, esperado in casos.items():
+            with self.subTest(pedido=pedido):
+                self.assertEqual(assunto_do_pedido(pedido), esperado)
+
+
+@SEM_IMAGEM
 class ContextoDaIaTests(_ChatBase):
     """Os numeros que a IA recebe saem do catalogo, nao do cliente."""
 

@@ -166,15 +166,26 @@ def responder(business, historico, produto=None, canal=None):
     history = sanitize_history(historico)
     produtos = catalogo(business)
 
+    falhou = False
     if settings.ANTHROPIC_API_KEY and history:
         system_prompt = f"{SYSTEM_PROMPT}\n{format_context(business, produtos)}"
         try:
             return "anthropic", _call_claude(system_prompt, history)
         except Exception:
+            falhou = True
             logger.exception("Falha ao responder no chat de marketing. Usando o texto local.")
 
     ultimo = history[-1]["content"] if history else ""
-    return "local-demo", resposta_local(produto or (produtos[0] if produtos else None), ultimo, canal)
+    # Sem produto citado, o assunto vem do proprio pedido ("anuncio de
+    # pudim"): ir direto ao catalogo faria a campanha falar de outra coisa. So
+    # quando o pedido nao diz nada reconhecivel entra o produto de melhor
+    # margem.
+    assunto = (
+        (produto.name if produto else None)
+        or assunto_do_pedido(ultimo)
+        or (produtos[0].name if produtos else None)
+    )
+    return "local-demo", resposta_local(assunto, ultimo, canal, falhou=falhou)
 
 
 def _call_claude(system_prompt, history):
@@ -188,21 +199,74 @@ def _call_claude(system_prompt, history):
     return message.content[0].text.strip()
 
 
-def resposta_local(produto, pedido, canal=None):
-    """Sem chave: uma campanha montada por regra, a partir do catalogo.
+# Onde o assunto costuma aparecer num pedido livre, do mais especifico para o
+# mais solto: "divulgando o bolo", "anuncio de pudim", "post sobre brownie".
+_PECAS = r"(?:an[uú]ncio|post|postagem|campanha|foto|propaganda|legenda|v[ií]deo|reels?|lan[cç]amento|promo[cç][aã]o|oferta)"
+_PADROES_DE_ASSUNTO = [
+    r"\b(?:divulgando|divulgar|promovendo|promover|anunciando|anunciar|vender|vendendo|oferecendo|oferecer|lan[cç]ando|lan[cç]ar)\s+(.+)",
+    r"\b" + _PECAS + r"\s+(?:de|do|da|dos|das|sobre|pro|pra|para o|para a)\s+(.+)",
+    r"\bsobre\s+(.+)",
+]
+# O que sobra na frente do assunto e nao e assunto: artigo, possessivo e o
+# proprio tipo de peca ("meu novo anuncio de pudim" -> "pudim").
+_PREFIXOS = (
+    r"^(?:(?:o|a|os|as|meu|minha|meus|minhas|nosso|nossa|um|uma|novo|nova)\s+"
+    r"|" + _PECAS + r"\s+(?:de|do|da|dos|das)\s+)"
+)
+_CORTES = r"\s+(?:para|pra|pro|no|na|nos|nas|com|em|que|e)\s+|[,.;:!?]"
 
-    Nao finge ter entendido o pedido livre — so a IA entende —, mas entrega
-    algo usavel com o produto do catalogo. A margem fica fora da legenda: e
-    numero do dono, nao do cliente.
+
+def assunto_do_pedido(pedido):
+    """O que o usuario quer divulgar, tirado do texto do pedido.
+
+    Heuristica simples, usada so na resposta local — com a IA ligada, quem le
+    o pedido e o modelo. Sem nada reconhecivel, devolve None.
+    """
+    texto = " ".join(str(pedido or "").split())
+    for padrao in _PADROES_DE_ASSUNTO:
+        achado = re.search(padrao, texto, re.IGNORECASE)
+        if not achado:
+            continue
+        trecho = re.split(_CORTES, achado.group(1), maxsplit=1, flags=re.IGNORECASE)[0]
+        while True:
+            sem_artigo = re.sub(_PREFIXOS, "", trecho, flags=re.IGNORECASE)
+            if sem_artigo == trecho:
+                break
+            trecho = sem_artigo
+        palavras = trecho.split()[:5]
+        if palavras and canal_citado(" ".join(palavras)) is None:
+            return " ".join(palavras)
+    return None
+
+
+def resposta_local(assunto, pedido, canal=None, falhou=False):
+    """Sem IA: uma campanha montada por regra.
+
+    Nao finge ter entendido o pedido livre — so a IA entende —, mas fala do
+    que foi pedido. A margem fica fora da legenda: e numero do dono, nao do
+    cliente.
     """
     canal = canal or "Instagram"
-    nome = produto.name if produto else "seu produto"
+    nome = assunto or "seu produto"
     objetivo = objetivo_citado(pedido)
     headlines = {
         "lancamento": f"Chegou {nome}: feito para encantar no primeiro pedido",
         "relacionamento": f"Seu dia fica melhor com {nome}",
     }
     headline = headlines.get(objetivo, f"{nome} com oferta especial por tempo limitado")
+    headline = headline[:1].upper() + headline[1:]
+    # Os dois casos tem solucao diferente, entao a mensagem tambem: um e
+    # configuracao que falta, o outro e chave ou provedor com problema.
+    if falhou:
+        aviso = (
+            "(Resposta automática: a IA de marketing não respondeu agora — "
+            "confira a ANTHROPIC_API_KEY e o log do servidor. Tente de novo em instantes.)"
+        )
+    else:
+        aviso = (
+            "(Resposta automática: a IA de marketing não está configurada neste "
+            "ambiente — falta a ANTHROPIC_API_KEY —, então o pedido não foi lido por inteiro.)"
+        )
     return (
         f"Campanha para {canal}\n\n"
         f"**Chamada principal:** {headline}\n\n"
@@ -210,6 +274,5 @@ def resposta_local(produto, pedido, canal=None):
         f"luz natural, produto em destaque.\n\n"
         f"**Legenda:** Hoje é um bom dia para garantir {nome}. Feito com carinho, entrega rápida.\n\n"
         f"**CTA:** Chame no direct ou finalize pelo PIX.\n\n"
-        f"(Resposta automática: a IA de marketing não está configurada neste "
-        f"ambiente, então o pedido não foi lido por inteiro.)"
+        f"{aviso}"
     )
