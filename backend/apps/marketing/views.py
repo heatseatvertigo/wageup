@@ -12,6 +12,7 @@ from apps.accounts.throttles import AIRateThrottle
 from apps.businesses.models import Business
 from .assistant import (
     MAX_MESSAGE_CHARS,
+    assunto_do_pedido,
     canal_citado,
     catalogo,
     e_campanha,
@@ -157,9 +158,12 @@ def marketing_chat(request):
 
     # Produto e canal: o que o pedido cita, senao o da ultima campanha da
     # conversa — "agora faz uma versao para o WhatsApp" continua falando do
-    # mesmo produto.
+    # mesmo produto. Pedido que cita outro assunto ("agora do cachorro
+    # quente") nao herda: herdar trocaria o que o usuario pediu.
     ultima = next((m.campaign for m in reversed(anteriores) if m.campaign), None)
-    produto = produto_citado(pedido, catalogo(business)) or (ultima.product if ultima else None)
+    produto = produto_citado(pedido, catalogo(business))
+    if produto is None and ultima is not None and not assunto_do_pedido(pedido):
+        produto = ultima.product
     canal = canal_citado(pedido) or (ultima.channel if ultima else None)
 
     provider, resposta = responder(business, historico, produto=produto, canal=canal)

@@ -84,7 +84,7 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 
 - [x] Chat de marketing com pedido livre (post, campanha, legenda, ideias de vídeo, mensagem para clientes), no mesmo formato do assistente financeiro, com histórico de conversas
 - [x] A IA conhece o catálogo e a margem real de cada produto; o produto e o canal saem do próprio pedido
-- [x] Integração real com a Anthropic (modelo Claude Haiku) — com fallback local (texto de demonstração) quando não há `ANTHROPIC_API_KEY` configurada
+- [x] Provedores em cascata, como no assistente financeiro: DeepSeek (`DEEPSEEK_API_KEY`), Anthropic como alternativa (`ANTHROPIC_API_KEY`) e, sem nenhuma chave ou com as duas fora do ar, uma campanha local montada a partir do assunto do pedido
 - [x] Os números que vão para a IA saem do produto no banco (preço, custo e **margem real**, com embalagem, frete, taxa e imposto descontados), não do que o navegador mandou. O prompt ainda avisa a IA para não sugerir desconto maior que a margem
 - [x] Histórico de campanhas geradas, vinculado ao negócio e ao produto
 - [x] **Recomendações automáticas de ação** (`GET /api/marketing/recommendations/`): devolve o que divulgar em seguida, na ordem produto em prejuízo (revisar preço antes) → produto de margem alta nunca divulgado → produto com estoque baixo (repor antes) → melhor margem do catálogo. Cada item já traz produto, canal e objetivo resolvidos

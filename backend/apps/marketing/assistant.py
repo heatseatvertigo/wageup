@@ -18,6 +18,7 @@ import unicodedata
 import anthropic as anthropic_sdk
 from django.conf import settings
 
+from apps.finance.assistant import _call_deepseek
 from apps.finance.insights import brl
 from apps.products.models import Product
 from .images import IDEIA_DE_IMAGEM
@@ -166,14 +167,23 @@ def responder(business, historico, produto=None, canal=None):
     history = sanitize_history(historico)
     produtos = catalogo(business)
 
+    # Mesma ordem do assistente financeiro: DeepSeek, depois Anthropic. Se o
+    # primeiro falhar, tenta o segundo antes de cair na resposta local.
+    provedores = []
+    if settings.DEEPSEEK_API_KEY:
+        provedores.append(("deepseek", _call_deepseek_marketing))
+    if settings.ANTHROPIC_API_KEY:
+        provedores.append(("anthropic", _call_claude))
+
     falhou = False
-    if settings.ANTHROPIC_API_KEY and history:
+    if history and provedores:
         system_prompt = f"{SYSTEM_PROMPT}\n{format_context(business, produtos)}"
-        try:
-            return "anthropic", _call_claude(system_prompt, history)
-        except Exception:
-            falhou = True
-            logger.exception("Falha ao responder no chat de marketing. Usando o texto local.")
+        for nome, chamar in provedores:
+            try:
+                return nome, chamar(system_prompt, history)
+            except Exception:
+                falhou = True
+                logger.exception("Falha ao responder no chat de marketing com %s.", nome)
 
     ultimo = history[-1]["content"] if history else ""
     # Sem produto citado, o assunto vem do proprio pedido ("anuncio de
@@ -186,6 +196,12 @@ def responder(business, historico, produto=None, canal=None):
         or (produtos[0].name if produtos else None)
     )
     return "local-demo", resposta_local(assunto, ultimo, canal, falhou=falhou)
+
+
+def _call_deepseek_marketing(system_prompt, history):
+    # Temperatura maior que a do assistente financeiro: aqui se quer texto
+    # criativo, nao leitura de numeros.
+    return _call_deepseek(system_prompt, history, max_tokens=900, temperature=0.8)
 
 
 def _call_claude(system_prompt, history):
@@ -260,12 +276,12 @@ def resposta_local(assunto, pedido, canal=None, falhou=False):
     if falhou:
         aviso = (
             "(Resposta automática: a IA de marketing não respondeu agora — "
-            "confira a ANTHROPIC_API_KEY e o log do servidor. Tente de novo em instantes.)"
+            "confira a chave da DeepSeek e o log do servidor. Tente de novo em instantes.)"
         )
     else:
         aviso = (
             "(Resposta automática: a IA de marketing não está configurada neste "
-            "ambiente — falta a ANTHROPIC_API_KEY —, então o pedido não foi lido por inteiro.)"
+            "ambiente — falta a DEEPSEEK_API_KEY —, então o pedido não foi lido por inteiro.)"
         )
     return (
         f"Campanha para {canal}\n\n"

@@ -288,8 +288,12 @@ def ask_assistant(business, messages):
     return "local-demo", _local_answer()
 
 
-def _call_deepseek(system_prompt, history):
-    """A API da DeepSeek segue o formato da OpenAI, entao requests basta."""
+def _call_deepseek(system_prompt, history, max_tokens=700, temperature=0.3):
+    """A API da DeepSeek segue o formato da OpenAI, entao requests basta.
+
+    Tambem usada pelo chat de marketing, que pede respostas maiores e mais
+    soltas: por isso tamanho e temperatura sao parametros.
+    """
     try:
         response = requests.post(
             f"{settings.DEEPSEEK_BASE_URL}/chat/completions",
@@ -300,8 +304,8 @@ def _call_deepseek(system_prompt, history):
             json={
                 "model": settings.DEEPSEEK_MODEL,
                 "messages": [{"role": "system", "content": system_prompt}, *history],
-                "max_tokens": 700,
-                "temperature": 0.3,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
             },
             timeout=45,
         )

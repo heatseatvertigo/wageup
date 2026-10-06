@@ -16,7 +16,7 @@ O escopo completo está em `Escopo TCC.pdf`, dentro de `docs/` (pasta local, nã
 **Backend**: Django 6 + Django REST Framework, autenticação por Token.
 **Frontend**: SPA em vanilla JS (sem framework), servido pelo próprio Django via WhiteNoise.
 **Pagamentos**: Abacate Pay (PIX). Integração em `backend/apps/payments/services.py`.
-**IA**: Anthropic Claude Haiku (`claude-haiku-4-5-20251001`) para campanhas de marketing e insights do dashboard. DeepSeek (`deepseek-chat`) para o assistente financeiro, com a Anthropic como alternativa e resposta local quando não há nenhuma chave.
+**IA**: DeepSeek (`deepseek-chat`) para o assistente financeiro e o chat de marketing, com a Anthropic (Claude Haiku, `claude-haiku-4-5-20251001`) como alternativa e resposta local quando não há nenhuma chave. Os insights do dashboard e as recomendações de marketing usam a Anthropic.
 **Deploy**: Render (aplicação) + Neon (PostgreSQL). Produção em https://wageup.onrender.com. Ver [DEPLOY-RENDER.md](DEPLOY-RENDER.md).
 
 ### Apps Django
@@ -28,7 +28,7 @@ backend/apps/
 ├── products/     # Catálogo, cálculo de margem e foto do produto
 ├── finance/      # Transações, importação de extrato, insights e assistente — só admin
 ├── payments/     # Cobranças PIX via Abacate Pay — só admin
-└── marketing/    # Campanhas de marketing com IA (Claude Haiku)
+└── marketing/    # Chat de marketing com IA (DeepSeek, Anthropic como alternativa)
 ```
 
 ### Isolamento de dados
@@ -108,8 +108,8 @@ Arquivo `.env` na raiz do projeto (não commitado). Ver `.env.example` para refe
 | `ABACATE_PAY_API_KEY` | Chave da Abacate Pay para gerar PIX |
 | `ABACATE_PAY_WEBHOOK_SECRET` | Segredo do webhook da Abacate Pay |
 | `WAGEUP_ADMIN_EMAILS` | E-mails com role admin (ex: `admin@wageup.com`) |
-| `ANTHROPIC_API_KEY` | Chave da Anthropic — campanhas de marketing e insights |
-| `DEEPSEEK_API_KEY` | Chave da DeepSeek — assistente financeiro |
+| `ANTHROPIC_API_KEY` | Chave da Anthropic — insights, recomendações e alternativa à DeepSeek nos chats |
+| `DEEPSEEK_API_KEY` | Chave da DeepSeek — assistente financeiro e chat de marketing |
 | `DEEPSEEK_BASE_URL` | Endpoint da DeepSeek (default `https://api.deepseek.com`) |
 | `DEEPSEEK_MODEL` | Modelo da DeepSeek (default `deepseek-chat`) |
 | `GOOGLE_CLIENT_ID` | Client ID do Google — habilita o login com Google |
@@ -167,7 +167,7 @@ GET/POST        /api/payments/               # Só admin, gera PIX via Abacate P
 GET             /api/payments/summary/       # Consolidação de recebíveis
 POST            /api/payments/<id>/check/    # Sincroniza status com a Abacate Pay
 POST            /api/payments/webhooks/abacatepay/   # Webhook de confirmação
-POST            /api/marketing/chat/         # Pedido livre ao chat de marketing (Claude Haiku se ANTHROPIC_API_KEY estiver set)
+POST            /api/marketing/chat/         # Pedido livre ao chat de marketing (DeepSeek; Anthropic como alternativa)
 GET/POST        /api/marketing/conversations/          # Lista ou cria conversa de marketing
 GET/DELETE      /api/marketing/conversations/<uuid>/   # Mensagens ou remoção
 GET             /api/marketing/recommendations/  # O que divulgar em seguida, pela margem real do catálogo
@@ -184,7 +184,7 @@ GET             /api/health/                 # Health check (aberto, sem throttl
 
 2. **Frontend servido pelo Django**: WhiteNoise serve `frontend/` como static files. O `index.html` é servido em `/`. Isso simplifica o deploy (tudo num serviço só no Render).
 
-3. **Marketing AI com fallback**: se `ANTHROPIC_API_KEY` não estiver configurada, o endpoint retorna uma resposta demo local. Não quebra em dev sem chave.
+3. **Marketing AI com fallback**: sem `DEEPSEEK_API_KEY` nem `ANTHROPIC_API_KEY`, ou se as duas falharem, o chat responde com uma campanha local montada a partir do assunto do pedido. Não quebra em dev sem chave.
 
 4. **Token auth (não JWT)**: DRF TokenAuthentication. Simples para TCC, suficiente para o escopo.
 
@@ -214,7 +214,7 @@ GET             /api/health/                 # Health check (aberto, sem throttl
 
 17. **Deduplicação por `Transaction.external_id`**, com unicidade por business: o FITID do OFX quando existe, senão uma impressão digital do conteúdo. É o que faz reimportar o mesmo extrato não duplicar. Qualquer formato novo (CSV, PDF) precisa devolver um `external_id` estável — sem isso, a importação suja o financeiro em vez de ajudar.
 
-18. **Marketing é um chat, não um formulário**: a tela usa o mesmo componente do assistente financeiro (`createChat()` em `app.js`) e o usuário escreve o pedido livremente. O histórico vive em `MarketingConversation`/`MarketingMessage`, no servidor. A IA recebe o catálogo inteiro com a margem real (`marketing/assistant.py`); o produto e o canal da campanha são deduzidos do nome citado no pedido, ou herdados da campanha anterior da conversa. Só a resposta que traz a seção "Ideia de imagem" vira `MarketingCampaign` e ganha imagem — pergunta solta ("que hashtag uso?") não gera imagem nem registro.
+18. **Marketing é um chat, não um formulário**: a tela usa o mesmo componente do assistente financeiro (`createChat()` em `app.js`) e o usuário escreve o pedido livremente. O histórico vive em `MarketingConversation`/`MarketingMessage`, no servidor. Provedores na mesma ordem do assistente financeiro: DeepSeek, depois Anthropic, depois resposta local. A IA recebe o catálogo inteiro com a margem real (`marketing/assistant.py`); o produto e o canal da campanha são deduzidos do nome citado no pedido, ou herdados da campanha anterior da conversa quando o pedido não cita outro assunto. Só a resposta que traz a seção "Ideia de imagem" vira `MarketingCampaign` e ganha imagem — pergunta solta ("que hashtag uso?") não gera imagem nem registro.
 
 ---
 
@@ -241,7 +241,7 @@ Para domínio próprio: configurar `CUSTOM_DOMAIN=seudominio.com` nas variáveis
 - [backend/apps/accounts/tests.py](backend/apps/accounts/tests.py) — testes da recuperação de senha
 - [backend/apps/payments/services.py](backend/apps/payments/services.py) — cliente Abacate Pay
 - [backend/apps/marketing/views.py](backend/apps/marketing/views.py) — rotas do chat de marketing e das conversas
-- [backend/apps/marketing/assistant.py](backend/apps/marketing/assistant.py) — contexto do catálogo, prompt e chamada ao Claude do chat de marketing
+- [backend/apps/marketing/assistant.py](backend/apps/marketing/assistant.py) — contexto do catálogo, prompt e chamada à IA (DeepSeek/Anthropic) do chat de marketing
 - [backend/apps/marketing/recommendations.py](backend/apps/marketing/recommendations.py) — recomendações de ação a partir do catálogo
 - [backend/apps/marketing/images.py](backend/apps/marketing/images.py) — geração da imagem da campanha (Cloudflare/Pollinations)
 - [backend/apps/finance/assistant.py](backend/apps/finance/assistant.py) — assistente financeiro (DeepSeek/Claude/local)

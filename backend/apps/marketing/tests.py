@@ -25,7 +25,9 @@ from .models import CampaignImage, MarketingCampaign
 # Sem provedor de imagem: estes testes sao do texto da campanha. Fixar aqui
 # evita que um .env com chave da Cloudflare faca a suite bater na rede.
 SEM_IMAGEM = override_settings(
-    CLOUDFLARE_ACCOUNT_ID="", CLOUDFLARE_API_TOKEN="", MARKETING_IMAGE_FALLBACK=False
+    CLOUDFLARE_ACCOUNT_ID="", CLOUDFLARE_API_TOKEN="", MARKETING_IMAGE_FALLBACK=False,
+    # Sem DeepSeek por padrao: os testes que querem um provedor ligam o seu.
+    DEEPSEEK_API_KEY="",
 )
 
 
@@ -132,7 +134,7 @@ class RespostaLocalTests(_ChatBase):
 
         self.assertIn("garantir pudim", resposta.data["message"])
         self.assertNotIn("Bolo de cenoura", resposta.data["message"])
-        self.assertIn("falta a ANTHROPIC_API_KEY", resposta.data["message"])
+        self.assertIn("falta a DEEPSEEK_API_KEY", resposta.data["message"])
         # O assunto chega ao prompt da imagem pela "Ideia de imagem".
         campanha = MarketingCampaign.objects.get(id=resposta.data["campaign_id"])
         self.assertIsNone(campanha.product)
@@ -144,7 +146,20 @@ class RespostaLocalTests(_ChatBase):
         resposta = self._pedir()
 
         self.assertIn("não respondeu agora", resposta.data["message"])
-        self.assertNotIn("falta a ANTHROPIC_API_KEY", resposta.data["message"])
+        self.assertNotIn("falta a DEEPSEEK_API_KEY", resposta.data["message"])
+
+    @override_settings(ANTHROPIC_API_KEY="", DEEPSEEK_API_KEY="")
+    def test_assunto_novo_na_conversa_nao_herda_o_produto_anterior(self):
+        conversa = self._pedir("post do bolo de cenoura").data["conversation"]["id"]
+
+        resposta = self._pedir(
+            "crie um post com imagem para anunciar meu cachorro quente", conversation_id=conversa
+        )
+
+        self.assertIn("cachorro quente", resposta.data["message"])
+        self.assertNotIn("Bolo de cenoura", resposta.data["message"])
+        campanha = MarketingCampaign.objects.get(id=resposta.data["campaign_id"])
+        self.assertIsNone(campanha.product)
 
     def test_assunto_do_pedido(self):
         from .assistant import assunto_do_pedido
@@ -159,6 +174,37 @@ class RespostaLocalTests(_ChatBase):
         for pedido, esperado in casos.items():
             with self.subTest(pedido=pedido):
                 self.assertEqual(assunto_do_pedido(pedido), esperado)
+
+
+@SEM_IMAGEM
+class ProvedoresTests(_ChatBase):
+    """DeepSeek primeiro, como no assistente financeiro; Anthropic como alternativa."""
+
+    @override_settings(DEEPSEEK_API_KEY="chave-deepseek", ANTHROPIC_API_KEY="chave-anthropic")
+    @patch("apps.marketing.assistant._call_claude")
+    @patch("apps.marketing.assistant._call_deepseek", return_value=CAMPANHA_DA_IA)
+    def test_usa_a_deepseek_quando_ha_chave(self, deepseek, claude):
+        resposta = self._pedir()
+
+        self.assertEqual(resposta.data["provider"], "deepseek")
+        claude.assert_not_called()
+        system, history = deepseek.call_args.args
+        self.assertIn("margem real R$ 39,00", system)
+        self.assertEqual(history[-1]["content"], "cria um post do bolo de cenoura")
+
+    @override_settings(DEEPSEEK_API_KEY="chave-deepseek", ANTHROPIC_API_KEY="chave-anthropic")
+    @patch("apps.marketing.assistant._call_claude", return_value=CAMPANHA_DA_IA)
+    @patch("apps.marketing.assistant._call_deepseek", side_effect=Exception("502"))
+    def test_deepseek_fora_do_ar_tenta_a_anthropic(self, _deepseek, _claude):
+        self.assertEqual(self._pedir().data["provider"], "anthropic")
+
+    @override_settings(DEEPSEEK_API_KEY="chave-deepseek", ANTHROPIC_API_KEY="")
+    @patch("apps.marketing.assistant._call_deepseek", side_effect=Exception("401"))
+    def test_so_deepseek_e_ela_falha_cai_na_resposta_local(self, _deepseek):
+        resposta = self._pedir()
+
+        self.assertEqual(resposta.data["provider"], "local-demo")
+        self.assertIn("não respondeu agora", resposta.data["message"])
 
 
 @SEM_IMAGEM
