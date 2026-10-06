@@ -226,6 +226,20 @@ class ContextoDaIaTests(_ChatBase):
 
     @override_settings(ANTHROPIC_API_KEY="chave")
     @patch("apps.marketing.assistant.anthropic_sdk.Anthropic")
+    def test_produto_fora_do_catalogo_nao_e_motivo_para_recusar(self, sdk):
+        # A DeepSeek recusava "anuncio do meu cachorro quente" porque a regra
+        # mandava usar so produtos do catalogo.
+        sdk.return_value.messages.create.return_value.content = _texto("ok")
+
+        self._pedir("crie um anuncio do meu cachorro quente")
+
+        system = sdk.return_value.messages.create.call_args_list[0].kwargs["system"]
+        self.assertIn("esteja ou não no catálogo", system)
+        self.assertIn("Nunca recuse por isso", system)
+        self.assertNotIn("Use apenas os produtos", system)
+
+    @override_settings(ANTHROPIC_API_KEY="chave")
+    @patch("apps.marketing.assistant.anthropic_sdk.Anthropic")
     def test_produto_de_outro_negocio_nao_entra_no_contexto(self, sdk):
         sdk.return_value.messages.create.return_value.content = _texto("ok")
         User = get_user_model()

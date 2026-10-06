@@ -60,8 +60,12 @@ SYSTEM_PROMPT = (
     "Para qualquer outro pedido, NÃO escreva a seção 'Ideia de imagem': ela é "
     "o que dispara a geração de uma imagem.\n\n"
     "REGRAS QUE NÃO SE QUEBRAM:\n"
-    "- Use apenas os produtos e números do catálogo abaixo. Nunca invente "
-    "preço, produto ou promoção que o negócio não informou.\n"
+    "- O usuário pode pedir campanha de qualquer coisa que vende, esteja ou não "
+    "no catálogo. Produto fora do catálogo: faça a campanha normalmente, sem "
+    "citar preço, e no fim sugira em uma frase cadastrá-lo na tela Produtos "
+    "para as próximas campanhas usarem a margem real. Nunca recuse por isso.\n"
+    "- Números só do catálogo ou do que o usuário disser: nunca invente preço, "
+    "desconto ou promoção.\n"
     "- A margem do catálogo já desconta custo, embalagem, frete, taxa de "
     "cartão/PIX e imposto. Se sugerir desconto, ele tem que caber nela: um "
     "desconto maior faz o negócio vender no prejuízo.\n"
@@ -86,9 +90,8 @@ def format_context(business, produtos):
     linhas = [f"NEGÓCIO: {business.name or 'microempreendedor'}", ""]
     if not produtos:
         linhas.append(
-            "CATÁLOGO: nenhum produto cadastrado. Se o usuário pedir campanha de "
-            "um produto, escreva sem inventar preço e sugira cadastrar o produto "
-            "na tela Produtos para a próxima campanha usar os números reais."
+            "CATÁLOGO: nenhum produto cadastrado. Faça a campanha do que o usuário "
+            "pedir, sem inventar preço."
         )
         return "\n".join(linhas)
 
