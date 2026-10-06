@@ -18,6 +18,7 @@ import unicodedata
 import anthropic as anthropic_sdk
 from django.conf import settings
 
+from apps.finance.assistant import _call_deepseek
 from apps.finance.insights import brl
 from apps.products.models import Product
 from .images import IDEIA_DE_IMAGEM
@@ -59,8 +60,12 @@ SYSTEM_PROMPT = (
     "Para qualquer outro pedido, NÃO escreva a seção 'Ideia de imagem': ela é "
     "o que dispara a geração de uma imagem.\n\n"
     "REGRAS QUE NÃO SE QUEBRAM:\n"
-    "- Use apenas os produtos e números do catálogo abaixo. Nunca invente "
-    "preço, produto ou promoção que o negócio não informou.\n"
+    "- O usuário pode pedir campanha de qualquer coisa que vende, esteja ou não "
+    "no catálogo. Produto fora do catálogo: faça a campanha normalmente, sem "
+    "citar preço, e no fim sugira em uma frase cadastrá-lo na tela Produtos "
+    "para as próximas campanhas usarem a margem real. Nunca recuse por isso.\n"
+    "- Números só do catálogo ou do que o usuário disser: nunca invente preço, "
+    "desconto ou promoção.\n"
     "- A margem do catálogo já desconta custo, embalagem, frete, taxa de "
     "cartão/PIX e imposto. Se sugerir desconto, ele tem que caber nela: um "
     "desconto maior faz o negócio vender no prejuízo.\n"
@@ -85,9 +90,8 @@ def format_context(business, produtos):
     linhas = [f"NEGÓCIO: {business.name or 'microempreendedor'}", ""]
     if not produtos:
         linhas.append(
-            "CATÁLOGO: nenhum produto cadastrado. Se o usuário pedir campanha de "
-            "um produto, escreva sem inventar preço e sugira cadastrar o produto "
-            "na tela Produtos para a próxima campanha usar os números reais."
+            "CATÁLOGO: nenhum produto cadastrado. Faça a campanha do que o usuário "
+            "pedir, sem inventar preço."
         )
         return "\n".join(linhas)
 
@@ -166,15 +170,98 @@ def responder(business, historico, produto=None, canal=None):
     history = sanitize_history(historico)
     produtos = catalogo(business)
 
-    if settings.ANTHROPIC_API_KEY and history:
+    provedores = _provedores()
+    falhou = False
+    if history and provedores:
         system_prompt = f"{SYSTEM_PROMPT}\n{format_context(business, produtos)}"
-        try:
-            return "anthropic", _call_claude(system_prompt, history)
-        except Exception:
-            logger.exception("Falha ao responder no chat de marketing. Usando o texto local.")
+        for nome, chamar in provedores:
+            try:
+                return nome, chamar(system_prompt, history)
+            except Exception:
+                falhou = True
+                logger.exception("Falha ao responder no chat de marketing com %s.", nome)
 
     ultimo = history[-1]["content"] if history else ""
-    return "local-demo", resposta_local(produto or (produtos[0] if produtos else None), ultimo, canal)
+    # Sem produto citado, o assunto vem do proprio pedido ("anuncio de
+    # pudim"): ir direto ao catalogo faria a campanha falar de outra coisa. So
+    # quando o pedido nao diz nada reconhecivel entra o produto de melhor
+    # margem.
+    assunto = (
+        (produto.name if produto else None)
+        or assunto_do_pedido(ultimo)
+        or (produtos[0].name if produtos else None)
+    )
+    return "local-demo", resposta_local(assunto, ultimo, canal, falhou=falhou)
+
+
+def _provedores():
+    """Mesma ordem do assistente financeiro: DeepSeek, depois Anthropic.
+
+    Se o primeiro falhar, quem chama tenta o segundo antes de desistir.
+    """
+    provedores = []
+    if settings.DEEPSEEK_API_KEY:
+        provedores.append(("deepseek", _call_deepseek_marketing))
+    if settings.ANTHROPIC_API_KEY:
+        provedores.append(("anthropic", _call_claude))
+    return provedores
+
+
+# O modelo de imagem (FLUX) entende ingles muito melhor que portugues, e le
+# ao pe da letra: "cachorro quente" virava um cachorro. A IA de texto ja esta
+# a mao, entao ela traduz a ideia e escolhe o estilo de anuncio que combina
+# com o que se vende.
+IMAGE_PROMPT_SYSTEM = (
+    "You write prompts for FLUX, a text-to-image model, to create social media "
+    "ad images for small Brazilian businesses: food sellers, bakers, snack bars, "
+    "barbers, nail designers, artisans.\n"
+    "Turn the idea you receive (in Portuguese) into ONE English prompt that makes "
+    "the product look irresistible and professional, like a paid ad from a good "
+    "local brand:\n"
+    "- hero close-up of the product, filling most of the frame;\n"
+    "- props and setting that fit what is sold (food: ingredients around, steam, "
+    "melting cheese, sauce, crumbs; beauty services: the finished result on hands "
+    "or hair; crafts: the item styled on a surface);\n"
+    "- bold lighting, rich saturated colors, shallow depth of field.\n"
+    "Keep Brazilian products recognizable by describing what they look like: "
+    "'cachorro quente' is a Brazilian hot dog (soft bun, sausage, tomato sauce, "
+    "corn, peas, crispy potato sticks on top), 'pastel' is a fried crispy pastry, "
+    "'coxinha' is a teardrop-shaped fried chicken croquette, 'brigadeiro' is a "
+    "chocolate truffle with sprinkles, 'pudim' is a caramel flan.\n"
+    "Never ask for text, letters, logos, labels or watermarks.\n"
+    "Answer with the prompt only, one line, under 70 words."
+)
+
+
+def prompt_da_imagem(ideia, assunto=None):
+    """A ideia de imagem em ingles, pronta para o FLUX. None se nao houver IA.
+
+    Falha aqui nao derruba nada: quem chama segue com a ideia original e um
+    glossario minimo (images.traduzir_termos).
+    """
+    pedido = f"Produto: {assunto}\nIdeia de imagem: {ideia}" if assunto else f"Ideia de imagem: {ideia}"
+    for nome, _ in _provedores():
+        try:
+            if nome == "deepseek":
+                texto = _call_deepseek(
+                    IMAGE_PROMPT_SYSTEM, [{"role": "user", "content": pedido}],
+                    max_tokens=200, temperature=0.4,
+                )
+            else:
+                texto = _call_claude(IMAGE_PROMPT_SYSTEM, [{"role": "user", "content": pedido}])
+        except Exception:
+            logger.exception("Falha ao montar o prompt da imagem com %s.", nome)
+            continue
+        linha = " ".join(str(texto or "").split()).strip().strip('"')
+        if linha:
+            return linha[:600]
+    return None
+
+
+def _call_deepseek_marketing(system_prompt, history):
+    # Temperatura maior que a do assistente financeiro: aqui se quer texto
+    # criativo, nao leitura de numeros.
+    return _call_deepseek(system_prompt, history, max_tokens=900, temperature=0.8)
 
 
 def _call_claude(system_prompt, history):
@@ -188,21 +275,74 @@ def _call_claude(system_prompt, history):
     return message.content[0].text.strip()
 
 
-def resposta_local(produto, pedido, canal=None):
-    """Sem chave: uma campanha montada por regra, a partir do catalogo.
+# Onde o assunto costuma aparecer num pedido livre, do mais especifico para o
+# mais solto: "divulgando o bolo", "anuncio de pudim", "post sobre brownie".
+_PECAS = r"(?:an[uú]ncio|post|postagem|campanha|foto|propaganda|legenda|v[ií]deo|reels?|lan[cç]amento|promo[cç][aã]o|oferta)"
+_PADROES_DE_ASSUNTO = [
+    r"\b(?:divulgando|divulgar|promovendo|promover|anunciando|anunciar|vender|vendendo|oferecendo|oferecer|lan[cç]ando|lan[cç]ar)\s+(.+)",
+    r"\b" + _PECAS + r"\s+(?:de|do|da|dos|das|sobre|pro|pra|para o|para a)\s+(.+)",
+    r"\bsobre\s+(.+)",
+]
+# O que sobra na frente do assunto e nao e assunto: artigo, possessivo e o
+# proprio tipo de peca ("meu novo anuncio de pudim" -> "pudim").
+_PREFIXOS = (
+    r"^(?:(?:o|a|os|as|meu|minha|meus|minhas|nosso|nossa|um|uma|novo|nova)\s+"
+    r"|" + _PECAS + r"\s+(?:de|do|da|dos|das)\s+)"
+)
+_CORTES = r"\s+(?:para|pra|pro|no|na|nos|nas|com|em|que|e)\s+|[,.;:!?]"
 
-    Nao finge ter entendido o pedido livre — so a IA entende —, mas entrega
-    algo usavel com o produto do catalogo. A margem fica fora da legenda: e
-    numero do dono, nao do cliente.
+
+def assunto_do_pedido(pedido):
+    """O que o usuario quer divulgar, tirado do texto do pedido.
+
+    Heuristica simples, usada so na resposta local — com a IA ligada, quem le
+    o pedido e o modelo. Sem nada reconhecivel, devolve None.
+    """
+    texto = " ".join(str(pedido or "").split())
+    for padrao in _PADROES_DE_ASSUNTO:
+        achado = re.search(padrao, texto, re.IGNORECASE)
+        if not achado:
+            continue
+        trecho = re.split(_CORTES, achado.group(1), maxsplit=1, flags=re.IGNORECASE)[0]
+        while True:
+            sem_artigo = re.sub(_PREFIXOS, "", trecho, flags=re.IGNORECASE)
+            if sem_artigo == trecho:
+                break
+            trecho = sem_artigo
+        palavras = trecho.split()[:5]
+        if palavras and canal_citado(" ".join(palavras)) is None:
+            return " ".join(palavras)
+    return None
+
+
+def resposta_local(assunto, pedido, canal=None, falhou=False):
+    """Sem IA: uma campanha montada por regra.
+
+    Nao finge ter entendido o pedido livre — so a IA entende —, mas fala do
+    que foi pedido. A margem fica fora da legenda: e numero do dono, nao do
+    cliente.
     """
     canal = canal or "Instagram"
-    nome = produto.name if produto else "seu produto"
+    nome = assunto or "seu produto"
     objetivo = objetivo_citado(pedido)
     headlines = {
         "lancamento": f"Chegou {nome}: feito para encantar no primeiro pedido",
         "relacionamento": f"Seu dia fica melhor com {nome}",
     }
     headline = headlines.get(objetivo, f"{nome} com oferta especial por tempo limitado")
+    headline = headline[:1].upper() + headline[1:]
+    # Os dois casos tem solucao diferente, entao a mensagem tambem: um e
+    # configuracao que falta, o outro e chave ou provedor com problema.
+    if falhou:
+        aviso = (
+            "(Resposta automática: a IA de marketing não respondeu agora — "
+            "confira a chave da DeepSeek e o log do servidor. Tente de novo em instantes.)"
+        )
+    else:
+        aviso = (
+            "(Resposta automática: a IA de marketing não está configurada neste "
+            "ambiente — falta a DEEPSEEK_API_KEY —, então o pedido não foi lido por inteiro.)"
+        )
     return (
         f"Campanha para {canal}\n\n"
         f"**Chamada principal:** {headline}\n\n"
@@ -210,6 +350,5 @@ def resposta_local(produto, pedido, canal=None):
         f"luz natural, produto em destaque.\n\n"
         f"**Legenda:** Hoje é um bom dia para garantir {nome}. Feito com carinho, entrega rápida.\n\n"
         f"**CTA:** Chame no direct ou finalize pelo PIX.\n\n"
-        f"(Resposta automática: a IA de marketing não está configurada neste "
-        f"ambiente, então o pedido não foi lido por inteiro.)"
+        f"{aviso}"
     )

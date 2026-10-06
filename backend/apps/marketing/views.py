@@ -12,11 +12,13 @@ from apps.accounts.throttles import AIRateThrottle
 from apps.businesses.models import Business
 from .assistant import (
     MAX_MESSAGE_CHARS,
+    assunto_do_pedido,
     canal_citado,
     catalogo,
     e_campanha,
     objetivo_citado,
     produto_citado,
+    prompt_da_imagem,
     responder,
 )
 from .images import extrair_prompt, gerar_imagem
@@ -157,9 +159,12 @@ def marketing_chat(request):
 
     # Produto e canal: o que o pedido cita, senao o da ultima campanha da
     # conversa — "agora faz uma versao para o WhatsApp" continua falando do
-    # mesmo produto.
+    # mesmo produto. Pedido que cita outro assunto ("agora do cachorro
+    # quente") nao herda: herdar trocaria o que o usuario pediu.
     ultima = next((m.campaign for m in reversed(anteriores) if m.campaign), None)
-    produto = produto_citado(pedido, catalogo(business)) or (ultima.product if ultima else None)
+    produto = produto_citado(pedido, catalogo(business))
+    if produto is None and ultima is not None and not assunto_do_pedido(pedido):
+        produto = ultima.product
     canal = canal_citado(pedido) or (ultima.channel if ultima else None)
 
     provider, resposta = responder(business, historico, produto=produto, canal=canal)
@@ -179,7 +184,9 @@ def marketing_chat(request):
             metadata={"source": provider, "conversation_id": str(conversation.id)},
         )
         tem_imagem = _gerar_imagem_da_campanha(
-            campaign, produto.name if produto else "o produto", campaign.channel
+            campaign,
+            produto.name if produto else (assunto_do_pedido(pedido) or "o produto"),
+            campaign.channel,
         )
 
     MarketingMessage.objects.create(conversation=conversation, role="user", content=pedido)
@@ -206,9 +213,12 @@ def _gerar_imagem_da_campanha(campaign, product_name, channel):
     A imagem e um extra: se nenhum provedor responder, a campanha ja esta
     gravada e o texto ja e util. Por isso nada aqui propaga excecao.
     """
-    prompt = extrair_prompt(campaign.generated_text, product_name, channel)
+    ideia = extrair_prompt(campaign.generated_text, product_name, channel)
+    # A IA de texto traduz e escolhe o estilo; sem ela, segue a ideia original.
+    em_ingles = prompt_da_imagem(ideia, product_name)
+    prompt = em_ingles or ideia
     try:
-        resultado = gerar_imagem(prompt)
+        resultado = gerar_imagem(prompt, pronto=bool(em_ingles))
     except Exception:
         logger.exception("Falha inesperada ao gerar a imagem da campanha.")
         return False

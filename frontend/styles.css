@@ -1871,7 +1871,17 @@ select:focus {
 
 @media (max-width: 768px) {
   .record-filters { flex-direction: column; align-items: stretch; }
-  .record-filters__month { justify-content: space-between; }
+  /* Mês entre as setas numa linha; "Todo o período" e "Filtros" dividem a
+     seguinte. Sem quebra a linha passava da largura da tela e a página
+     inteira rolava de lado. */
+  .record-filters__month {
+    display: grid;
+    grid-template-columns: auto 1fr 1fr auto;
+  }
+  .record-filters__label { grid-column: 2 / 4; min-width: 0; }
+  .record-filters__month > .chip { grid-column: 1 / 3; justify-content: center; }
+  .record-filters__month > .menu { grid-column: 3 / 5; }
+  .record-filters__month > .menu > .chip { width: 100%; justify-content: center; }
 }
 
 /* ─── Filtro por período ─── */
@@ -2576,6 +2586,9 @@ kbd {
 
 .view.active {
   display: grid;
+  /* Coluna que pode encolher: a implícita (auto) cresce até o conteúdo mais
+     largo e empurrava a tela para além da largura do celular. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-8);
   align-content: start;
 }
@@ -2626,6 +2639,7 @@ kbd {
 
 .work-panel {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-6);
   padding: var(--space-6);
   background: var(--color-surface);
@@ -2635,6 +2649,7 @@ kbd {
 
 .panel-heading {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-4);
@@ -2646,10 +2661,15 @@ kbd {
   color: var(--color-text-primary);
 }
 
-.panel-heading span {
+/* Só o subtítulo solto ao lado do título. Com o seletor de descendente, a
+   regra pegava também os ícones e o selo dentro dos botões do cabeçalho,
+   que saíam miúdos e na cor de desabilitado. */
+.panel-heading > span {
   font-size: var(--text-xs);
   color: var(--color-text-disabled);
 }
+
+.panel-heading button .material-symbols-rounded { font-size: 1.1rem; }
 
 /* ─── Overview: cards duo ─── */
 
@@ -4026,7 +4046,9 @@ td:first-child { font-weight: var(--weight-medium); }
    ============================================================ */
 
 @media (max-width: 768px) {
-  .app-shell { grid-template-columns: 1fr; }
+  /* minmax(0, 1fr), como no desktop: com 1fr puro a coluna não encolhe
+     abaixo do conteúdo mais largo, e a página inteira rolava de lado. */
+  .app-shell { grid-template-columns: minmax(0, 1fr); }
 
   .sidebar {
     position: fixed;
@@ -4467,6 +4489,53 @@ td:first-child { font-weight: var(--weight-medium); }
   align-items: center;
   gap: var(--space-3);
   flex-wrap: wrap;
+}
+
+/* Cabeçalho com uma fileira de botões (Movimentações). Quem decide o
+   arranjo é a largura do próprio painel, não a da janela: com a navegação
+   aberta ou em trilha, o mesmo viewport deixa espaços bem diferentes.
+   Estreito, o título fica em cima e os botões ocupam a linha inteira, em
+   grade; largo, tudo numa linha só, com os botões à direita. */
+.panel-heading--toolbar {
+  container-type: inline-size;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.panel-heading--toolbar .panel-heading__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  flex: 1 1 100%;
+}
+
+.panel-heading--toolbar .panel-heading__actions > * {
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.panel-heading--toolbar .bank-cta { grid-column: 1 / -1; }
+
+/* No celular os botões não cabem lado a lado com o ícone, e as marcas dos
+   bancos não cabem com o texto e o selo. Um botão por linha. */
+@container (max-width: 26rem) {
+  .panel-heading--toolbar .panel-heading__actions { grid-template-columns: minmax(0, 1fr); }
+  .panel-heading--toolbar .bank-cta__marks { display: none; }
+}
+
+@container (min-width: 40rem) {
+  .panel-heading--toolbar .panel-heading__actions {
+    display: flex;
+    flex-wrap: nowrap;
+  }
+
+  .panel-heading--toolbar .bank-cta { grid-column: auto; }
+}
+
+@container (min-width: 52rem) {
+  .panel-heading--toolbar .panel-heading__actions {
+    flex: 0 1 auto;
+    margin-left: auto;
+  }
 }
 
 .modal__panel--wide { width: min(52rem, 100%); }

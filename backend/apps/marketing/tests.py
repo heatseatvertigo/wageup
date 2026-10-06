@@ -25,7 +25,9 @@ from .models import CampaignImage, MarketingCampaign
 # Sem provedor de imagem: estes testes sao do texto da campanha. Fixar aqui
 # evita que um .env com chave da Cloudflare faca a suite bater na rede.
 SEM_IMAGEM = override_settings(
-    CLOUDFLARE_ACCOUNT_ID="", CLOUDFLARE_API_TOKEN="", MARKETING_IMAGE_FALLBACK=False
+    CLOUDFLARE_ACCOUNT_ID="", CLOUDFLARE_API_TOKEN="", MARKETING_IMAGE_FALLBACK=False,
+    # Sem DeepSeek por padrao: os testes que querem um provedor ligam o seu.
+    DEEPSEEK_API_KEY="",
 )
 
 
@@ -123,6 +125,90 @@ class ChatDeMarketingTests(_ChatBase):
 
 
 @SEM_IMAGEM
+class RespostaLocalTests(_ChatBase):
+    """Sem IA, a resposta local fala do que foi pedido e diz por que e local."""
+
+    @override_settings(ANTHROPIC_API_KEY="")
+    def test_sem_produto_citado_usa_o_assunto_do_pedido(self):
+        resposta = self._pedir("faca uma foto com um post para o meu novo anuncio de pudim")
+
+        self.assertIn("garantir pudim", resposta.data["message"])
+        self.assertNotIn("Bolo de cenoura", resposta.data["message"])
+        self.assertIn("falta a DEEPSEEK_API_KEY", resposta.data["message"])
+        # O assunto chega ao prompt da imagem pela "Ideia de imagem".
+        campanha = MarketingCampaign.objects.get(id=resposta.data["campaign_id"])
+        self.assertIsNone(campanha.product)
+        self.assertIn("foto clara de pudim", campanha.generated_text)
+
+    @override_settings(ANTHROPIC_API_KEY="chave")
+    @patch("apps.marketing.assistant._call_claude", side_effect=Exception("timeout"))
+    def test_falha_da_ia_nao_diz_que_falta_configurar(self, _falha):
+        resposta = self._pedir()
+
+        self.assertIn("não respondeu agora", resposta.data["message"])
+        self.assertNotIn("falta a DEEPSEEK_API_KEY", resposta.data["message"])
+
+    @override_settings(ANTHROPIC_API_KEY="", DEEPSEEK_API_KEY="")
+    def test_assunto_novo_na_conversa_nao_herda_o_produto_anterior(self):
+        conversa = self._pedir("post do bolo de cenoura").data["conversation"]["id"]
+
+        resposta = self._pedir(
+            "crie um post com imagem para anunciar meu cachorro quente", conversation_id=conversa
+        )
+
+        self.assertIn("cachorro quente", resposta.data["message"])
+        self.assertNotIn("Bolo de cenoura", resposta.data["message"])
+        campanha = MarketingCampaign.objects.get(id=resposta.data["campaign_id"])
+        self.assertIsNone(campanha.product)
+
+    def test_assunto_do_pedido(self):
+        from .assistant import assunto_do_pedido
+
+        casos = {
+            "faca uma foto com um post para o meu novo anuncio de pudim": "pudim",
+            "Crie um post para o Instagram divulgando Bolo de cenoura": "Bolo de cenoura",
+            "campanha de lançamento da torta de limão": "torta de limão",
+            "quero vender meu brownie no instagram": "brownie",
+            "me dá 5 ideias de vídeos curtos para o TikTok": None,
+        }
+        for pedido, esperado in casos.items():
+            with self.subTest(pedido=pedido):
+                self.assertEqual(assunto_do_pedido(pedido), esperado)
+
+
+@SEM_IMAGEM
+class ProvedoresTests(_ChatBase):
+    """DeepSeek primeiro, como no assistente financeiro; Anthropic como alternativa."""
+
+    @override_settings(DEEPSEEK_API_KEY="chave-deepseek", ANTHROPIC_API_KEY="chave-anthropic")
+    @patch("apps.marketing.assistant._call_claude")
+    @patch("apps.marketing.assistant._call_deepseek", return_value=CAMPANHA_DA_IA)
+    def test_usa_a_deepseek_quando_ha_chave(self, deepseek, claude):
+        resposta = self._pedir()
+
+        self.assertEqual(resposta.data["provider"], "deepseek")
+        claude.assert_not_called()
+        # A primeira chamada e a do chat; a segunda traduz a ideia de imagem.
+        system, history = deepseek.call_args_list[0].args
+        self.assertIn("margem real R$ 39,00", system)
+        self.assertEqual(history[-1]["content"], "cria um post do bolo de cenoura")
+
+    @override_settings(DEEPSEEK_API_KEY="chave-deepseek", ANTHROPIC_API_KEY="chave-anthropic")
+    @patch("apps.marketing.assistant._call_claude", return_value=CAMPANHA_DA_IA)
+    @patch("apps.marketing.assistant._call_deepseek", side_effect=Exception("502"))
+    def test_deepseek_fora_do_ar_tenta_a_anthropic(self, _deepseek, _claude):
+        self.assertEqual(self._pedir().data["provider"], "anthropic")
+
+    @override_settings(DEEPSEEK_API_KEY="chave-deepseek", ANTHROPIC_API_KEY="")
+    @patch("apps.marketing.assistant._call_deepseek", side_effect=Exception("401"))
+    def test_so_deepseek_e_ela_falha_cai_na_resposta_local(self, _deepseek):
+        resposta = self._pedir()
+
+        self.assertEqual(resposta.data["provider"], "local-demo")
+        self.assertIn("não respondeu agora", resposta.data["message"])
+
+
+@SEM_IMAGEM
 class ContextoDaIaTests(_ChatBase):
     """Os numeros que a IA recebe saem do catalogo, nao do cliente."""
 
@@ -137,6 +223,20 @@ class ContextoDaIaTests(_ChatBase):
         self.assertIn("Bolo de cenoura", system)
         self.assertIn("margem real R$ 39,00", system)
         self.assertNotIn("60,00", system)
+
+    @override_settings(ANTHROPIC_API_KEY="chave")
+    @patch("apps.marketing.assistant.anthropic_sdk.Anthropic")
+    def test_produto_fora_do_catalogo_nao_e_motivo_para_recusar(self, sdk):
+        # A DeepSeek recusava "anuncio do meu cachorro quente" porque a regra
+        # mandava usar so produtos do catalogo.
+        sdk.return_value.messages.create.return_value.content = _texto("ok")
+
+        self._pedir("crie um anuncio do meu cachorro quente")
+
+        system = sdk.return_value.messages.create.call_args_list[0].kwargs["system"]
+        self.assertIn("esteja ou não no catálogo", system)
+        self.assertIn("Nunca recuse por isso", system)
+        self.assertNotIn("Use apenas os produtos", system)
 
     @override_settings(ANTHROPIC_API_KEY="chave")
     @patch("apps.marketing.assistant.anthropic_sdk.Anthropic")
@@ -166,7 +266,9 @@ class ContextoDaIaTests(_ChatBase):
         sdk.return_value.messages.create.return_value.content = _texto(CAMPANHA_DA_IA)
         segunda = self._pedir("agora mais curto", conversation_id=conversa)
 
-        enviado = sdk.return_value.messages.create.call_args.kwargs["messages"]
+        # Cada campanha faz duas chamadas: o chat e a traducao da ideia de
+        # imagem. A do chat da segunda campanha e a penultima.
+        enviado = sdk.return_value.messages.create.call_args_list[-2].kwargs["messages"]
         self.assertEqual([m["role"] for m in enviado], ["user", "assistant", "user"])
         self.assertEqual(enviado[-1]["content"], "agora mais curto")
         # Sem citar produto nem canal, herda os da campanha anterior.
@@ -456,9 +558,10 @@ class GeracaoDeImagemTests(SimpleTestCase):
         get.assert_not_called()
         self.assertIn("flux-1-schnell", post.call_args.args[0])
         self.assertEqual(post.call_args.kwargs["headers"]["Authorization"], "Bearer token")
-        # O prompt vai com o enquadramento em ingles em volta da ideia.
-        self.assertIn("bolo em close", post.call_args.kwargs["json"]["prompt"])
-        self.assertIn("product photography", post.call_args.kwargs["json"]["prompt"])
+        # O prompt vai com o enquadramento em ingles em volta da ideia, e o
+        # produto passa pelo glossario.
+        self.assertIn("cake em close", post.call_args.kwargs["json"]["prompt"])
+        self.assertIn("advertising photo", post.call_args.kwargs["json"]["prompt"])
 
     @patch("apps.marketing.images.requests.post")
     def test_nao_manda_largura_e_altura_para_a_cloudflare(self, post):
@@ -544,6 +647,46 @@ class GeracaoDeImagemTests(SimpleTestCase):
     @patch("apps.marketing.images.requests.post", side_effect=requests.ConnectionError())
     def test_todos_fora_do_ar_devolve_none(self, post, get):
         self.assertIsNone(gerar_imagem("bolo"))
+
+
+class PromptEmInglesTests(SimpleTestCase):
+    """O FLUX le ao pe da letra: "cachorro quente" desenhava um cachorro."""
+
+    def test_glossario_traduz_o_produto(self):
+        from .images import traduzir_termos
+
+        traduzido = traduzir_termos("foto clara de cachorro quente sobre uma mesa")
+        self.assertIn("Brazilian hot dog", traduzido)
+        self.assertNotIn("cachorro", traduzido)
+
+    @patch("apps.marketing.images.requests.get")
+    @override_settings(CLOUDFLARE_ACCOUNT_ID="", CLOUDFLARE_API_TOKEN="", MARKETING_IMAGE_FALLBACK=True)
+    def test_prompt_pronto_so_ganha_as_travas(self, get):
+        get.return_value = _resposta_pollinations()
+
+        gerar_imagem("juicy Brazilian hot dog, dark background", pronto=True)
+
+        url = get.call_args.args[0]
+        self.assertIn("juicy%20Brazilian%20hot%20dog", url)
+        self.assertIn("no%20text", url)
+        self.assertNotIn("appetizing%20advertising", url)
+
+    @override_settings(DEEPSEEK_API_KEY="chave", ANTHROPIC_API_KEY="")
+    @patch("apps.marketing.assistant._call_deepseek", return_value="Brazilian hot dog hero shot, steam")
+    def test_ia_de_texto_traduz_a_ideia(self, deepseek):
+        from .assistant import prompt_da_imagem
+
+        self.assertEqual(
+            prompt_da_imagem("foto de cachorro quente", "cachorro quente"),
+            "Brazilian hot dog hero shot, steam",
+        )
+        self.assertIn("cachorro quente", deepseek.call_args.args[1][0]["content"])
+
+    @override_settings(DEEPSEEK_API_KEY="", ANTHROPIC_API_KEY="")
+    def test_sem_ia_de_texto_devolve_none(self):
+        from .assistant import prompt_da_imagem
+
+        self.assertIsNone(prompt_da_imagem("foto de pudim"))
 
 
 class ImagemDaCampanhaTests(TestCase):
