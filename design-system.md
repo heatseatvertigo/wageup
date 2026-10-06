@@ -1,6 +1,10 @@
 # Design System — WageUp
 > Plataforma de gestão financeira end-to-end para Microempreendedores
 
+A fonte da verdade é o `:root` de [`frontend/styles.css`](frontend/styles.css). Este documento
+explica os tokens e os componentes; se os dois divergirem, o CSS vale e este arquivo está
+desatualizado.
+
 ---
 
 ## 1. Identidade Visual
@@ -9,6 +13,9 @@
 Fintech minimalista com calor humano. Séria o suficiente para transmitir confiança financeira,
 acessível o suficiente para não intimidar o MEI. Pensa em "Nubank meets Wise" — dados
 limpos, linguagem direta, sem jargão, sem frescura.
+
+A identidade atual é a **Broto** (rebrand 2026): verde vivo como acento, verde floresta
+profundo para peso e texto, menta para destaques, e neutros levemente puxados para o verde.
 
 ### Princípios
 - **Clareza acima de tudo** — cada pixel deve ter função. Nada decorativo sem propósito.
@@ -20,10 +27,11 @@ limpos, linguagem direta, sem jargão, sem frescura.
 - Gradientes coloridos ou sombras excessivas em cards
 - Ícones decorativos em excesso (cada ícone deve ter função)
 - Textos em caps lock em contextos de dados
-- Border-radius > 12px em componentes de dados (parece brinquedo)
-- Cores vibrantes demais — o verde sage É o accent, não precisa de laranja/amarelo por cima
+- Border-radius maior que `--radius-xl` (16px) em componentes de dados (parece brinquedo)
+- Cores vibrantes demais — o verde É o accent, não precisa de laranja/amarelo por cima
 - Backgrounds cinza genérico (`#f5f5f5`) — use os tokens definidos abaixo
 - Fontes: Arial, Roboto, Inter, Poppins — proibidas
+- `!important` — se precisar dele, a especificidade está errada
 
 ---
 
@@ -31,33 +39,33 @@ limpos, linguagem direta, sem jargão, sem frescura.
 
 ```css
 :root {
-  /* Marca */
-  --color-brand-dark:    #2D4A3E;   /* Verde escuro — sidebar, headers, peso */
-  --color-brand-mid:     #4A7C65;   /* Verde médio — botões primários, links ativos */
-  --color-brand-light:   #7DB896;   /* Verde sage — highlights, badges, ícones */
-  --color-brand-subtle:  #EAF2EE;   /* Verde muito claro — backgrounds de cards positivos */
+  /* Marca — Broto (verde vivo + floresta profundo + menta) */
+  --color-brand-dark:    #07251B;   /* Floresta — hover de botão primário, peso */
+  --color-brand-mid:     #14B87A;   /* Verde vivo — botões primários, links e itens ativos */
+  --color-brand-light:   #A8F0C6;   /* Menta — bordas de destaque, chips ativos */
+  --color-brand-subtle:  #E6F7EF;   /* Verde muito claro — fundos de item ativo e cards positivos */
 
-  /* Superfícies */
-  --color-bg:            #F8F6F1;   /* Linen quente — background geral (NÃO branco puro) */
+  /* Superfícies — neutros enviesados para o verde */
+  --color-bg:            #F6F9F6;   /* Background geral (NÃO branco puro) */
   --color-surface:       #FFFFFF;   /* Cards, modais, inputs */
-  --color-surface-muted: #F2EFE9;   /* Surface secundária — sidebar, dividers de seção */
-  --color-border:        #E2DDD5;   /* Bordas suaves */
-  --color-border-strong: #C8C2B8;   /* Bordas em foco ou separadores fortes */
+  --color-surface-muted: #EEF3EE;   /* Sidebar, hover de botões, surfaces secundárias */
+  --color-border:        #E4EBE5;   /* Bordas suaves */
+  --color-border-strong: #CBD8CE;   /* Bordas em hover/foco, separadores fortes */
 
   /* Texto */
-  --color-text-primary:  #1A1A18;   /* Quase preto quente — headlines, dados */
-  --color-text-secondary:#5A5750;   /* Labels, metadados, placeholders */
-  --color-text-disabled: #A8A49E;   /* Estados desabilitados */
-  --color-text-inverse:  #F8F6F1;   /* Texto sobre fundos escuros */
+  --color-text-primary:  #0B211A;   /* Headlines, dados */
+  --color-text-secondary:#5F7168;   /* Labels, metadados, placeholders */
+  --color-text-disabled: #9DACA2;   /* Desabilitado, legendas discretas, estado vazio */
+  --color-text-inverse:  #F6F9F6;   /* Texto sobre fundos escuros e botão primário */
 
   /* Semânticas */
-  --color-positive:      #2E7D52;   /* Receita, lucro, crescimento */
-  --color-negative:      #B84040;   /* Despesa, queda, alerta */
-  --color-warning:       #9B6E28;   /* Atenção, pendente */
-  --color-neutral:       #5A5750;   /* Neutro informativo */
+  --color-positive:      #0E9E68;   /* Receita, lucro, crescimento */
+  --color-negative:      #C2453F;   /* Despesa, prejuízo, erro */
+  --color-warning:       #B4791E;   /* Atenção, pendente, "em breve" */
+  --color-neutral:       #5F7168;   /* Neutro informativo */
 
   /* Accent (uso pontual) */
-  --color-accent:        #4A7C65;   /* Alias de brand-mid para CTAs */
+  --color-accent:        #14B87A;   /* Alias de brand-mid para CTAs */
 }
 ```
 
@@ -66,22 +74,20 @@ limpos, linguagem direta, sem jargão, sem frescura.
 ## 3. Tipografia
 
 ### Famílias
+Uma família só para texto, mais uma monoespaçada para números. As fontes vêm do Google Fonts
+no `<head>` do `index.html`, junto com os ícones (seção 7.12).
+
 ```css
-/* Display / Headings — Questrial (mantida do Figma original) */
-@import url('https://fonts.googleapis.com/css2?family=Questrial&display=swap');
-
-/* Body / UI — DM Sans (substitui Space Grotesk — mais legível em tamanhos pequenos) */
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600&display=swap');
-
-/* Dados numéricos — DM Mono (alinhamento de colunas, valores financeiros) */
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap');
-
 :root {
-  --font-display: 'Questrial', sans-serif;
-  --font-body:    'DM Sans', sans-serif;
-  --font-mono:    'DM Mono', monospace;
+  --font-display: 'Instrument Sans', sans-serif;  /* Títulos */
+  --font-body:    'Instrument Sans', sans-serif;  /* Texto e interface */
+  --font-mono:    'DM Mono', monospace;           /* Valores financeiros e números alinhados */
 }
 ```
+
+`--font-display` e `--font-body` apontam hoje para a mesma família, mas continuam separados:
+use o token pelo papel do texto, não pela fonte. Trocar a fonte de títulos no futuro é mudar
+uma linha.
 
 ### Escala Tipográfica
 ```css
@@ -89,23 +95,23 @@ limpos, linguagem direta, sem jargão, sem frescura.
   /* Display */
   --text-display-xl: clamp(2.5rem, 5vw, 4rem);     /* Hero headlines */
   --text-display-lg: clamp(1.75rem, 3vw, 2.5rem);  /* Page titles */
-  --text-display-md: clamp(1.25rem, 2vw, 1.75rem); /* Section headers */
+  --text-display-md: clamp(1.25rem, 2vw, 1.75rem); /* Section headers, valor dos cards de métrica */
 
   /* UI */
-  --text-xl:   1.25rem;   /* 20px — subtítulos */
-  --text-lg:   1.125rem;  /* 18px — body destacado */
-  --text-base: 1rem;      /* 16px — body padrão */
-  --text-sm:   0.875rem;  /* 14px — labels, metadados */
-  --text-xs:   0.75rem;   /* 12px — badges, captions */
+  --text-xl:   1.25rem;   /* 20px — subtítulos, título de modal */
+  --text-lg:   1.125rem;  /* 18px — título de painel */
+  --text-base: 1rem;      /* 16px — body padrão, campo do chat */
+  --text-sm:   0.875rem;  /* 14px — labels, botões, mensagens do chat */
+  --text-xs:   0.75rem;   /* 12px — badges, chips, captions */
 
   /* Pesos */
-  --weight-regular: 400;
-  --weight-medium:  500;
+  --weight-regular:  400;
+  --weight-medium:   500;
   --weight-semibold: 600;
 
   /* Line heights */
-  --leading-tight:  1.2;
-  --leading-normal: 1.5;
+  --leading-tight:   1.2;
+  --leading-normal:  1.5;
   --leading-relaxed: 1.7;
 
   /* Letter spacing */
@@ -118,14 +124,16 @@ limpos, linguagem direta, sem jargão, sem frescura.
 ### Uso por Contexto
 | Elemento | Família | Tamanho | Peso |
 |---|---|---|---|
-| Hero title | Questrial | display-xl | 400 |
-| Page title | Questrial | display-lg | 400 |
-| Section header | DM Sans | display-md | 600 |
-| Card label | DM Sans | sm | 500 |
-| Body text | DM Sans | base | 400 |
-| Valor monetário | DM Mono | lg/xl | 500 |
-| Badge / tag | DM Sans | xs | 500, caps |
-| Caption / meta | DM Sans | xs | 400 |
+| Hero title | display | display-xl | 400 |
+| Page title | display | display-lg | 400 |
+| Section header | body | display-md | 600 |
+| Título de painel (`.panel-heading h3`) | body | lg | 600 |
+| Label de card de métrica | body | xs, caps, tracking-wide | 600 |
+| Valor de card de métrica | mono | display-md | 500 |
+| Body text | body | base | 400 |
+| Botão | body | sm | 500 |
+| Badge / chip | body | xs | 500 |
+| Caption / meta | body | xs | 400 |
 
 ---
 
@@ -150,11 +158,12 @@ limpos, linguagem direta, sem jargão, sem frescura.
 ```
 
 ### Regras de Espaçamento
-- **Padding interno de cards:** `--space-6` (24px)
-- **Gap entre cards no grid:** `--space-4` (16px) ou `--space-6` (24px) em layouts maiores
-- **Padding de seção (vertical):** mínimo `--space-16` (64px)
-- **Sidebar width:** 240px fixo
-- **Margem de conteúdo:** máx. 1200px, padding lateral `--space-8`
+- **Padding interno de painéis e cards:** `--space-6` (24px); cards de métrica `--space-5 --space-6`
+- **Gap entre cards no grid:** `--space-4` (16px)
+- **Gap entre blocos de uma tela:** `--space-8` (32px), que também é o padding da tela
+- **Padding de seção da landing (vertical):** mínimo `--space-16` (64px)
+- **Sidebar:** 240px aberta, 4.25rem (68px) em trilha de ícones
+- Prefira `gap` a `margin` entre filhos de flex e grid
 
 ---
 
@@ -162,11 +171,11 @@ limpos, linguagem direta, sem jargão, sem frescura.
 
 ```css
 :root {
-  --radius-sm:  4px;   /* Inputs, badges pequenos */
-  --radius-md:  8px;   /* Botões, cards compactos */
-  --radius-lg:  12px;  /* Cards padrão, modais */
-  --radius-xl:  16px;  /* Cards hero, painéis grandes */
-  --radius-full: 9999px; /* Avatares, pills */
+  --radius-sm:  4px;     /* Inputs pequenos, kbd, botões de ícone mínimos */
+  --radius-md:  8px;     /* Botões, itens de lista, chips de menu */
+  --radius-lg:  12px;    /* Cards, composer e sugestões do chat, dropdowns */
+  --radius-xl:  16px;    /* Painéis (.work-panel) e modais — teto para componentes de dados */
+  --radius-full: 9999px; /* Avatares, chips de filtro, badges, botão de enviar */
 }
 ```
 
@@ -176,75 +185,112 @@ limpos, linguagem direta, sem jargão, sem frescura.
 
 ```css
 :root {
-  /* Filosofia: sombras quentes, não frias */
-  --shadow-sm:  0 1px 3px rgba(45, 74, 62, 0.08);
-  --shadow-md:  0 4px 12px rgba(45, 74, 62, 0.10);
-  --shadow-lg:  0 8px 24px rgba(45, 74, 62, 0.12);
-  --shadow-focus: 0 0 0 3px rgba(74, 124, 101, 0.25); /* Ring de foco */
+  /* Tom floresta Broto, sutis (minimalismo) */
+  --shadow-sm:    0 1px 2px rgba(7, 37, 27, 0.06);    /* Hover de card */
+  --shadow-md:    0 4px 12px rgba(7, 37, 27, 0.08);   /* Hover de botão primário */
+  --shadow-lg:    0 8px 24px rgba(7, 37, 27, 0.10);   /* Modal, drawer, dropdown — o que flutua */
+  --shadow-focus: 0 0 0 3px rgba(20, 184, 122, 0.30); /* Ring de foco */
 }
 ```
+
+Cards e painéis em repouso **não têm sombra**: a separação vem da borda. Sombra é para o que
+flutua sobre o conteúdo (modal, drawer, menu) ou para responder ao hover.
 
 ---
 
-## 7. Componentes — Regras
+## 7. Componentes
 
-### Botões
+Nomenclatura BEM simplificada: `.bloco`, `.bloco__elemento`, `.bloco--modificador`. Estado
+vai em classe `is-*` (`is-active`, `is-open`, `is-hidden`, `is-collapsed`).
+
+### 7.1 Botões
+
+Todos têm `min-height: 2.5rem`, `display: inline-flex` e `gap: --space-2` para ícone + texto.
+
+| Classe | Uso | Visual |
+|---|---|---|
+| `.primary-button` | Ação principal da tela (uma por área) | Fundo `brand-mid`, texto `text-inverse`; hover `brand-dark`, sobe 1px e ganha `shadow-md` |
+| `.secondary-button` | Ação alternativa com peso | Borda 1.5px e texto `brand-mid`; hover `brand-subtle` |
+| `.ghost-button` | Ações de apoio (Importar, Atualizar) | Borda `border`, texto `text-secondary`; hover `surface-muted` |
+| `.ghost-button--danger` | Remover, apagar | Como o ghost, texto `negative` |
+| `.icon-btn` | Ação só com ícone (menu, nova conversa) | 2.25rem quadrado, borda `border`, `radius-md`; `--sm` (1.85rem) sem borda |
+
 ```css
-/* Primário */
-.btn-primary {
+.primary-button {
+  padding: var(--space-3) var(--space-6);
   background: var(--color-brand-mid);
   color: var(--color-text-inverse);
+  border: none;
   border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-6);
-  font-family: var(--font-body);
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
-  letter-spacing: var(--tracking-wide);
-  border: none;
-  transition: background 150ms ease, transform 100ms ease;
 }
-.btn-primary:hover { background: var(--color-brand-dark); }
-
-/* Secundário */
-.btn-secondary {
-  background: transparent;
-  color: var(--color-brand-mid);
-  border: 1.5px solid var(--color-brand-mid);
-  border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-6);
-}
-
-/* Ghost */
-.btn-ghost {
-  background: transparent;
-  color: var(--color-text-secondary);
-  border: none;
-}
+.primary-button:hover { background: var(--color-brand-dark); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.primary-button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 ```
 
-### Cards
+Botão só com ícone precisa de `aria-label` e `title`.
+
+### 7.2 Painéis e cards
+
+**Painel de trabalho (`.work-panel`)** — o contêiner padrão de cada bloco das telas internas.
+
 ```css
-.card {
+.work-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr); /* deixa o conteúdo encolher; ver 10. Responsivo */
+  gap: var(--space-6);
+  padding: var(--space-6);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-6);
-  /* Sem box-shadow por padrão — use border */
-}
-
-.card--metric {
-  /* Cards de métricas financeiras */
-  padding: var(--space-5) var(--space-6);
-}
-
-.card--highlighted {
-  /* Card com destaque de marca */
-  border-color: var(--color-brand-light);
-  background: var(--color-brand-subtle);
+  border-radius: var(--radius-xl);
 }
 ```
 
-### Inputs
+**Cabeçalho de painel (`.panel-heading`)** — título à esquerda, ação ou subtítulo à direita,
+com `flex-wrap` para quebrar linha quando não couber.
+
+```html
+<div class="panel-heading">
+  <h3>Cobrança PIX</h3>
+  <span>via Abacate Pay</span>   <!-- subtítulo: filho direto, xs, text-disabled -->
+</div>
+```
+
+O subtítulo é só o `span` **filho direto** (`.panel-heading > span`). Ícones e selos dentro de
+botões do cabeçalho não herdam esse estilo.
+
+**Cabeçalho com fileira de botões (`.panel-heading--toolbar`)** — usado em Movimentações,
+com os botões em `.panel-heading__actions`. O arranjo segue a largura do **painel**, não da
+janela (container query), porque a mesma janela deixa espaços diferentes com a navegação
+aberta ou em trilha:
+
+| Largura do painel | Arranjo |
+|---|---|
+| até 26rem | Título em cima, um botão por linha, marcas dos bancos escondidas |
+| até 40rem | Título em cima, botões em grade de duas colunas (o de banco ocupa a linha) |
+| até 52rem | Título em cima, botões numa linha só |
+| acima de 52rem | Título e botões na mesma linha, botões à direita |
+
+**Cards de métrica (`.summary-grid`)** — grade `auto-fit` de cards com label e valor.
+
+```
+┌─────────────────────────────┐
+│ ENTROU NO PERÍODO           │  ← span: xs, semibold, caps, tracking-wide, text-secondary
+│                             │
+│ R$ 12.450,00                │  ← strong: DM Mono display-md, value-currency
+└─────────────────────────────┘
+```
+
+Modificadores: `--duo` (dois cards, máx. 640px) e `--trio` (três cards, máx. 52rem).
+
+**Card de produto (`.product-card`)** — foto, nome, preço, tag de margem e custos. Clicável:
+no hover a borda vira `brand-light`, ganha `shadow-sm` e sobe 2px.
+
+**Estado vazio (`.empty-state`)** — texto `sm`, `text-disabled`, centralizado, com padding
+`--space-10 --space-8`. Sempre diz o que fazer a seguir ("registre a primeira entrada ou saída").
+
+### 7.3 Inputs
 ```css
 .input {
   background: var(--color-surface);
@@ -254,7 +300,6 @@ limpos, linguagem direta, sem jargão, sem frescura.
   font-family: var(--font-body);
   font-size: var(--text-base);
   color: var(--color-text-primary);
-  transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 .input:focus {
   border-color: var(--color-brand-mid);
@@ -263,33 +308,130 @@ limpos, linguagem direta, sem jargão, sem frescura.
 }
 ```
 
-### Sidebar (Dashboard)
+### 7.4 Chips de filtro (`.chip`)
+
+Pílula para filtrar uma lista (Todas / Entradas / Saídas, status de cobrança, período).
+Agrupe em `.charge-filters` (flex com `gap: --space-2`) e marque o ativo com `is-active`.
+
+```css
+.chip {
+  padding: var(--space-2) var(--space-4);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+}
+.chip.is-active {
+  background: var(--color-brand-subtle);
+  border-color: var(--color-brand-light);
+  color: var(--color-brand-mid);
+}
+```
+
+`.chip--action` é o chip que abre um menu (ex.: "Filtros"), com ícone à esquerda.
+
+**Barra de filtros (`.record-filters`)** — chips de tipo à esquerda e navegação de mês à
+direita (`.record-filters__month`: seta, mês, seta, "Todo o período", "Filtros"). No celular
+vira coluna, e a linha do mês vira grade: o mês entre as setas numa linha, "Todo o período" e
+"Filtros" dividindo a de baixo.
+
+### 7.5 Badges de status (`.status-badge`)
+
+Pílula `xs` com fundo claro e texto na cor semântica. Nunca só a cor: o texto diz o estado.
+
+| Modificador | Fundo | Texto | Uso |
+|---|---|---|---|
+| `--positive` | `brand-subtle` | `positive` | Pago, ativo |
+| `--warning` | âmbar claro | `warning` | Pendente, "Em breve" |
+| `--negative` | vermelho claro | `negative` | Falhou, expirado |
+
+### 7.6 Modal (`.modal`)
+
+Para formulários curtos que interrompem o fluxo (nova movimentação, importar extrato, produto).
+
+- Overlay escuro translúcido; painel `.modal__panel` centralizado, `min(30rem, 100%)`
+  (`--wide`: 52rem), `radius-xl`, `shadow-lg`, máx. 90vh com rolagem interna.
+- Entra com opacidade + `translateY(12px)` em `--duration-slow`.
+- Cabeçalho `.modal__head` (título `xl` + botão fechar) e corpo `.modal__form` em grade com
+  `gap: --space-4`.
+- Abre com `is-open`; Esc fecha.
+
+### 7.7 Drawer (`.drawer`)
+
+Painel lateral à direita para detalhes sem sair da tela (dia do calendário, cobrança PIX).
+`min(420px, 100%)`, borda à esquerda, `shadow-lg`, entra com `translateX(100%) → 0`. Ações no
+rodapé em `.drawer__actions`.
+
+### 7.8 Menu suspenso (`.menu`)
+
+Contêiner `position: relative` com um gatilho (`aria-haspopup`, `aria-expanded`) e um
+`.menu__panel` absoluto abaixo, alinhado à direita: `surface`, `radius-lg`, `shadow-lg`.
+Usado no filtro de período personalizado (`.menu__panel--wide`).
+
+### 7.9 Chat com IA
+
+Assistente financeiro e Marketing usam a mesma estrutura e o mesmo CSS; o comportamento vem de
+`createChat()` em `app.js`. A tela ocupa toda a área útil (`.view--full`) e esconde o título
+da página (`.dashboard.is-chat`) no desktop.
+
+```
+┌──────────────┬──────────────────────────────────────────────┐
+│ CONVERSAS  ✎ │ ☰  Título da conversa                        │ ← .chatbox__bar
+│              ├──────────────────────────────────────────────┤
+│ Hoje         │  ──                                          │
+│  Conversa A  │  Resposta da IA, texto corrido, sem balão    │ ← .msg--bot
+│  Conversa B  │                     ┌──────────────────────┐ │
+│ Ontem        │                     │ Pergunta do usuário  │ │ ← .msg--user
+│  Conversa C  │                     └──────────────────────┘ │
+│              ├──────────────────────────────────────────────┤
+│ .chat-aside  │  → Sugestão 1                                │ ← .chatbox__suggestions
+│              │  ┌────────────────────────────────────────┐  │
+│              │  │ Pergunte…                          (↑) │  │ ← .chatbox__composer
+│              │  └────────────────────────────────────────┘  │
+└──────────────┴──────────────────────────────────────────────┘
+```
+
+| Peça | Classe | Regras |
+|---|---|---|
+| Moldura | `.assistant-shell` | Grade `16rem / 1fr`; `is-collapsed` fecha a lista. No celular a lista vira camada sobre o chat |
+| Lista de conversas | `.chat-aside`, `.chat-group`, `.chat-item` | Fundo `bg`, agrupada por data (Hoje, Ontem, Últimos 7 dias…). Item ativo `brand-subtle`; lixeira aparece no hover |
+| Conversa | `.chatbox__thread` | Máx. 52rem, centralizada, `gap: --space-6`, `role="log"` |
+| Resposta | `.msg--bot` | Texto corrido sem balão, traço `brand-light` acima. Parágrafos como texto, nunca HTML do modelo |
+| Pergunta | `.msg--user` | Pílula à direita, `surface-muted`, `radius-lg`, máx. 80% |
+| Carregando | `.msg--pending` | Brilho percorrendo o texto (única animação em loop permitida — é estado de carregamento) |
+| Erro | `.msg--error` | Fundo vermelho claro, texto `negative` |
+| Sugestões | `.chatbox__suggestions`, `.suggestion` | Lista navegável por teclado (↑ ↓ Enter Esc), item com seta `brand-mid` |
+| Campo | `.chatbox__composer` | A borda é do conjunto, não do input; foco pinta a borda `brand-mid` + `shadow-focus` |
+| Enviar | `.chatbox__send` | Círculo `brand-mid` 2rem, ícone de seta; desabilitado com opacidade 0.45 |
+
+Peças só do Marketing:
+- **Negrito** nos títulos das seções da campanha (`**Chamada principal:**` vira `<strong>`,
+  depois de escapar o texto).
+- `.msg__image` — a imagem da campanha dentro da resposta, máx. 22rem, `radius-lg`.
+- `.msg__actions` / `.msg__action` — "Copiar texto" e "Baixar imagem": pílulas `xs` com
+  ícone, borda `border`, hover `surface-muted`.
+
+### 7.10 Navegação (sidebar)
+
 ```css
 .sidebar {
   width: 240px;
   background: var(--color-surface-muted);
   border-right: 1px solid var(--color-border);
   padding: var(--space-6) var(--space-4);
-  /* NÃO usar background escuro — manter tom claro/linen */
+  /* NÃO usar background escuro — manter tom claro */
 }
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  color: var(--color-text-secondary);
-  text-decoration: none;
-  transition: background 150ms, color 150ms;
-}
-.nav-item:hover  { background: var(--color-border); color: var(--color-text-primary); }
-.nav-item.active { background: var(--color-brand-subtle); color: var(--color-brand-mid); }
 ```
 
-### Valores Monetários
+- Item ativo: fundo `brand-subtle`, texto `brand-mid`. Grupo com submenu (Financeiro) abre e
+  fecha com chevron.
+- **Trilha de ícones** (`.app-shell.is-rail`, desktop): a barra fica recolhida em 4.25rem só
+  com ícones e volta inteira, sobreposta ao conteúdo, no hover ou com foco do teclado.
+- No celular a barra sai da tela e abre pelo botão ☰ do cabeçalho.
+
+### 7.11 Valores Monetários
 ```css
 /* Regra crítica: SEMPRE usar font-mono para valores financeiros */
 .value-currency {
@@ -301,6 +443,21 @@ limpos, linguagem direta, sem jargão, sem frescura.
 .value-positive { color: var(--color-positive); }
 .value-negative { color: var(--color-negative); }
 ```
+
+Formato `R$ 1.234,56`, e nunca a cor sozinha: margem negativa aparece como **Prejuízo**, com
+rótulo.
+
+### 7.12 Ícones
+
+**Material Symbols Rounded** (Google Fonts), peso 500, sem preenchimento.
+
+```html
+<span class="material-symbols-rounded" aria-hidden="true">upload_file</span>Importar extrato
+```
+
+- Sempre `aria-hidden="true"`: quem dá o nome à ação é o texto ou o `aria-label` do botão.
+- Tamanho pelo contexto: 1.1rem em botões e navegação, 1.15rem em `.icon-btn`, 0.95rem em
+  ações pequenas.
 
 ---
 
@@ -320,53 +477,71 @@ limpos, linguagem direta, sem jargão, sem frescura.
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-
-/* Use com animation-delay para stagger */
-.animate-in {
-  animation: fadeUp var(--duration-slow) var(--ease-out) both;
-}
 ```
 
 ### Regras de Animação
 - Somente `opacity` + `transform` — nunca animar `height`, `width` ou `top/left`
+  (largura de layout muda de uma vez; só a opacidade anima, como na lista de conversas)
 - Duração máxima: 400ms para entradas de página
-- Hover states: max 150ms
-- Nenhuma animação em loop (sem pulsar, sem girar infinito fora de loading states)
+- Hover states: até `--duration-normal`
+- Nenhuma animação em loop fora de estados de carregamento (`.msg--pending`)
+- Respeitar `prefers-reduced-motion`: movimento decorativo desliga, interações continuam
 
 ---
 
 ## 9. Módulos e Páginas — Guia Visual
 
 ### Landing Page
-- Background: `--color-bg` (linen)
-- Hero: Questrial grande, tracking negativo, sem gradiente
+- Background: `--color-bg`
+- Hero com demo interativa de PIX, calculadora de margem, faixa de números e FAQ
 - Nav: fundo `--color-bg`, sem sombra, border-bottom sutil
 
 ### Dashboard (app)
-- Background geral: `--color-bg`
-- Sidebar: `--color-surface-muted`
-- Área de conteúdo: grid de cards em `--color-surface`
+- Background geral: `--color-bg`; sidebar `--color-surface-muted`, em trilha de ícones
+- Cada tela (`.view`) é uma coluna de `.summary-grid` e `.work-panel`, com `gap: --space-8`
 - Header do dashboard: simples, sem background próprio — funde com o bg
 
 ### Módulo Financeiro
-- Métricas em destaque: valor em DM Mono grande, label pequeno acima
-- Gráficos: usar apenas `--color-brand-mid` e `--color-brand-light` como cores primárias
-- Positivo/negativo: semânticas definidas (`--color-positive` / `--color-negative`)
+- Métricas em destaque: valor em DM Mono grande, label pequeno em caps acima
+- Gráficos: `--color-brand-mid` e `--color-brand-light` como cores primárias
+- Positivo/negativo: semânticas (`--color-positive` / `--color-negative`), sempre com rótulo
 
-### Cards de Métrica (padrão)
-```
-┌─────────────────────────────┐
-│ FATURAMENTO MENSAL          │  ← label: DM Sans xs, caps, color-text-secondary
-│                             │
-│ R$ 12.450,00                │  ← valor: DM Mono xl, color-text-primary
-│ ↑ 8,3% vs mês anterior     │  ← delta: DM Sans sm, color-positive
-└─────────────────────────────┘
-```
+### Assistente de IA e Marketing
+- Tela cheia de chat (seção 7.9). O marketing acrescenta imagem e ações na resposta.
 
 ---
 
-## 10. Acessibilidade
+## 10. Responsivo
+
+- **Mobile-first:** CSS base para o celular, `@media (min-width: …)` para telas maiores.
+  O ponto de corte da navegação é 768px.
+- **Colunas que encolhem:** grades de layout usam `minmax(0, 1fr)`, não `1fr` nem a coluna
+  implícita. `1fr` não encolhe abaixo do conteúdo mais largo, e a página inteira rola de lado
+  no celular. Vale para `.app-shell`, `.view.active` e `.work-panel`.
+- **Container query quando o espaço depende do painel:** se o componente pode ficar estreito
+  por causa da navegação, e não da janela, use `container-type: inline-size` no pai e
+  `@container` nos filhos (exemplo: `.panel-heading--toolbar`).
+- Verifique toda tela nova em 390px: nada pode passar da largura da tela.
+
+---
+
+## 11. Acessibilidade
 - Contraste mínimo AA: 4.5:1 para texto normal, 3:1 para texto grande
 - Todos inputs com `label` explícito (não só placeholder)
 - Focus ring sempre visível (`--shadow-focus`)
-- Estados hover e active nunca só por cor — incluir mudança de forma/peso
+- Estados hover e active nunca só por cor — incluir mudança de forma/peso ou rótulo
+- Botão só com ícone tem `aria-label`; ícone ao lado de texto tem `aria-hidden="true"`
+- Listas navegáveis por teclado (sugestões do chat) expõem `role="listbox"`/`option` e
+  `aria-selected`
+
+---
+
+## 12. Exceções conhecidas
+
+Pontos do CSS que hoje fogem das regras acima. Ficam registrados para não virarem padrão:
+
+- **Cores fixas fora dos tokens:** fundos claros de alerta (`#FBEDED` no erro do chat, no badge
+  negativo e no botão de perigo; `#FBF3E4` no badge de aviso) e os overlays de modal e drawer
+  (`rgba(26, 26, 24, …)`). O caminho é criar tokens `--color-negative-subtle`,
+  `--color-warning-subtle` e `--color-overlay`.
+- **Logos dos bancos** na tela "Integre com seu banco" usam as cores das próprias marcas.
