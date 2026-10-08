@@ -61,6 +61,7 @@ A venda é o que liga o catálogo ao estoque e ao financeiro. Antes dela, a marg
 - [x] **Cancelar a venda** devolve o estoque e tira a entrada do financeiro. Não existe editar nem apagar venda
 - [x] Resumo do mês: vendido, lucro real e unidades; detalhe de cada venda mostrando de onde sai o lucro (total, custo, taxa e imposto)
 - [x] **Cobrança PIX de um produto vira venda quando é paga** (ver PIX)
+- [x] Venda e movimentação não se misturam: em "Nova movimentação", escolher Entrada mostra um aviso com atalho para registrar a venda, que é o caminho que baixa estoque e calcula lucro. A movimentação manual fica para o que não é venda de produto: aluguel, insumo, conta de luz, aporte
 
 Endpoints: `GET|POST /api/sales/?month=AAAA-MM`, `POST /api/sales/<id>/cancel/`, `GET /api/sales/summary/?month=AAAA-MM`.
 
@@ -78,6 +79,7 @@ Endpoints: `GET|POST /api/sales/?month=AAAA-MM`, `POST /api/sales/<id>/cancel/`,
 - [x] Formato **OFX**, que os bancos grandes exportam no internet banking
 - [x] **Tela de conferência antes de gravar**: o usuário desmarca o que não quer, corrige a descrição e o tipo, e só então confirma. Extrato traz transferência entre contas próprias, que não é receita nem despesa — importar direto sujaria os totais
 - [x] **Reimportar o mesmo extrato não duplica nada.** Cada lançamento guarda o identificador que o banco atribui (FITID); o que já existe vem desmarcado e marcado como "Já importado". Sem FITID, o identificador vem de uma impressão digital do conteúdo, que continua distinguindo dois lançamentos iguais no mesmo dia
+- [x] **O que já foi lançado na plataforma não entra de novo.** Venda, PIX e lançamento manual não têm FITID, mas o banco mostra o mesmo dinheiro no extrato. Uma linha com mesmo tipo, mesmo valor e data a até um dia de distância de algo já lançado vem desmarcada, com "Já lançado: Venda" e o que ela parece. Cada lançamento cobre uma linha só, e quem decide é o usuário. Venda no cartão, que cai dias depois e com a taxa descontada, não é reconhecida
 - [x] **O arquivo nunca é gravado.** É lido em memória e descartado; ficam só os lançamentos confirmados e um hash, usado para avisar quando o mesmo arquivo é reenviado. Extrato bancário é dado sensível e a funcionalidade não precisa guardá-lo
 - [x] Limite de 5 MB por arquivo, e arquivo ilegível responde com explicação em vez de erro 500
 - [ ] Formatos **CSV** e **PDF** — a estrutura está pronta para recebê-los, falta o leitor de cada um
@@ -159,7 +161,7 @@ Endpoints: `POST /api/finance/assistant/`, `GET|POST /api/finance/assistant/conv
 - [x] Em produção: HTTPS obrigatório, HSTS, cookies com `Secure`, API navegável do DRF desligada e recusa de subir com a `SECRET_KEY` de exemplo
 - [x] Webhook da Abacate Pay só funciona com segredo configurado, comparado em tempo constante. Sem o segredo, qualquer um poderia marcar uma cobrança como paga
 - [x] Logs da aplicação aparecem na saída do servidor (antes se perdiam)
-- [x] Testes automatizados: 183 casos — produtos 16 (margem, preço sugerido, foto), financeiro 20 (leitura de OFX, importação ponta a ponta e os insights), contas 14 (recuperação de senha e entrega pelo Resend), marketing 58 (margem real no prompt, isolamento por negócio, recomendações e a geração de imagem), pagamentos 38 (webhook só com o segredo certo, PIX pago vira uma receita e uma só, estorno, valor zero ou negativo recusado, falhas da Abacate Pay e isolamento por negócio), vendas 37 (lucro real, estoque que nunca fica negativo, cancelamento, PIX de produto, resumo do mês, insights, assistente e recomendações)
+- [x] Testes automatizados: 191 casos — produtos 16 (margem, preço sugerido, foto), financeiro 28 (leitura de OFX, importação ponta a ponta, extrato que repete o que já foi lançado e os insights), contas 14 (recuperação de senha e entrega pelo Resend), marketing 58 (margem real no prompt, isolamento por negócio, recomendações e a geração de imagem), pagamentos 38 (webhook só com o segredo certo, PIX pago vira uma receita e uma só, estorno, valor zero ou negativo recusado, falhas da Abacate Pay e isolamento por negócio), vendas 37 (lucro real, estoque que nunca fica negativo, cancelamento, PIX de produto, resumo do mês, insights, assistente e recomendações)
 - [x] Teste das telas num navegador automático (desktop e celular, admin e membro): cadastro, produtos, vendas, movimentações, extrato, PIX, assistente, marketing e recuperação de senha
 - [ ] Testes com a IA de verdade: os testes simulam as respostas da DeepSeek, da Anthropic e da Cloudflare; nenhum chama o modelo real
 
@@ -189,6 +191,6 @@ Fora do escopo do PDF, mas pendente: as **variáveis do Resend no Render** e um 
 | PIX | Login como admin → aba "Financeiro" → "Cobrança PIX" → preencher e gerar |
 | Marketing IA | Menu "Marketing" → escrever o pedido (ou escolher uma sugestão) → a IA responde no chat |
 | Imagem da campanha | Com `CLOUDFLARE_ACCOUNT_ID`/`CLOUDFLARE_API_TOKEN` (ou `MARKETING_IMAGE_FALLBACK=True`), pedir uma campanha ou post: a imagem aparece dentro da resposta, com botão para baixar. Sem provedor, a campanha sai só com o texto |
-| Importar extrato | Login como admin → "Movimentações" → "Importar extrato" → anexar um `.ofx` → conferir a lista → "Importar". Reenviar o mesmo arquivo deve trazer tudo desmarcado como "Já importado" |
+| Importar extrato | Login como admin → "Movimentações" → "Importar extrato" → anexar um `.ofx` → conferir a lista → "Importar". Reenviar o mesmo arquivo deve trazer tudo desmarcado como "Já importado". Registrar uma venda e importar um extrato com o mesmo valor no mesmo dia deve trazer a linha desmarcada como "Já lançado: Venda" |
 | Assistente financeiro | Login como admin → abrir o chat → perguntar sobre os números; recarregar a página e conferir que a conversa continua lá |
 | Admin/banco de dados | Acessar `/admin/` logado como superusuário Django |

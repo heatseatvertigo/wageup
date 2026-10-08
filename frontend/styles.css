@@ -3501,6 +3501,7 @@ kbd {
 .modal__form { display: grid; gap: var(--space-4); }
 
 .field { display: grid; gap: var(--space-2); }
+.field[hidden] { display: none; }
 
 .field--group {
   border: 1px solid var(--color-border);
@@ -5176,5 +5177,44 @@ td:first-child { font-weight: var(--weight-medium); }
 .insight-item p {
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
+  line-height: var(--leading-normal);
+}
+
+/* ─── Movimentações: entrada que deveria ser venda ─── */
+
+.tx-sale-hint {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-2) var(--space-3);
+  align-items: start;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-brand-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.tx-sale-hint .material-symbols-rounded {
+  color: var(--color-brand-mid);
+  font-size: 1.25rem;
+}
+
+.tx-sale-hint p {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-normal);
+}
+
+.tx-sale-hint .ghost-button {
+  grid-column: 2;
+  justify-self: start;
+}
+
+.tx-sale-hint[hidden] { display: none; }
+
+/* Linha do extrato que parece algo já lançado na plataforma. */
+.import-row__match {
+  grid-column: 1 / -1;
+  font-size: var(--text-xs);
+  color: var(--color-warning);
   line-height: var(--leading-normal);
 }

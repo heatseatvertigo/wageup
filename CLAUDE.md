@@ -226,6 +226,8 @@ GET             /api/health/                 # Health check (aberto, sem throttl
 
 21. **Member registra venda, mas não vê o financeiro**: cada conta tem o próprio negócio, então a entrada da venda do member cai no financeiro do negócio dele. A visão geral do member mostra só o lucro por produto; cards, calendário e gráfico leem o financeiro e ficam escondidos (`data-admin-only`).
 
+22. **Extrato não conta duas vezes o que já foi lançado na plataforma** (`_ja_lancados_na_plataforma` em `finance/views.py`): venda, PIX e lançamento manual não têm `external_id`, então a deduplicação por FITID (decisão 17) não os pega, mas o banco mostra o mesmo dinheiro no extrato. Na prévia, uma linha com mesmo tipo, mesmo valor e data a até um dia de distância vem desmarcada com `possible_match`. Cada lançamento casa com uma linha só. É sugestão, não bloqueio: o usuário pode marcar e importar. Venda no cartão (cai dias depois, já com a taxa descontada) não é reconhecida.
+
 ---
 
 ## Deploy no Render + Neon

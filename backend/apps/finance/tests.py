@@ -270,6 +270,105 @@ class ImportacaoEndpointTests(TestCase):
         self.assertEqual(preview["duplicates"], 0)
 
 
+class JaLancadoNaPlataformaTests(TestCase):
+    """O que foi lancado na plataforma aparece de novo no extrato do banco.
+
+    A venda em dinheiro depositado, o PIX recebido fora da plataforma e o
+    lancamento manual nao tem FITID, entao a deduplicacao por external_id nao
+    os pega. Sem este aviso, importar o extrato contaria o mesmo dinheiro
+    duas vezes.
+    """
+
+    def setUp(self):
+        User = get_user_model()
+        self.admin = User.objects.create_user(
+            username="admin@wageup.local", email="admin@wageup.local", password="x"
+        )
+        UserProfile.objects.create(user=self.admin, role="admin")
+        self.business = Business.objects.create(owner=self.admin, name="Negocio")
+        self.client = APIClient()
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {Token.objects.create(user=self.admin).key}")
+
+    def _lancar(self, valor, dia, tipo=Transaction.TransactionType.INCOME, **campos):
+        from datetime import datetime
+        from django.utils import timezone
+
+        dados = {"source": Transaction.Source.SALE, "description": "Venda: 2x Bolo"}
+        dados.update(campos)
+        return Transaction.objects.create(
+            business=self.business, type=tipo, amount=Decimal(valor),
+            occurred_at=timezone.make_aware(datetime(2026, 9, dia, 20, 0)), **dados,
+        )
+
+    def _preview(self, conteudo=OFX_SGML.encode("cp1252")):
+        return self.client.post(
+            "/api/transactions/import/preview/", {"file": SimpleUploadedFile("extrato.ofx", conteudo)}
+        ).data
+
+    def test_venda_ja_registrada_vem_marcada_como_parecida(self):
+        self._lancar("340.00", 2)
+
+        preview = self._preview()
+
+        linha = preview["transactions"][0]
+        self.assertEqual(linha["amount"], "340.00")
+        self.assertEqual(linha["possible_match"]["description"], "Venda: 2x Bolo")
+        self.assertEqual(linha["possible_match"]["source"], Transaction.Source.SALE)
+        self.assertFalse(linha["duplicate"])
+        self.assertEqual(preview["possible_matches"], 1)
+
+    def test_venda_da_noite_casa_com_o_extrato_do_dia_seguinte(self):
+        self._lancar("340.00", 1)
+
+        self.assertIsNotNone(self._preview()["transactions"][0]["possible_match"])
+
+    def test_dois_dias_de_distancia_nao_casa(self):
+        self._lancar("340.00", 4)
+
+        self.assertIsNone(self._preview()["transactions"][0]["possible_match"])
+
+    def test_valor_ou_tipo_diferente_nao_casa(self):
+        self._lancar("339.99", 2)
+        self._lancar("340.00", 2, tipo=Transaction.TransactionType.EXPENSE)
+
+        self.assertEqual(self._preview()["possible_matches"], 0)
+
+    def test_lancamento_manual_tambem_e_reconhecido(self):
+        self._lancar("120.50", 3, tipo=Transaction.TransactionType.EXPENSE,
+                     source=Transaction.Source.MANUAL, description="Conta de luz")
+
+        linha = self._preview()["transactions"][1]
+        self.assertEqual(linha["possible_match"]["description"], "Conta de luz")
+
+    def test_cada_lancamento_cobre_uma_linha_so(self):
+        # O extrato tem dois cafes de 12,00 no mesmo dia; so um foi lancado.
+        self._lancar("12.00", 5, tipo=Transaction.TransactionType.EXPENSE,
+                     source=Transaction.Source.MANUAL, description="Cafe")
+
+        linhas = self._preview(OFX_SEM_FITID.encode())["transactions"]
+
+        self.assertEqual([linha["possible_match"] is not None for linha in linhas], [True, False])
+
+    def test_o_que_veio_de_extrato_nao_conta_como_lancado_na_plataforma(self):
+        self._lancar("340.00", 2, source=Transaction.Source.IMPORT, external_id="outro-banco-1")
+
+        self.assertEqual(self._preview()["possible_matches"], 0)
+
+    def test_lancamento_de_outro_negocio_nao_casa(self):
+        from datetime import datetime
+        from django.utils import timezone
+
+        outro = get_user_model().objects.create_user(username="o@w.local", email="o@w.local", password="x")
+        Transaction.objects.create(
+            business=Business.objects.create(owner=outro, name="Outro"),
+            type=Transaction.TransactionType.INCOME, amount=Decimal("340.00"),
+            source=Transaction.Source.SALE, description="Alheia",
+            occurred_at=timezone.make_aware(datetime(2026, 9, 2, 12, 0)),
+        )
+
+        self.assertEqual(self._preview()["possible_matches"], 0)
+
+
 class InsightsTests(TestCase):
     """Os insights do dashboard leem a margem do modelo e sao so de admin."""
 

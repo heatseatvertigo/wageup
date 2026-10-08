@@ -424,6 +424,14 @@ document.querySelector("#txAllPeriods")?.addEventListener("click", (event) => {
   renderTransactions();
 });
 
+document.querySelector("#txType")?.addEventListener("change", () => updateTxSaleHint());
+
+document.querySelector("#txGoToSale")?.addEventListener("click", () => {
+  closeTxModal();
+  setView("sales");
+  openSaleModal();
+});
+
 document.querySelector("#transactionForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formEl = event.currentTarget;
@@ -2065,13 +2073,25 @@ function renderImportReview() {
     const valor = Number(linha.amount);
     const quando = new Date(linha.occurred_at).toLocaleDateString("pt-BR");
     const id = `importRow${indice}`;
+    // Já importado (mesmo FITID) ou parecido com algo lançado na plataforma
+    // (venda, PIX, lançamento manual): nos dois casos a linha vem desmarcada.
+    const parecido = linha.possible_match;
+    const desmarcada = linha.duplicate || Boolean(parecido);
+    const etiqueta = linha.duplicate
+      ? `<span class="import-row__tag status-badge status-badge--neutral">Já importado</span>`
+      : parecido
+      ? `<span class="import-row__tag status-badge status-badge--warning"
+               title="${escapeHtml(`${parecido.description} · ${new Date(parecido.occurred_at).toLocaleDateString("pt-BR")}`)}">
+           Já lançado: ${escapeHtml(txSourceInfo(parecido.source).label)}
+         </span>`
+      : `<span class="import-row__tag"></span>`;
     return `
-      <div class="import-row ${linha.duplicate ? "import-row--duplicate" : ""}" data-import-row
+      <div class="import-row ${desmarcada ? "import-row--duplicate" : ""}" data-import-row
            data-external-id="${escapeHtml(linha.external_id)}"
            data-occurred-at="${escapeHtml(linha.occurred_at)}"
            data-amount="${escapeHtml(linha.amount)}">
         <input class="import-row__check" type="checkbox" id="${id}" data-import-check
-               ${linha.duplicate ? "" : "checked"} />
+               ${desmarcada ? "" : "checked"} />
         <label class="import-row__date" for="${id}">${escapeHtml(quando)}</label>
         <input class="import-row__field" data-import-desc aria-label="Descrição"
                value="${escapeHtml(linha.description)}" maxlength="180" />
@@ -2082,9 +2102,8 @@ function renderImportReview() {
         <span class="value-currency import-row__amount ${entrada ? "value-positive" : "value-negative"}">
           ${entrada ? "+" : "−"} ${formatMoney(valor)}
         </span>
-        <span class="import-row__tag ${linha.duplicate ? "status-badge status-badge--neutral" : ""}">
-          ${linha.duplicate ? "Já importado" : ""}
-        </span>
+        ${etiqueta}
+        ${parecido ? `<p class="import-row__match">Parece ${escapeHtml(parecido.description)}, de ${escapeHtml(new Date(parecido.occurred_at).toLocaleDateString("pt-BR"))}. Importar contaria o mesmo dinheiro duas vezes.</p>` : ""}
       </div>`;
   }).join("");
 
@@ -2099,10 +2118,14 @@ function updateImportSummary() {
   const total = importPreview?.transactions.length || 0;
   const marcados = selectedImportRows().length;
   const duplicados = importPreview?.duplicates || 0;
+  const parecidos = importPreview?.possible_matches || 0;
 
   const partes = [`${marcados} de ${total} lançamentos selecionados`];
   if (duplicados) {
     partes.push(`${duplicados} já ${duplicados === 1 ? "existe" : "existem"} no financeiro e ${duplicados === 1 ? "veio desmarcado" : "vieram desmarcados"}`);
+  }
+  if (parecidos) {
+    partes.push(`${parecidos} ${parecidos === 1 ? "parece já ter sido lançado" : "parecem já ter sido lançados"} na plataforma e ${parecidos === 1 ? "veio desmarcado" : "vieram desmarcados"}`);
   }
   if (importPreview?.already_imported) {
     partes.push("este arquivo já foi importado antes");
@@ -2137,6 +2160,7 @@ function openTxModal(item) {
   document.querySelector("#txSubmit").textContent = item ? "Salvar" : "Adicionar";
 
   document.querySelector("#txType").value = item ? item.type : "income";
+  updateTxSaleHint();
   document.querySelector("#txDescription").value = item ? item.description : "";
   document.querySelector("#txAmount").value = item ? formatMoney(item.amount) : "";
   document.querySelector("#txDate").value = item ? dateKey(transactionDate(item)) : dateKey(new Date());
@@ -2149,6 +2173,14 @@ function openTxModal(item) {
   requestAnimationFrame(() => modal.classList.add("is-open"));
   document.addEventListener("keydown", txModalEscHandler);
   document.querySelector("#txDescription")?.focus();
+}
+
+// Entrada nova pode ser a venda de um produto, que tem tela própria: lá o
+// estoque baixa e o lucro é calculado. Lançada aqui, nada disso acontece.
+function updateTxSaleHint() {
+  const dica = document.querySelector("#txSaleHint");
+  if (!dica) return;
+  dica.hidden = Boolean(txEditingId) || document.querySelector("#txType").value !== "income";
 }
 
 function closeTxModal() {
