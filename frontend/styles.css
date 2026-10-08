@@ -2722,7 +2722,9 @@ kbd {
 .calendar__weekdays,
 .calendar__grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  /* minmax(0, 1fr): com 1fr puro a coluna não encolhe abaixo do conteúdo e
+     o sábado vazava do card (no celular, a tela rolava de lado). */
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: var(--space-2);
 }
 

@@ -1549,12 +1549,14 @@
       // reduzido, as interações continuam funcionando e só a animação
       // decorativa é que desliga.
       (function () {
-        if (typeof gsap === "undefined") return;
-
         const shell = document.querySelector(".site-shell");
         if (!shell) return;
 
-        const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        // Sem o GSAP (CDN fora do ar, rede que bloqueia, bloqueador de
+        // anúncio), a página segue como no movimento reduzido: a calculadora
+        // e a demo de PIX não podem depender de uma biblioteca de efeito.
+        const hasGsap = typeof gsap !== "undefined" && typeof ScrollTrigger !== "undefined";
+        const prefersReduced = !hasGsap || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         if (!prefersReduced) gsap.registerPlugin(ScrollTrigger);
 
         const $ = (sel, root) => (root || document).querySelector(sel);

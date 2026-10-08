@@ -199,7 +199,14 @@ document.querySelectorAll("[data-view]").forEach((button) => {
 // O item não abre view nenhuma: passar o mouse revela os módulos financeiros
 // em cascata e o clique apenas abre/recolhe essa cascata.
 
-function setNavGroupOpen(group, open) {
+// Hover e foco abrem o grupo, e o clique vem logo em seguida: sem esta marca,
+// o clique fecharia o que o mouse (ou o toque, que também foca) acabou de abrir.
+const NAV_GROUP_CLICK_GRACE_MS = 500;
+
+function setNavGroupOpen(group, open, { byHover = false } = {}) {
+  if (open && byHover && !group.classList.contains("is-open")) {
+    group.dataset.openedAt = String(performance.now());
+  }
   group.classList.toggle("is-open", open);
   group.querySelector(".nav-group__toggle")?.setAttribute("aria-expanded", String(open));
 }
@@ -208,17 +215,19 @@ document.querySelectorAll("[data-nav-group]").forEach((group) => {
   const toggle = group.querySelector(".nav-group__toggle");
 
   toggle?.addEventListener("click", () => {
+    const openedAt = Number(group.dataset.openedAt || 0);
+    if (performance.now() - openedAt < NAV_GROUP_CLICK_GRACE_MS) return;
     setNavGroupOpen(group, !group.classList.contains("is-open"));
   });
 
   // Hover abre; ao sair, só recolhe se nenhuma view do grupo estiver ativa.
-  group.addEventListener("mouseenter", () => setNavGroupOpen(group, true));
+  group.addEventListener("mouseenter", () => setNavGroupOpen(group, true, { byHover: true }));
   group.addEventListener("mouseleave", () => {
     if (!group.classList.contains("has-active")) setNavGroupOpen(group, false);
   });
 
   // Teclado: abre ao focar qualquer item e recolhe ao sair do grupo.
-  group.addEventListener("focusin", () => setNavGroupOpen(group, true));
+  group.addEventListener("focusin", () => setNavGroupOpen(group, true, { byHover: true }));
   group.addEventListener("focusout", (event) => {
     if (group.contains(event.relatedTarget)) return;
     if (!group.classList.contains("has-active")) setNavGroupOpen(group, false);
@@ -2834,7 +2843,10 @@ function createChat(cfg) {
     ask(question);
   });
 
-  $(cfg.ids.newButton)?.addEventListener("click", () => startNew());
+  $(cfg.ids.newButton)?.addEventListener("click", () => {
+    startNew();
+    if (window.matchMedia("(max-width: 768px)").matches) setAsideOpen(false);
+  });
 
   $(cfg.ids.toggle)?.addEventListener("click", () => {
     setAsideOpen($(cfg.ids.shell)?.classList.contains("is-collapsed"));
@@ -2871,6 +2883,9 @@ function createChat(cfg) {
   function ensureStarted() {
     if (currentId === null) startNew();
   }
+
+  // No celular a lista cobre o chat: a tela abre com ela recolhida.
+  if (window.matchMedia("(max-width: 768px)").matches) setAsideOpen(false);
 
   return { startNew, ensureStarted };
 }
