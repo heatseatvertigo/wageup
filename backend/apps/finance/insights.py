@@ -8,10 +8,12 @@ import re
 
 from django.conf import settings
 from django.db.models import Sum
+from django.utils import timezone
 
 from apps.finance.models import Transaction
 from apps.payments.models import Payment
 from apps.products.models import Product
+from apps.sales.services import intervalo_do_mes, resumo_vendas
 
 # Usado so para o produto que ficou sem `min_stock` definido: sem um limite
 # proprio, "estoque baixo" precisa de algum ponto de corte.
@@ -45,6 +47,12 @@ def gather_metrics(business):
     # das taxas, rende menos que outro.
     best_margin = max(products, key=lambda p: p.margin_value, default=None)
 
+    # Lucro realizado no mes, das vendas. A margem do cadastro diz quanto cada
+    # unidade pode render; a venda diz quanto rendeu de fato.
+    agora = timezone.localtime()
+    vendas = resumo_vendas(business, *intervalo_do_mes(agora.year, agora.month))
+    campeao = vendas["products"][0] if vendas["products"] else None
+
     return {
         "income": float(income),
         "expense": float(expense),
@@ -56,6 +64,12 @@ def gather_metrics(business):
         "low_stock_names": [p.name for p in low_stock[:5]],
         "best_margin_name": best_margin.name if best_margin else None,
         "best_margin_value": float(best_margin.margin_value) if best_margin else 0.0,
+        "sales_count": vendas["totals"]["count"],
+        "sales_total": float(vendas["totals"]["total"]),
+        "sales_profit": float(vendas["totals"]["profit"]),
+        "top_seller_name": campeao["product_name"] if campeao else None,
+        "top_seller_profit": float(campeao["profit"]) if campeao else 0.0,
+        "top_seller_quantity": campeao["quantity"] if campeao else 0,
     }
 
 
@@ -87,6 +101,11 @@ def _call_claude(business, m):
         if m["best_margin_name"] else "nenhum produto cadastrado"
     )
 
+    top_seller = (
+        f"{m['top_seller_name']} ({m['top_seller_quantity']} unidade(s), lucro {brl(m['top_seller_profit'])})"
+        if m["top_seller_name"] else "nenhuma venda registrada"
+    )
+
     user_message = (
         f"Dados do negócio '{business.name}':\n"
         f"- Receita (entradas): {brl(m['income'])}\n"
@@ -96,7 +115,10 @@ def _call_claude(business, m):
         f"- A receber (PIX pendente): {brl(m['pending'])}\n"
         f"- Produtos cadastrados: {m['product_count']}\n"
         f"- Produtos com estoque baixo: {m['low_stock_count']} ({low_stock})\n"
-        f"- Produto de melhor margem: {best_margin}\n\n"
+        f"- Produto de melhor margem: {best_margin}\n"
+        f"- Vendas do mês: {m['sales_count']}, faturamento {brl(m['sales_total'])}, "
+        f"lucro realizado {brl(m['sales_profit'])} (já descontados custo, taxa e imposto)\n"
+        f"- Produto que mais lucrou no mês: {top_seller}\n\n"
         "Gere de 3 a 4 insights acionáveis. Responda APENAS com um array JSON válido, "
         'no formato [{"title": "...", "text": "..."}]. '
         "O title deve ter no máximo 4 palavras; o text, no máximo 2 frases."
@@ -149,6 +171,15 @@ def _fallback_insights(m):
         insights.append({
             "title": "Saúde financeira",
             "text": f"Saídas acima das entradas ({brl(m['expense'])} vs {brl(m['income'])}). Reveja os custos.",
+        })
+
+    if m["top_seller_name"]:
+        insights.append({
+            "title": "Lucro das vendas",
+            "text": (
+                f"{m['sales_count']} venda(s) no mês deram {brl(m['sales_profit'])} de lucro real. "
+                f"{m['top_seller_name']} puxou a fila, com {brl(m['top_seller_profit'])}."
+            ),
         })
 
     if m["pending"] > 0:

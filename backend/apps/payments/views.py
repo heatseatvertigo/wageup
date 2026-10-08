@@ -12,6 +12,9 @@ from rest_framework.response import Response
 from apps.accounts.permissions import IsAdminRole
 from apps.businesses.models import Business
 from apps.finance.models import Transaction
+from apps.products.models import Product
+from apps.sales.models import Sale
+from apps.sales.services import cancelar_venda, controla_estoque, venda_do_pix
 from .models import Payment, PaymentEvent
 from .serializers import PaymentSerializer, PixChargeCreateSerializer
 from .services import AbacatePayClient, AbacatePayError
@@ -85,6 +88,20 @@ class PaymentViewSet(viewsets.ModelViewSet):
         data = serializer.validated_data
 
         business = Business.objects.filter(owner=request.user).first()
+
+        # Cobranca de produto: o estoque e conferido antes de gerar o PIX, para
+        # ninguem pagar por algo que acabou. A baixa so acontece no pagamento.
+        produto = None
+        if data.get("product_id"):
+            produto = Product.objects.filter(pk=data["product_id"], business=business).first()
+            if produto is None:
+                return Response({"detail": "Produto não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+            if controla_estoque(produto) and produto.stock < data["quantity"]:
+                return Response(
+                    {"detail": f"Só há {produto.stock} em estoque de {produto.name}."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         # Os dados do cliente sao enviados ao provedor, mas tambem ficam
         # guardados aqui: sem isso a tela de detalhes nao tem como mostrar
         # para quem a cobranca foi feita.
@@ -99,6 +116,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
             metadata={
                 "description": data.get("description", ""),
                 "customer": {k: v for k, v in customer.items() if v},
+                **({"product_id": str(produto.id), "quantity": data["quantity"]} if produto else {}),
             },
         )
 
@@ -290,6 +308,8 @@ def record_finance_income(payment):
         source=Transaction.Source.PIX,
     )
     payment.metadata = {**payment.metadata, "finance_transaction_id": str(transaction.id)}
+    # Cobranca de produto: a entrada conciliada vira uma venda e baixa o estoque.
+    venda_do_pix(payment, transaction)
 
 
 def record_finance_refund(payment):
@@ -307,3 +327,8 @@ def record_finance_refund(payment):
         source=Transaction.Source.PIX,
     )
     payment.metadata = {**payment.metadata, "refund_transaction_id": str(transaction.id)}
+    # A venda do PIX estornado e cancelada e o produto volta ao estoque. O
+    # lancamento de entrada fica: a saida do estorno ja equilibra o financeiro.
+    venda = Sale.objects.filter(payment=payment).first()
+    if venda:
+        cancelar_venda(venda, apagar_lancamento=False)
