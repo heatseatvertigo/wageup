@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from .models import Payment, PaymentEvent
@@ -20,7 +22,14 @@ class PaymentSerializer(serializers.ModelSerializer):
 
 
 class PixChargeCreateSerializer(serializers.Serializer):
-    amount = serializers.DecimalField(max_digits=12, decimal_places=2)
+    # A tela ja bloqueia valor zero, mas a API nao pode depender dela: sem o
+    # minimo, uma chamada direta criava a cobranca e ia ate a Abacate Pay.
+    amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+        error_messages={"min_value": "Informe um valor maior que zero."},
+    )
     description = serializers.CharField(max_length=180, required=False, allow_blank=True)
     customer_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
     customer_email = serializers.EmailField(required=False, allow_blank=True)

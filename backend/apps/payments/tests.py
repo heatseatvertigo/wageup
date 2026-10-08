@@ -175,6 +175,25 @@ class CriarCobrancaTests(_PagamentosBase):
         self.assertIn("travessao", resposta.data["detail"])
         self.abacate.assert_not_called()
 
+    def test_valor_zero_ou_negativo_e_recusado_sem_chamar_a_abacate(self):
+        for valor in ("0", "0.00", "-10.00"):
+            with self.subTest(valor=valor):
+                resposta = self._gerar(amount=valor)
+
+                self.assertEqual(resposta.status_code, 400)
+                self.assertEqual(resposta.data["amount"], ["Informe um valor maior que zero."])
+
+        self.assertEqual(Payment.objects.count(), 0)
+        self.abacate.assert_not_called()
+
+    def test_um_centavo_e_aceito(self):
+        self.abacate.return_value = _resposta_abacate(200, {"data": {"id": "pix_char_1"}})
+
+        resposta = self._gerar(amount="0.01")
+
+        self.assertEqual(resposta.status_code, 201)
+        self.assertEqual(self.abacate.call_args.kwargs["json"]["data"]["amount"], 1)
+
     def test_valor_invalido_e_recusado_sem_criar_cobranca(self):
         resposta = self._gerar(amount="vinte reais")
 
