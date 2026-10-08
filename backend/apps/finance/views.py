@@ -3,6 +3,7 @@ import logging
 from django.conf import settings
 from django.db import transaction as db_transaction
 from rest_framework import status, viewsets
+from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import api_view, parser_classes, permission_classes, throttle_classes
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
@@ -35,6 +36,24 @@ class TransactionViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         business = Business.objects.filter(owner=self.request.user).first()
         serializer.save(business=business)
+
+    # A entrada de uma venda se desfaz cancelando a venda, que devolve o
+    # estoque junto. Editar ou apagar aqui deixaria venda e financeiro em
+    # desacordo.
+    def perform_update(self, serializer):
+        self._recusar_se_for_venda(serializer.instance)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        self._recusar_se_for_venda(instance)
+        instance.delete()
+
+    @staticmethod
+    def _recusar_se_for_venda(instance):
+        if instance.source == Transaction.Source.SALE:
+            raise ValidationError(
+                {"detail": "Esta entrada veio de uma venda. Cancele a venda na tela de Vendas."}
+            )
 
 
 @api_view(["GET"])

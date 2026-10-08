@@ -200,6 +200,9 @@ class CancelarVendaTests(_VendasBase):
         self.assertIsNone(venda.product)
         self.assertEqual(venda.product_name, "Bolo de cenoura")
         self.assertEqual(venda.profit, Decimal("31.40"))
+        lista = self.client.get("/api/sales/").data
+        self.assertIsNone(lista[0]["product_id"])
+        self.assertEqual(lista[0]["product_name"], "Bolo de cenoura")
 
     def test_nao_ha_rota_para_editar_ou_apagar_venda(self):
         venda_id = self._vender(quantidade=1).data["id"]
@@ -414,3 +417,54 @@ class VendasNoFinanceiroTests(_VendasBase):
         # Margem real (31,40), nao preco menos custo (42,00).
         self.assertIn("margem real R$ 31,40", texto)
         self.assertNotIn("margem R$ 42,00", texto)
+
+
+class LancamentoDaVendaTests(_VendasBase):
+    def test_entrada_da_venda_nao_e_editada_nem_apagada_em_movimentacoes(self):
+        self._vender(quantidade=1)
+        lancamento = Transaction.objects.get()
+
+        editar = self.client.patch(f"/api/transactions/{lancamento.id}/", {"amount": "1.00"}, format="json")
+        apagar = self.client.delete(f"/api/transactions/{lancamento.id}/")
+
+        self.assertEqual(editar.status_code, 400)
+        self.assertEqual(apagar.status_code, 400)
+        lancamento.refresh_from_db()
+        self.assertEqual(lancamento.amount, Decimal("60.00"))
+
+
+@override_settings(ANTHROPIC_API_KEY="")
+class RecomendacaoComVendasTests(_VendasBase):
+    def test_produto_de_margem_boa_sem_venda_recente_vira_recomendacao(self):
+        from apps.marketing.models import MarketingCampaign
+
+        # O bolo ja teve campanha: sem isso, a recomendacao de estreia vem antes
+        # e, de proposito, o mesmo produto nao aparece duas vezes.
+        MarketingCampaign.objects.create(
+            business=self.business, product=self.bolo, prompt="post", channel="Instagram", goal="promocao"
+        )
+        brigadeiro = self._produto("Brigadeiro", price="3", cost="1", stock=50)
+        self._vender(brigadeiro, quantidade=5)
+
+        recomendacoes = self.client.get("/api/marketing/recommendations/").data["recommendations"]
+
+        parado = [r for r in recomendacoes if r["title"] == "Tire da prateleira"]
+        self.assertEqual(len(parado), 1)
+        self.assertEqual(parado[0]["product_name"], "Bolo de cenoura")
+
+    def test_sem_nenhuma_venda_nenhum_produto_e_tratado_como_parado(self):
+        recomendacoes = self.client.get("/api/marketing/recommendations/").data["recommendations"]
+
+        self.assertFalse(any(r["title"] == "Tire da prateleira" for r in recomendacoes))
+
+    def test_produto_sem_estoque_nao_e_recomendado_para_divulgar(self):
+        Product.objects.filter(pk=self.bolo.pk).update(stock=0)
+        self._produto("Brigadeiro", price="3", cost="1", stock=50)
+
+        recomendacoes = self.client.get("/api/marketing/recommendations/").data["recommendations"]
+
+        divulgar = [r for r in recomendacoes if r["title"] in ("Estreie a divulgação", "Priorize o que rende")]
+        self.assertTrue(divulgar)
+        self.assertTrue(all(r["product_name"] != "Bolo de cenoura" for r in divulgar))
+        # O brigadeiro nao e o de melhor margem: o texto nao pode dizer que e.
+        self.assertNotIn("é o que mais rende", divulgar[0]["text"])

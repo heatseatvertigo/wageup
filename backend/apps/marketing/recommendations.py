@@ -17,12 +17,20 @@ import json
 import logging
 import re
 
+from datetime import timedelta
+
 import anthropic as anthropic_sdk
 from django.conf import settings
+from django.utils import timezone
 
 from apps.finance.insights import brl
 from apps.products.models import Product
+from apps.sales.models import Sale
 from .models import MarketingCampaign
+
+# Janela para "produto parado": vendeu nada nesse periodo, embora o negocio
+# tenha vendido outras coisas.
+DIAS_SEM_VENDA = 30
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +60,19 @@ def gather_signals(business):
         .values_list("product_id", flat=True)
     )
 
+    # Vendas recentes por produto. So conta como "parado" quando o negocio
+    # registra vendas: sem nenhuma, todo produto pareceria parado.
+    desde = timezone.now() - timedelta(days=DIAS_SEM_VENDA)
+    vendidos = set(
+        Sale.objects.filter(business=business, status=Sale.Status.DONE, occurred_at__gte=desde)
+        .values_list("product_id", flat=True)
+    )
+    registra_vendas = bool(vendidos)
+
+    def parado(produto):
+        tem_o_que_vender = produto.stock > 0 or produto.unit == Product.Unit.SERVICE
+        return registra_vendas and tem_o_que_vender and produto.id not in vendidos
+
     def resumo(produto):
         return {
             "id": str(produto.id),
@@ -62,6 +83,9 @@ def gather_signals(business):
             "stock": produto.stock,
             "low_stock": produto.is_low_stock,
             "never_promoted": produto.id not in ja_divulgados,
+            "stale": parado(produto),
+            # Sem estoque nao se divulga: a campanha geraria pedido sem entrega.
+            "has_stock": produto.stock > 0 or produto.unit == Product.Unit.SERVICE,
         }
 
     ordenados = sorted(ativos, key=lambda p: p.margin_value, reverse=True)
@@ -76,6 +100,7 @@ def gather_signals(business):
         "never_promoted": [resumo(p) for p in ordenados if p.id not in ja_divulgados][:3],
         "low_stock": [resumo(p) for p in ordenados if p.is_low_stock][:3],
         "negative_margin": [resumo(p) for p in ordenados if p.margin_value < 0][:3],
+        "stale": [resumo(p) for p in ordenados if p.margin_value > 0 and parado(p)][:3],
     }
 
 
@@ -116,6 +141,10 @@ def _call_claude(business, sinais):
             marcas.append("estoque baixo")
         if p["margin"] < 0:
             marcas.append("PREJUÍZO por unidade")
+        if p["stale"]:
+            marcas.append(f"sem venda nos últimos {DIAS_SEM_VENDA} dias")
+        if not p["has_stock"]:
+            marcas.append("SEM ESTOQUE")
         sufixo = f" [{', '.join(marcas)}]" if marcas else ""
         linhas.append(
             f"- {p['name']}: preço {brl(p['price'])}, margem real {brl(p['margin'])} "
@@ -131,7 +160,8 @@ def _call_claude(business, sinais):
         f"A margem informada já desconta embalagem, frete, taxa de cartão/PIX e imposto. "
         f"É o que sobra de verdade — use ela, não o preço, para decidir o que vale divulgar.\n\n"
         f"Recomende de 3 a 4 ações de marketing. Priorize: produto de margem alta que nunca "
-        f"foi divulgado; produto com estoque baixo (não vale empurrar volume); produto em "
+        f"foi divulgado; produto de margem boa parado, sem venda recente; produto com "
+        f"estoque baixo (não vale empurrar volume); produto em "
         f"prejuízo (a ação é rever preço, não divulgar).\n\n"
         f"Responda APENAS com um array JSON válido, no formato:\n"
         f'[{{"title": "...", "text": "...", "product_name": "...", '
@@ -221,15 +251,31 @@ def _fallback(sinais):
             goal="promocao",
         ))
 
+    melhor = sinais["best_margin"]
     for produto in sinais["never_promoted"]:
-        if produto["margin"] <= 0 or produto["low_stock"]:
+        if produto["margin"] <= 0 or produto["low_stock"] or not produto["has_stock"]:
             continue
+        # "O que mais rende" so quando e verdade: o primeiro nunca divulgado
+        # pode nao ser o de melhor margem, que talvez esteja sem estoque.
+        destaque = "é o que mais rende" if melhor and melhor["id"] == produto["id"] else "deixa"
         recomendacoes.append(_acao(
             "Estreie a divulgação",
-            f"{produto['name']} nunca teve campanha e é o que mais rende: "
+            f"{produto['name']} nunca teve campanha e {destaque}: "
             f"{brl(produto['margin'])} por unidade ({produto['margin_percent']:.0f}% do preço).",
             produto,
             goal="lancamento",
+        ))
+        break
+
+    for produto in sinais["stale"]:
+        if any(r["product_id"] == produto["id"] for r in recomendacoes):
+            continue
+        recomendacoes.append(_acao(
+            "Tire da prateleira",
+            f"{produto['name']} não vendeu nos últimos {DIAS_SEM_VENDA} dias e deixa "
+            f"{brl(produto['margin'])} por unidade. Uma oferta curta faz ele girar.",
+            produto,
+            goal="promocao",
         ))
         break
 
@@ -243,8 +289,7 @@ def _fallback(sinais):
         ))
         break
 
-    melhor = sinais["best_margin"]
-    if melhor and melhor["margin"] > 0 and not any(
+    if melhor and melhor["margin"] > 0 and melhor["has_stock"] and not any(
         r["product_id"] == melhor["id"] for r in recomendacoes
     ):
         recomendacoes.append(_acao(

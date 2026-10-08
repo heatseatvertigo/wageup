@@ -45,7 +45,24 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 - [x] Produto **ativo ou inativo**, para tirar do catálogo sem apagar o histórico
 - [x] Grade com foto, preço, margem e estoque; clicar abre a edição
 - [x] Dados isolados por negócio (um usuário nunca vê produtos de outro)
-- [ ] Gestão de produtos com métricas de venda e giro — depende de registrar vendas, que ainda não existe
+- [x] Lucro realizado por produto, a partir das vendas (ver abaixo)
+- [ ] Giro de estoque (quantos dias o estoque dura no ritmo atual de vendas)
+
+### Vendas (admin e membro)
+
+A venda é o que liga o catálogo ao estoque e ao financeiro. Antes dela, a margem calculada no produto nunca virava lucro de verdade e vender não baixava o estoque.
+
+- [x] Tela **Vendas** no menu, para admin e membro: produto, quantidade, preço por unidade (dá para registrar desconto ou preço combinado), forma de pagamento e data
+- [x] Prévia do total e do **lucro real** enquanto o usuário preenche; quem grava a conta é o servidor, com custo, taxa e imposto do produto no banco
+- [x] A venda **baixa o estoque**. Pedir mais do que há em estoque bloqueia a venda com "Só há N em estoque"; duas vendas ao mesmo tempo não levam o estoque abaixo de zero
+- [x] Produto com unidade **serviço** não controla estoque
+- [x] A venda **lança a entrada no financeiro**, com origem "Venda". Essa entrada não pode ser editada nem apagada em Movimentações: desfaz-se cancelando a venda
+- [x] Os valores do produto são **copiados no momento da venda**: mudar preço ou custo depois não muda o lucro de uma venda antiga
+- [x] **Cancelar a venda** devolve o estoque e tira a entrada do financeiro. Não existe editar nem apagar venda
+- [x] Resumo do mês: vendido, lucro real e unidades; detalhe de cada venda mostrando de onde sai o lucro (total, custo, taxa e imposto)
+- [x] **Cobrança PIX de um produto vira venda quando é paga** (ver PIX)
+
+Endpoints: `GET|POST /api/sales/?month=AAAA-MM`, `POST /api/sales/<id>/cancel/`, `GET /api/sales/summary/?month=AAAA-MM`.
 
 ## 3. Módulo financeiro (somente admin)
 
@@ -67,8 +84,9 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 
 ### Conexão direta com o banco — apenas explicativa
 
-- [x] Botão "Integre com seu banco" em Movimentações, com selo **Em breve**, abrindo uma tela que explica como a conexão automática funcionaria: escolher o banco, autorizar dentro do próprio banco, e os lançamentos entrando sozinhos na tela de conferência
+- [x] Botão "Integre com seu banco" em Movimentações, com selo **Em breve**, abrindo uma tela marcada como **Protótipo** que explica como a conexão automática funcionaria: escolher o banco, autorizar dentro do próprio banco, e os lançamentos entrando sozinhos na tela de conferência
 - [x] A tela deixa claro que a senha do banco nunca passaria pela plataforma
+- [x] Aviso dentro da tela: a conexão ainda não existe, o caminho hoje é importar o extrato, e os logos são ilustrativos, sem parceria com os bancos nem com a Pluggy
 - [ ] **A integração em si não existe.** Não há backend, nem chamada de API, nem contrato com provedor. A tela serve para apresentar a próxima etapa do produto — os logos dos oito bancos e o da Pluggy são os oficiais, usados de forma ilustrativa — não existe parceria nem contrato com nenhum deles
 
 ## 4. Cobranças via PIX (Abacate Pay) — somente admin
@@ -78,6 +96,8 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 - [x] Anexar dados do cliente (nome, e-mail, CPF/CNPJ, celular) à cobrança — **a Abacate Pay exige CPF/CNPJ e celular juntos**; se um dos dois faltar, a cobrança é gerada sem os dados do cliente (regra ajustada em 2026-07-15; antes disso a API retornava erro 422)
 - [x] Lista de "Cobranças recentes" na tela de PIX, com badge de status, botão para reexibir o QR Code e atualização manual de status
 - [x] Webhook (`/api/payments/webhooks/abacatepay/`) para receber atualizações automáticas de status (pago, reembolsado, contestado) e atualizar o registro local
+- [x] **Cobrança de um produto do catálogo**: escolher o produto preenche descrição e valor e pede a quantidade. O estoque é conferido ao gerar o PIX; quando a cobrança é paga (webhook ou consulta), ela vira uma venda, baixa o estoque e reaproveita a entrada do PIX no financeiro — uma venda só, mesmo que webhook e consulta cheguem juntos. Estorno cancela a venda e devolve o estoque
+- [x] A API recusa cobrança de valor zero ou negativo, mesmo chamada fora da tela
 - [x] Consolidação de recebíveis — painel na Visão geral com total recebido, recebido no mês e valor a receber, agregado a partir das cobranças (`GET /api/payments/summary/`)
 
 ## 5. Marketing com Inteligência Artificial
@@ -89,7 +109,9 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 - [x] Histórico de campanhas geradas, vinculado ao negócio e ao produto
 - [x] **Recomendações automáticas de ação** (`GET /api/marketing/recommendations/`): devolve o que divulgar em seguida, na ordem produto em prejuízo (revisar preço antes) → produto de margem alta nunca divulgado → produto com estoque baixo (repor antes) → melhor margem do catálogo. Cada item já traz produto, canal e objetivo resolvidos
 - [x] Sem `ANTHROPIC_API_KEY`, ou se a chamada falhar, as recomendações saem de regras locais sobre os mesmos números
-- [ ] **Tela das recomendações** — o painel foi retirado; a rota existe e está testada, falta decidir como apresentar
+- [x] **As recomendações aparecem como sugestões no chat de marketing**: cada uma vira um pedido pronto. Produto em prejuízo vira pergunta sobre preço, produto com estoque baixo vira mensagem para clientes, o resto vira pedido de campanha
+- [x] Recomendação de **produto parado**: margem boa, tem estoque e não vendeu nos últimos 30 dias (só vale quando o negócio registra vendas)
+- [x] Produto sem estoque nunca é recomendado para divulgar
 - [x] **Geração da imagem da campanha**: sai junto com o texto, a partir da "ideia de imagem" que a própria campanha escreveu — texto e imagem falam da mesma coisa
 - [x] Cloudflare Workers AI (FLUX.1-schnell) quando há `CLOUDFLARE_ACCOUNT_ID` e `CLOUDFLARE_API_TOKEN`; o plano free dá ~500 imagens de 1024x1024 por dia
 - [x] Pollinations.ai como alternativa sem chave, ligada por `MARKETING_IMAGE_FALLBACK`. Opt-in de propósito: não pede chave, mas demora e põe marca d'água
@@ -100,7 +122,9 @@ Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que
 
 - [x] Tela inicial com resumo do negócio (produtos cadastrados, transações recentes, indicadores financeiros para admins)
 - [x] Insights por IA com base nos dados financeiros, recebíveis e produtos (`GET /api/finance/insights/`), só admin, com fallback local por regras quando não há `ANTHROPIC_API_KEY` ou a chamada à IA falha
-- [ ] **Tela dos insights** — o painel foi retirado; a rota existe e está testada, falta decidir como apresentar
+- [x] Painel **"O que os números dizem"** com os insights, incluindo o lucro das vendas do mês. A IA só é chamada de novo quando os dados mudaram, ou pelo botão Atualizar
+- [x] Painel **Lucro por produto no mês**, a partir das vendas, para admin e membro. Acompanha o mês do calendário
+- [x] Para o membro, a visão geral mostra só o lucro por produto: os cards, o calendário e o gráfico leem o financeiro, que é só do admin, e mostravam zeros
 
 ## 7. Assistente financeiro (somente admin)
 
@@ -135,8 +159,9 @@ Endpoints: `POST /api/finance/assistant/`, `GET|POST /api/finance/assistant/conv
 - [x] Em produção: HTTPS obrigatório, HSTS, cookies com `Secure`, API navegável do DRF desligada e recusa de subir com a `SECRET_KEY` de exemplo
 - [x] Webhook da Abacate Pay só funciona com segredo configurado, comparado em tempo constante. Sem o segredo, qualquer um poderia marcar uma cobrança como paga
 - [x] Logs da aplicação aparecem na saída do servidor (antes se perdiam)
-- [x] Testes automatizados: 146 casos — produtos 16 (margem, preço sugerido, foto), financeiro 20 (leitura de OFX, importação ponta a ponta e os insights), contas 14 (recuperação de senha e entrega pelo Resend), marketing 58 (margem real no prompt, isolamento por negócio, recomendações e a geração de imagem), pagamentos 38 (webhook só com o segredo certo, PIX pago vira uma receita e uma só, estorno, valor zero ou negativo recusado, falhas da Abacate Pay e isolamento por negócio)
-- [ ] Testes mais largos de **marketing**: os 4 casos cobrem o fallback sem chave, não a geração com a IA de verdade
+- [x] Testes automatizados: 183 casos — produtos 16 (margem, preço sugerido, foto), financeiro 20 (leitura de OFX, importação ponta a ponta e os insights), contas 14 (recuperação de senha e entrega pelo Resend), marketing 58 (margem real no prompt, isolamento por negócio, recomendações e a geração de imagem), pagamentos 38 (webhook só com o segredo certo, PIX pago vira uma receita e uma só, estorno, valor zero ou negativo recusado, falhas da Abacate Pay e isolamento por negócio), vendas 37 (lucro real, estoque que nunca fica negativo, cancelamento, PIX de produto, resumo do mês, insights, assistente e recomendações)
+- [x] Teste das telas num navegador automático (desktop e celular, admin e membro): cadastro, produtos, vendas, movimentações, extrato, PIX, assistente, marketing e recuperação de senha
+- [ ] Testes com a IA de verdade: os testes simulam as respostas da DeepSeek, da Anthropic e da Cloudflare; nenhum chama o modelo real
 
 ---
 
@@ -146,7 +171,7 @@ Com base no `Escopo TCC.pdf`, os itens abaixo ainda não foram implementados:
 
 Nada. Os dois itens do escopo foram implementados — recomendações de marketing e geração de imagens.
 
-Fora do escopo do PDF, mas pendente: as **variáveis do Resend no Render** e um **domínio verificado** para o e-mail chegar a qualquer usuário (o código está pronto e testado), e os leitores de extrato em **CSV** e **PDF**.
+Fora do escopo do PDF, mas pendente: as **variáveis do Resend no Render** e um **domínio verificado** para o e-mail chegar a qualquer usuário (o código está pronto e testado), os leitores de extrato em **CSV** e **PDF**, a **conexão direta com o banco** (hoje a tela é um protótipo) e o **giro de estoque**.
 
 ---
 
@@ -159,6 +184,7 @@ Fora do escopo do PDF, mas pendente: as **variáveis do Resend no Render** e um 
 | Recuperação de senha | Tela de login → "Esqueci minha senha" → informar o e-mail → abrir o link recebido → definir a senha nova → entrar com ela |
 | Onboarding | Após o primeiro login, preencher nome do negócio |
 | Produtos | Menu "Produtos" → cadastrar/editar/remover |
+| Vendas | Menu "Vendas" → "Registrar venda" → escolher o produto e a quantidade → conferir o lucro real na prévia → registrar. O estoque do produto baixa e a entrada aparece em Movimentações com origem "Venda". Pedir mais que o estoque deve mostrar "Só há N em estoque". Cancelar a venda devolve o estoque |
 | Financeiro | Login como admin → aba "Financeiro" → lançar transação |
 | PIX | Login como admin → aba "Financeiro" → "Cobrança PIX" → preencher e gerar |
 | Marketing IA | Menu "Marketing" → escrever o pedido (ou escolher uma sugestão) → a IA responde no chat |
