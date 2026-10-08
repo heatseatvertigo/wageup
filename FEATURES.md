@@ -1,7 +1,7 @@
 # WageUp — O que a plataforma faz hoje
 
 > Documento de **funcionalidades** (visão de produto). Para arquitetura técnica, ver [`CLAUDE.md`](CLAUDE.md).
-> Última atualização: 2026-09-24.
+> Última atualização: 2026-10-08.
 
 Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que já está pronto, o que está pela metade e o que ainda não existe**. Sempre que uma feature for concluída ou alterada, atualize esta lista.
 
@@ -135,8 +135,7 @@ Endpoints: `POST /api/finance/assistant/`, `GET|POST /api/finance/assistant/conv
 - [x] Em produção: HTTPS obrigatório, HSTS, cookies com `Secure`, API navegável do DRF desligada e recusa de subir com a `SECRET_KEY` de exemplo
 - [x] Webhook da Abacate Pay só funciona com segredo configurado, comparado em tempo constante. Sem o segredo, qualquer um poderia marcar uma cobrança como paga
 - [x] Logs da aplicação aparecem na saída do servidor (antes se perdiam)
-- [x] Testes automatizados: 92 casos — produtos 16 (margem, preço sugerido, foto), financeiro 20 (leitura de OFX, importação ponta a ponta e os insights), contas 14 (recuperação de senha e entrega pelo Resend), marketing 37 (margem real no prompt, isolamento por negócio, recomendações e a geração de imagem)
-- [ ] Testes de **pagamentos** (PIX/Abacate Pay) — ainda não existem
+- [x] Testes automatizados: 144 casos — produtos 16 (margem, preço sugerido, foto), financeiro 20 (leitura de OFX, importação ponta a ponta e os insights), contas 14 (recuperação de senha e entrega pelo Resend), marketing 58 (margem real no prompt, isolamento por negócio, recomendações e a geração de imagem), pagamentos 36 (webhook só com o segredo certo, PIX pago vira uma receita e uma só, estorno, falhas da Abacate Pay e isolamento por negócio)
 - [ ] Testes mais largos de **marketing**: os 4 casos cobrem o fallback sem chave, não a geração com a IA de verdade
 
 ---
@@ -147,7 +146,7 @@ Com base no `Escopo TCC.pdf`, os itens abaixo ainda não foram implementados:
 
 Nada. Os dois itens do escopo foram implementados — recomendações de marketing e geração de imagens.
 
-Fora do escopo do PDF, mas pendente: as **variáveis do Resend no Render** e um **domínio verificado** para o e-mail chegar a qualquer usuário (o código está pronto e testado), os **testes automatizados de pagamentos**, e os leitores de extrato em **CSV** e **PDF**.
+Fora do escopo do PDF, mas pendente: as **variáveis do Resend no Render** e um **domínio verificado** para o e-mail chegar a qualquer usuário (o código está pronto e testado), e os leitores de extrato em **CSV** e **PDF**.
 
 ---
 

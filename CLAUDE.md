@@ -240,6 +240,7 @@ Para domínio próprio: configurar `CUSTOM_DOMAIN=seudominio.com` nas variáveis
 - [backend/apps/accounts/email_backends.py](backend/apps/accounts/email_backends.py) — backend de e-mail via API do Resend
 - [backend/apps/accounts/tests.py](backend/apps/accounts/tests.py) — testes da recuperação de senha
 - [backend/apps/payments/services.py](backend/apps/payments/services.py) — cliente Abacate Pay
+- [backend/apps/payments/tests.py](backend/apps/payments/tests.py) — testes do PIX: webhook, conciliação com o financeiro e isolamento
 - [backend/apps/marketing/views.py](backend/apps/marketing/views.py) — rotas do chat de marketing e das conversas
 - [backend/apps/marketing/assistant.py](backend/apps/marketing/assistant.py) — contexto do catálogo, prompt e chamada à IA (DeepSeek/Anthropic) do chat de marketing
 - [backend/apps/marketing/recommendations.py](backend/apps/marketing/recommendations.py) — recomendações de ação a partir do catálogo
