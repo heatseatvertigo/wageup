@@ -101,8 +101,6 @@ class Transaction(models.Model):
     def __str__(self):
         return f"{self.description} - {self.amount}"
 
-# Create your models here.
-
 
 class AssistantConversation(models.Model):
     """Uma conversa com o assistente financeiro.

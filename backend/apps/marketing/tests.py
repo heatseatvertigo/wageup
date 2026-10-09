@@ -709,8 +709,10 @@ class ImagemDaCampanhaTests(TestCase):
             "/api/marketing/chat/", {"message": "cria uma campanha para o Instagram"}, format="json"
         )
 
+    # DEEPSEEK_API_KEY zerada: um .env com chave real faria o teste chamar a
+    # DeepSeek de verdade, gastando credito e mudando o resultado.
     @override_settings(
-        ANTHROPIC_API_KEY="", CLOUDFLARE_ACCOUNT_ID="", CLOUDFLARE_API_TOKEN="",
+        ANTHROPIC_API_KEY="", DEEPSEEK_API_KEY="", CLOUDFLARE_ACCOUNT_ID="", CLOUDFLARE_API_TOKEN="",
         MARKETING_IMAGE_FALLBACK=True,
     )
     @patch("apps.marketing.images.requests.get")
@@ -725,8 +727,10 @@ class ImagemDaCampanhaTests(TestCase):
         self.assertEqual(imagem.provider, "pollinations")
         self.assertTrue(imagem.prompt)
 
+    # DEEPSEEK_API_KEY zerada: um .env com chave real faria o teste chamar a
+    # DeepSeek de verdade, gastando credito e mudando o resultado.
     @override_settings(
-        ANTHROPIC_API_KEY="", CLOUDFLARE_ACCOUNT_ID="", CLOUDFLARE_API_TOKEN="",
+        ANTHROPIC_API_KEY="", DEEPSEEK_API_KEY="", CLOUDFLARE_ACCOUNT_ID="", CLOUDFLARE_API_TOKEN="",
         MARKETING_IMAGE_FALLBACK=True,
     )
     @patch("apps.marketing.images.requests.get", side_effect=requests.ConnectionError())
@@ -738,8 +742,10 @@ class ImagemDaCampanhaTests(TestCase):
         self.assertTrue(resposta.data["message"])
         self.assertEqual(CampaignImage.objects.count(), 0)
 
+    # DEEPSEEK_API_KEY zerada: um .env com chave real faria o teste chamar a
+    # DeepSeek de verdade, gastando credito e mudando o resultado.
     @override_settings(
-        ANTHROPIC_API_KEY="", CLOUDFLARE_ACCOUNT_ID="", CLOUDFLARE_API_TOKEN="",
+        ANTHROPIC_API_KEY="", DEEPSEEK_API_KEY="", CLOUDFLARE_ACCOUNT_ID="", CLOUDFLARE_API_TOKEN="",
         MARKETING_IMAGE_FALLBACK=True,
     )
     @patch("apps.marketing.images.requests.get")
@@ -759,8 +765,10 @@ class ImagemDaCampanhaTests(TestCase):
         )
         self.assertEqual(repetida.status_code, 304)
 
+    # DEEPSEEK_API_KEY zerada: um .env com chave real faria o teste chamar a
+    # DeepSeek de verdade, gastando credito e mudando o resultado.
     @override_settings(
-        ANTHROPIC_API_KEY="", CLOUDFLARE_ACCOUNT_ID="", CLOUDFLARE_API_TOKEN="",
+        ANTHROPIC_API_KEY="", DEEPSEEK_API_KEY="", CLOUDFLARE_ACCOUNT_ID="", CLOUDFLARE_API_TOKEN="",
         MARKETING_IMAGE_FALLBACK=True,
     )
     @patch("apps.marketing.images.requests.get")
@@ -785,8 +793,10 @@ class ImagemDaCampanhaTests(TestCase):
 
         self.assertEqual(resposta.status_code, 401)
 
+    # DEEPSEEK_API_KEY zerada: um .env com chave real faria o teste chamar a
+    # DeepSeek de verdade, gastando credito e mudando o resultado.
     @override_settings(
-        ANTHROPIC_API_KEY="", CLOUDFLARE_ACCOUNT_ID="", CLOUDFLARE_API_TOKEN="",
+        ANTHROPIC_API_KEY="", DEEPSEEK_API_KEY="", CLOUDFLARE_ACCOUNT_ID="", CLOUDFLARE_API_TOKEN="",
         MARKETING_IMAGE_FALLBACK=False,
     )
     @patch("apps.marketing.images.requests.get")
