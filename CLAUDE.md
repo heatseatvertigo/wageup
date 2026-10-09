@@ -135,11 +135,13 @@ Arquivo `.env` na raiz do projeto (não commitado). Ver `.env.example` para refe
 ## Como rodar localmente
 
 ```bash
-# A partir da raiz do projeto
-.venv\Scripts\python backend\manage.py runserver
-# ou
-cd backend && ..\.venv\Scripts\python manage.py runserver
+# A partir da raiz do projeto, com o ambiente virtual `venv` ativo
+source venv/bin/activate            # Windows: .\venv\Scripts\Activate.ps1
+python backend/manage.py migrate
+python backend/manage.py runserver
 ```
+
+O `.env` só é lido quando o servidor sobe: depois de mudar uma chave, reinicie o `runserver`.
 
 Acesse `http://localhost:8000`. O frontend é servido na raiz (`/`).
 

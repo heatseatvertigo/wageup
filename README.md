@@ -15,13 +15,29 @@ frontend/    interface atual em HTML, CSS e JavaScript
 
 ## Rodando localmente
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python -m pip install -r requirements.txt
-Copy-Item .env.example .env
-.\.venv\Scripts\python backend\manage.py migrate
-.\.venv\Scripts\python backend\manage.py runserver
+Mac / Linux:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+python backend/manage.py migrate
+python backend/manage.py runserver
 ```
+
+Windows (PowerShell):
+
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+Copy-Item .env.example .env
+python backend\manage.py migrate
+python backend\manage.py runserver
+```
+
+O `.env` só é lido quando o servidor sobe: mudou uma chave, reinicie o `runserver`.
 
 Acesse:
 
@@ -35,17 +51,6 @@ http://localhost:8000/api/transactions/
 > O `DJANGO_DEBUG` tem padrão `False` no código — é o modo seguro para quem sobe
 > sem configurar nada. O `.env.example` liga `DJANGO_DEBUG=True`, então copiar o
 > arquivo (passo acima) já deixa o ambiente de desenvolvimento correto.
-
-## PostgreSQL local (opcional)
-
-Para desenvolvimento local o projeto usa SQLite por padrão. Se quiser espelhar o
-PostgreSQL de produção, suba o serviço via Docker:
-
-```powershell
-docker compose up -d
-```
-
-Depois aponte o `DATABASE_URL` para o Postgres local e rode as migrations novamente.
 
 ## Deploy no Render + Neon
 
@@ -61,8 +66,8 @@ chave de exemplo.
 
 ```powershell
 $env:DJANGO_DEBUG="False"
-$env:SECRET_KEY=(.\.venv\Scripts\python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())")
-.\.venv\Scripts\python backend\manage.py check --deploy
+$env:SECRET_KEY=(python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())")
+python backend\manage.py check --deploy
 ```
 
 ## Documentação

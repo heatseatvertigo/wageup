@@ -24,5 +24,3 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.email or self.user.username} ({self.role})"
-
-# Create your models here.
