@@ -4,7 +4,9 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     MarketingCampaignViewSet,
     campaign_image,
+    marketing_action,
     marketing_chat,
+    marketing_products,
     marketing_conversation_detail,
     marketing_conversations,
     marketing_recommendations,
@@ -22,6 +24,8 @@ urlpatterns = [
         name="marketing-conversation-detail",
     ),
     path("recommendations/", marketing_recommendations, name="marketing-recommendations"),
+    path("actions/", marketing_action, name="marketing-action"),
+    path("products/", marketing_products, name="marketing-products"),
     path("campaigns/<uuid:campaign_id>/image/", campaign_image, name="marketing-campaign-image"),
     *router.urls,
 ]

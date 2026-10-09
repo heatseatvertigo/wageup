@@ -315,6 +315,11 @@ def assunto_do_pedido(pedido):
     return None
 
 
+def _pede_mensagem_de_whatsapp(pedido):
+    texto = _sem_acento(str(pedido or "")).lower()
+    return "mensagem" in texto and "whatsapp" in texto and "campanha" not in texto.replace("sem campanha", "")
+
+
 def resposta_local(assunto, pedido, canal=None, falhou=False):
     """Sem IA: uma campanha montada por regra.
 
@@ -324,6 +329,22 @@ def resposta_local(assunto, pedido, canal=None, falhou=False):
     """
     canal = canal or "Instagram"
     nome = assunto or "seu produto"
+
+    # Pedido de mensagem de WhatsApp (o botao "Criar aviso para WhatsApp"):
+    # so o texto, pronto para colar. Sem o aviso de IA desligada no corpo,
+    # que iria parar na conversa com o cliente; a tela avisa a parte.
+    if _pede_mensagem_de_whatsapp(pedido):
+        texto = _sem_acento(str(pedido)).lower()
+        if any(sinal in texto for sinal in ("acabando", "poucas unidades", "restam")):
+            return (
+                f"Oi! Passando para avisar que {nome} está acabando por aqui: restam poucas unidades. "
+                "Quer garantir o seu? É só responder esta mensagem que eu separo para você."
+            )
+        return (
+            f"Oi! Hoje tem {nome} fresquinho por aqui. Quer que eu separe o seu? "
+            "É só responder esta mensagem, e dá para pagar pelo PIX."
+        )
+
     objetivo = objetivo_citado(pedido)
     headlines = {
         "lancamento": f"Chegou {nome}: feito para encantar no primeiro pedido",

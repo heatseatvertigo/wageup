@@ -808,3 +808,140 @@ class ImagemDaCampanhaTests(TestCase):
         self.assertFalse(resposta.data["has_image"])
         post.assert_not_called()
         get.assert_not_called()
+
+
+@override_settings(
+    ANTHROPIC_API_KEY="", DEEPSEEK_API_KEY="", CLOUDFLARE_ACCOUNT_ID="", CLOUDFLARE_API_TOKEN="",
+    MARKETING_IMAGE_FALLBACK=False,
+)
+class TelaDeAcoesTests(TestCase):
+    """A tela de marketing mostra o que fazer, e cada botao faz uma coisa concreta."""
+
+    def setUp(self):
+        from django.core.cache import cache
+
+        cache.clear()
+        User = get_user_model()
+        self.user = User.objects.create_user(username="mei@wageup.local", email="mei@wageup.local", password="x")
+        UserProfile.objects.create(user=self.user, role="member")
+        self.business = Business.objects.create(owner=self.user, name="Doces")
+        self.client = APIClient()
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {Token.objects.create(user=self.user).key}")
+
+    def _produto(self, nome, business=None, **campos):
+        dados = {"price": Decimal("60"), "cost": Decimal("20"), "stock": 10}
+        dados.update(campos)
+        return Product.objects.create(business=business or self.business, name=nome, **dados)
+
+    def test_cada_recomendacao_traz_a_acao_pela_situacao_do_produto(self):
+        self._produto("Pao de mel", price=Decimal("4"), cost=Decimal("5"))
+        self._produto("Brigadeiro", stock=2, min_stock=5)
+
+        recomendacoes = self.client.get("/api/marketing/recommendations/").data["recommendations"]
+
+        acoes = {r["product_name"]: r["action"] for r in recomendacoes if r["product_name"]}
+        self.assertEqual(acoes.get("Pao de mel"), "price")
+        self.assertEqual(acoes.get("Brigadeiro"), "whatsapp")
+
+    def test_produtos_vem_com_situacao_e_o_mais_urgente_primeiro(self):
+        self._produto("Torta", price=Decimal("50"), cost=Decimal("20"))
+        self._produto("Pao de mel", price=Decimal("4"), cost=Decimal("5"))
+        self._produto("Brigadeiro", stock=2, min_stock=5)
+        self._produto("Bolo", stock=0)
+        self._produto("Consultoria", stock=0, unit=Product.Unit.SERVICE)
+
+        linhas = self.client.get("/api/marketing/products/").data
+
+        situacao = {linha["name"]: (linha["status"], linha["action"]) for linha in linhas}
+        self.assertEqual(situacao["Pao de mel"], ("Prejuízo", "price"))
+        self.assertEqual(situacao["Bolo"], ("Sem estoque", "stock"))
+        self.assertEqual(situacao["Brigadeiro"], ("Estoque baixo", "whatsapp"))
+        self.assertEqual(situacao["Torta"], ("Nunca divulgado", "launch"))
+        # Servico nao tem estoque e nao conta como sem estoque.
+        self.assertEqual(situacao["Consultoria"][0], "Nunca divulgado")
+        self.assertEqual([linha["name"] for linha in linhas][:3], ["Pao de mel", "Bolo", "Brigadeiro"])
+
+    def test_produto_sem_venda_ha_30_dias_aparece_parado(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from apps.sales.models import Sale
+        from apps.sales.services import registrar_venda
+
+        bolo = self._produto("Bolo")
+        torta = self._produto("Torta")
+        novo = self._produto("Novo")
+        Product.objects.filter(pk__in=[bolo.pk, novo.pk]).update(created_at=timezone.now() - timedelta(days=60))
+        Product.objects.filter(pk=novo.pk).update(created_at=timezone.now() - timedelta(days=5))
+        MarketingCampaign.objects.create(business=self.business, product=bolo, prompt="x", channel="Instagram", goal="promocao")
+        MarketingCampaign.objects.create(business=self.business, product=novo, prompt="x", channel="Instagram", goal="promocao")
+        venda = registrar_venda(business=self.business, produto=bolo, quantidade=1, payment_method="dinheiro")
+        Sale.objects.filter(pk=venda.pk).update(occurred_at=timezone.now() - timedelta(days=40))
+        registrar_venda(business=self.business, produto=torta, quantidade=2, payment_method="dinheiro")
+
+        linhas = {linha["name"]: linha for linha in self.client.get("/api/marketing/products/").data}
+
+        self.assertEqual(linhas["Bolo"]["status"], "Parado há 40 dias")
+        self.assertEqual(linhas["Torta"]["quantity_month"], 2)
+        # Cadastrado ha 5 dias: ainda nao teve tempo de vender.
+        self.assertEqual(linhas["Novo"]["status"], "Vendendo")
+
+    def test_botao_de_campanha_cria_a_campanha_do_produto_pelo_id(self):
+        bolo = self._produto("Bolo de cenoura")
+
+        resposta = self.client.post(
+            "/api/marketing/actions/", {"product_id": str(bolo.id), "action": "campaign", "channel": "Instagram"},
+            format="json",
+        )
+
+        self.assertEqual(resposta.status_code, 201)
+        self.assertEqual(resposta.data["action"], "campaign")
+        self.assertIn("Bolo de cenoura", resposta.data["message"])
+        campanha = MarketingCampaign.objects.get(pk=resposta.data["campaign_id"])
+        self.assertEqual(campanha.product, bolo)
+        # A conversa existe: "Ajustar no chat" continua de onde a acao parou.
+        self.assertTrue(self.client.get(f"/api/marketing/conversations/{resposta.data['conversation']['id']}/").data["messages"])
+
+    def test_botao_de_whatsapp_devolve_o_texto(self):
+        brigadeiro = self._produto("Brigadeiro", stock=2, min_stock=5)
+
+        resposta = self.client.post(
+            "/api/marketing/actions/", {"product_id": str(brigadeiro.id), "action": "whatsapp"}, format="json"
+        )
+
+        self.assertEqual(resposta.status_code, 201)
+        # Sem IA, sai a mensagem pronta para colar, nao uma campanha: o aviso de
+        # IA desligada nao pode ir parar na conversa com o cliente.
+        self.assertIn("Brigadeiro", resposta.data["message"])
+        self.assertIn("acabando", resposta.data["message"])
+        self.assertNotIn("Resposta automática", resposta.data["message"])
+        self.assertIsNone(resposta.data["campaign_id"])
+
+    def test_acao_invalida_ou_produto_alheio_sao_recusados(self):
+        outro = get_user_model().objects.create_user(username="o@w.local", email="o@w.local", password="x")
+        alheio = self._produto("Alheio", business=Business.objects.create(owner=outro, name="Outro"))
+        meu = self._produto("Meu")
+
+        invalida = self.client.post("/api/marketing/actions/", {"product_id": str(meu.id), "action": "apagar"}, format="json")
+        de_outro = self.client.post("/api/marketing/actions/", {"product_id": str(alheio.id), "action": "campaign"}, format="json")
+        sem_id = self.client.post("/api/marketing/actions/", {"product_id": "nao-e-uuid", "action": "campaign"}, format="json")
+
+        self.assertEqual(invalida.status_code, 400)
+        self.assertEqual(de_outro.status_code, 404)
+        self.assertEqual(sem_id.status_code, 404)
+        self.assertEqual(MarketingCampaign.objects.count(), 0)
+
+    def test_produtos_de_outro_negocio_nao_aparecem(self):
+        outro = get_user_model().objects.create_user(username="o@w.local", email="o@w.local", password="x")
+        self._produto("Alheio", business=Business.objects.create(owner=outro, name="Outro"))
+
+        self.assertEqual(self.client.get("/api/marketing/products/").data, [])
+
+    def test_galeria_traz_o_produto_e_se_ha_imagem(self):
+        bolo = self._produto("Bolo")
+        MarketingCampaign.objects.create(business=self.business, product=bolo, prompt="x", channel="Instagram", goal="promocao")
+
+        lista = self.client.get("/api/marketing/campaigns/").data
+        itens = lista["results"] if isinstance(lista, dict) else lista
+
+        self.assertEqual(itens[0]["product_name"], "Bolo")
+        self.assertFalse(itens[0]["has_image"])

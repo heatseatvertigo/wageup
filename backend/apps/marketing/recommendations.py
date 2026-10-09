@@ -26,6 +26,7 @@ from django.utils import timezone
 from apps.finance.insights import brl
 from apps.products.models import Product
 from apps.sales.models import Sale
+from apps.sales.services import intervalo_do_mes, resumo_vendas
 from .models import MarketingCampaign
 
 # Janela para "produto parado": vendeu nada nesse periodo, embora o negocio
@@ -71,7 +72,9 @@ def gather_signals(business):
 
     def parado(produto):
         tem_o_que_vender = produto.stock > 0 or produto.unit == Product.Unit.SERVICE
-        return registra_vendas and tem_o_que_vender and produto.id not in vendidos
+        # Produto cadastrado ha menos de 30 dias ainda nao teve tempo de vender.
+        tem_idade = produto.created_at <= desde
+        return registra_vendas and tem_o_que_vender and tem_idade and produto.id not in vendidos
 
     def resumo(produto):
         return {
@@ -86,6 +89,7 @@ def gather_signals(business):
             "stale": parado(produto),
             # Sem estoque nao se divulga: a campanha geraria pedido sem entrega.
             "has_stock": produto.stock > 0 or produto.unit == Product.Unit.SERVICE,
+            "controls_stock": produto.unit != Product.Unit.SERVICE,
         }
 
     ordenados = sorted(ativos, key=lambda p: p.margin_value, reverse=True)
@@ -101,6 +105,7 @@ def gather_signals(business):
         "low_stock": [resumo(p) for p in ordenados if p.is_low_stock][:3],
         "negative_margin": [resumo(p) for p in ordenados if p.margin_value < 0][:3],
         "stale": [resumo(p) for p in ordenados if p.margin_value > 0 and parado(p)][:3],
+        "all_products": [resumo(p) for p in ordenados],
     }
 
 
@@ -116,13 +121,104 @@ def build_recommendations(business):
     if not sinais["products"]:
         return "local-demo", _sem_produtos()
 
+    provider, recomendacoes = "local-demo", None
     if settings.ANTHROPIC_API_KEY:
         try:
-            return "anthropic", _call_claude(business, sinais)
+            provider, recomendacoes = "anthropic", _call_claude(business, sinais)
         except Exception:
             logger.exception("Falha ao gerar recomendações de marketing. Usando as regras locais.")
+    if recomendacoes is None:
+        provider, recomendacoes = "local-demo", _fallback(sinais)
 
-    return "local-demo", _fallback(sinais)
+    # O botao de cada cartao depende da situacao do produto, nao do texto que
+    # a IA escreveu: em prejuizo a acao e rever o preco, com estoque baixo e
+    # avisar quem ja compra, e so no resto e campanha.
+    por_id = {item["id"]: item for item in sinais["all_products"]}
+    for recomendacao in recomendacoes:
+        produto = por_id.get(recomendacao.get("product_id"))
+        recomendacao["action"] = tipo_de_acao(produto, recomendacao.get("goal")) if produto else None
+    return provider, recomendacoes
+
+
+# O que o botao de uma recomendacao ou de um produto faz na tela:
+# campaign/launch geram a campanha; whatsapp gera o aviso para o WhatsApp;
+# price e stock abrem o cadastro do produto.
+ACOES = ("campaign", "launch", "whatsapp", "price", "stock")
+
+
+def tipo_de_acao(produto, goal=None):
+    """A acao certa para o produto, a partir dos numeros dele."""
+    if produto["margin"] < 0:
+        return "price"
+    if not produto["has_stock"]:
+        return "stock"
+    if produto["low_stock"]:
+        return "whatsapp"
+    if goal == "lancamento" or produto["never_promoted"]:
+        return "launch"
+    return "campaign"
+
+
+def situacao_dos_produtos(business):
+    """Cada produto ativo com as vendas do mes, a situacao e a acao sugerida.
+
+    E a tabela "Seus produtos" da tela de marketing. A situacao segue a
+    mesma prioridade das recomendacoes: prejuizo e falta de estoque vem
+    antes de qualquer divulgacao.
+    """
+    sinais = gather_signals(business)
+    agora = timezone.localtime()
+    resumo = resumo_vendas(business, *intervalo_do_mes(agora.year, agora.month))
+    vendas = {item["product_id"]: item for item in resumo["products"]}
+    ultimas = {}
+    for produto_id, quando in (
+        Sale.objects.filter(business=business, status=Sale.Status.DONE, product__isnull=False)
+        .order_by("product_id", "-occurred_at")
+        .values_list("product_id", "occurred_at")
+    ):
+        ultimas.setdefault(str(produto_id), quando)
+
+    campeao = max(
+        (item for item in vendas.values() if item["profit"] > 0),
+        key=lambda item: item["profit"], default=None,
+    )
+
+    linhas = []
+    for produto in sinais["all_products"]:
+        venda = vendas.get(produto["id"])
+        ultima = ultimas.get(produto["id"])
+        dias = (agora - timezone.localtime(ultima)).days if ultima else None
+        if produto["margin"] < 0:
+            situacao, tom, prioridade = "Prejuízo", "negative", 0
+        elif not produto["has_stock"]:
+            situacao, tom, prioridade = "Sem estoque", "warning", 1
+        elif produto["low_stock"]:
+            situacao, tom, prioridade = "Estoque baixo", "warning", 2
+        elif produto["stale"]:
+            situacao = f"Parado há {dias} dias" if dias is not None else f"Sem venda em {DIAS_SEM_VENDA} dias"
+            tom, prioridade = "warning", 3
+        elif produto["never_promoted"]:
+            situacao, tom, prioridade = "Nunca divulgado", "positive", 4
+        elif campeao and campeao["product_id"] == produto["id"]:
+            situacao, tom, prioridade = "Em alta", "positive", 5
+        else:
+            situacao, tom, prioridade = "Vendendo", "neutral", 6
+        linhas.append({
+            "product_id": produto["id"],
+            "name": produto["name"],
+            "stock": produto["stock"],
+            "controls_stock": produto["controls_stock"],
+            "margin": f"{produto['margin']:.2f}",
+            "quantity_month": venda["quantity"] if venda else 0,
+            "profit_month": str(venda["profit"]) if venda else "0.00",
+            "status": situacao,
+            "tone": tom,
+            "action": tipo_de_acao(produto),
+            "_ordem": (prioridade, -produto["margin"]),
+        })
+
+    linhas.sort(key=lambda linha: linha.pop("_ordem"))
+    return linhas
 
 
 def _call_claude(business, sinais):

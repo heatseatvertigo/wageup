@@ -5218,3 +5218,264 @@ td:first-child { font-weight: var(--weight-medium); }
   color: var(--color-warning);
   line-height: var(--leading-normal);
 }
+
+/* ─── Marketing: aba Ações ─── */
+
+.assistant-shell[hidden],
+.mkt[hidden] { display: none; }
+
+.mkt {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+}
+
+.mkt__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.mkt__lead {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Alternância Ações / Conversa: dois botões num trilho. */
+.seg {
+  display: inline-flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-md);
+}
+
+.seg__btn {
+  min-height: 2.25rem;
+  padding: 0 var(--space-4);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.seg__btn.is-active {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.seg__btn:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+.seg--compact .seg__btn { min-height: 2rem; padding: 0 var(--space-3); font-size: var(--text-xs); }
+
+/* Cartões de "O que fazer agora" */
+.mkt-cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .mkt-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 1200px) {
+  .mkt-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+.mkt-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.mkt-card__product {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.mkt-card__reason {
+  flex: 1;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--color-text-secondary);
+}
+
+.mkt-card__numbers {
+  display: flex;
+  gap: var(--space-5);
+  margin: 0;
+}
+
+.mkt-card__numbers dt {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.mkt-card__numbers dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.mkt-card .primary-button,
+.mkt-card .ghost-button { align-self: stretch; }
+
+.mkt-card__alt {
+  align-self: center;
+  padding: var(--space-1);
+  background: transparent;
+  border: none;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.mkt-card__alt:hover { color: var(--color-brand-mid); }
+
+/* Tabela "Seus produtos": no celular cada linha vira um bloco. */
+.mkt-products {
+  display: grid;
+  gap: 0;
+}
+
+.mkt-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "name status"
+    "sold profit"
+    "stock stock"
+    "action action";
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border);
+  font-size: var(--text-sm);
+}
+
+.mkt-row--head { display: none; }
+
+.mkt-row__name { grid-area: name; font-weight: var(--weight-medium); color: var(--color-text-primary); overflow-wrap: anywhere; }
+.mkt-row__status { grid-area: status; justify-self: end; }
+.mkt-row__cell:nth-child(2) { grid-area: sold; }
+.mkt-row__cell:nth-child(3) { grid-area: profit; justify-self: end; }
+.mkt-row__cell:nth-child(4) { grid-area: stock; }
+.mkt-row__cell { font-family: var(--font-mono); color: var(--color-text-secondary); }
+.mkt-row__cell::before { content: attr(data-label) ": "; font-family: var(--font-body); }
+.mkt-row__action { grid-area: action; }
+.mkt-row__action .ghost-button { width: 100%; }
+
+@media (min-width: 900px) {
+  .mkt-row {
+    grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1.6fr);
+    grid-template-areas: "name sold profit stock status action";
+  }
+  .mkt-row__cell:nth-child(3) { justify-self: start; }
+  .mkt-row--head {
+    display: grid;
+    border-top: none;
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+  }
+  .mkt-row__cell { color: var(--color-text-primary); }
+  .mkt-row__cell::before { content: none; }
+  .mkt-row__status { justify-self: start; }
+  .mkt-row__action { justify-self: end; }
+  .mkt-row__action .ghost-button { width: auto; }
+}
+
+/* Galeria de campanhas */
+.mkt-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
+  gap: var(--space-4);
+}
+
+.mkt-shot {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.mkt-shot__image {
+  aspect-ratio: 4 / 3;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-mid);
+}
+
+.mkt-shot__image img { width: 100%; height: 100%; object-fit: cover; }
+
+.mkt-shot__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-4);
+}
+
+.mkt-shot__body h4 {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.mkt-shot__meta { font-size: var(--text-xs); color: var(--color-text-secondary); }
+
+/* Resultado de um botão */
+.mkt-result { display: grid; gap: var(--space-4); }
+
+.mkt-result__loading {
+  padding: var(--space-8) 0;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.mkt-result__text {
+  display: grid;
+  gap: var(--space-3);
+  max-height: 50vh;
+  overflow-y: auto;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--color-text-primary);
+}
+
+.mkt-result__image[hidden] { display: none; }
+.mkt-result__image img { width: 100%; max-height: 22rem; object-fit: contain; border-radius: var(--radius-md); }
+
+.mkt-result__note { font-size: var(--text-xs); color: var(--color-text-secondary); }
+
+.mkt-result__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.mkt-result__actions a { text-decoration: none; }
+.mkt-result__actions [hidden] { display: none; }
