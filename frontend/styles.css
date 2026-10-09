@@ -2722,7 +2722,9 @@ kbd {
 .calendar__weekdays,
 .calendar__grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  /* minmax(0, 1fr): com 1fr puro a coluna não encolhe abaixo do conteúdo e
+     o sábado vazava do card (no celular, a tela rolava de lado). */
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: var(--space-2);
 }
 
@@ -3499,6 +3501,7 @@ kbd {
 .modal__form { display: grid; gap: var(--space-4); }
 
 .field { display: grid; gap: var(--space-2); }
+.field[hidden] { display: none; }
 
 .field--group {
   border: 1px solid var(--color-border);
@@ -4717,6 +4720,26 @@ td:first-child { font-weight: var(--weight-medium); }
   margin-bottom: var(--space-5);
 }
 
+/* Aviso de protótipo: a conexão com o banco ainda não existe. */
+.bank-prototype {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  margin-bottom: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--color-text-secondary);
+}
+
+.bank-prototype .material-symbols-rounded {
+  color: var(--color-warning);
+  font-size: 1.125rem;
+}
+
 .bank-grid {
   display: flex;
   flex-wrap: wrap;
@@ -5041,4 +5064,157 @@ td:first-child { font-weight: var(--weight-medium); }
 .chip:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);
+}
+
+/* ─── Vendas ─── */
+
+/* Dois campos lado a lado no modal; no celular, um embaixo do outro. */
+.field-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+
+@media (min-width: 480px) {
+  .field-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+#salePrice {
+  font-family: var(--font-mono);
+}
+
+/* Total e lucro da venda, calculados enquanto o usuário preenche. */
+.sale-preview {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.sale-preview strong { margin-left: var(--space-1); }
+
+.panel-note {
+  margin-top: calc(var(--space-4) * -1);
+  font-size: var(--text-xs);
+  color: var(--color-text-disabled);
+}
+
+/* ─── Visão geral: lucro por produto ─── */
+
+.profit-table {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.profit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-4);
+  align-items: baseline;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.profit-row__name {
+  font-weight: var(--weight-medium);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.profit-row__meta {
+  grid-column: 1;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.profit-row__value {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
+  display: grid;
+  justify-items: end;
+  gap: var(--space-1);
+}
+
+.profit-row--total {
+  background: var(--color-surface-muted);
+}
+
+/* ─── Visão geral: insights ─── */
+
+.insight-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+@media (min-width: 769px) {
+  .insight-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.insight-item {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.insight-item strong {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.insight-item p {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-normal);
+}
+
+/* ─── Movimentações: entrada que deveria ser venda ─── */
+
+.tx-sale-hint {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-2) var(--space-3);
+  align-items: start;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-brand-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.tx-sale-hint .material-symbols-rounded {
+  color: var(--color-brand-mid);
+  font-size: 1.25rem;
+}
+
+.tx-sale-hint p {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-normal);
+}
+
+.tx-sale-hint .ghost-button {
+  grid-column: 2;
+  justify-self: start;
+}
+
+.tx-sale-hint[hidden] { display: none; }
+
+/* Linha do extrato que parece algo já lançado na plataforma. */
+.import-row__match {
+  grid-column: 1 / -1;
+  font-size: var(--text-xs);
+  color: var(--color-warning);
+  line-height: var(--leading-normal);
 }

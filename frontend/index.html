@@ -732,6 +732,7 @@
             </div>
           </div>
 
+          <button data-view="sales" title="Vendas"><span class="material-symbols-rounded" aria-hidden="true">point_of_sale</span>Vendas</button>
           <button data-view="products" title="Produtos"><span class="material-symbols-rounded" aria-hidden="true">inventory_2</span>Produtos</button>
           <button data-view="app-marketing" title="Marketing"><span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>Marketing</button>
         </nav>
@@ -751,7 +752,9 @@
         </header>
 
         <section class="view active" id="overview">
-          <div class="summary-grid summary-grid--duo">
+          <!-- Cards, calendário e gráfico leem o financeiro, que é só do admin:
+               para o membro mostravam zeros. O lucro por produto vale para os dois. -->
+          <div class="summary-grid summary-grid--duo" data-admin-only>
             <article class="summary-card">
               <span>Lucro do mês</span>
               <strong id="ov-profit" class="value-currency">R$ 0,00</strong>
@@ -763,6 +766,27 @@
           </div>
 
           <div class="work-panel">
+            <div class="panel-heading">
+              <h3>Lucro por produto no mês</h3>
+              <button class="ghost-button" type="button" data-goto-view="sales">
+                <span class="material-symbols-rounded" aria-hidden="true">point_of_sale</span>Ver vendas
+              </button>
+            </div>
+            <p class="panel-note">Lucro real das vendas: já descontados custo, embalagem, taxa e imposto.</p>
+            <div class="profit-table" id="ovProfitTable"></div>
+          </div>
+
+          <div class="work-panel" data-admin-only>
+            <div class="panel-heading">
+              <h3>O que os números dizem</h3>
+              <button class="ghost-button" type="button" id="ovInsightsRefresh">
+                <span class="material-symbols-rounded" aria-hidden="true">refresh</span>Atualizar
+              </button>
+            </div>
+            <div class="insight-list" id="ovInsights" aria-live="polite"></div>
+          </div>
+
+          <div class="work-panel" data-admin-only>
             <div class="panel-heading">
               <h3>Calendário</h3>
               <div class="cal-nav">
@@ -779,7 +803,7 @@
             </div>
           </div>
 
-          <div class="work-panel">
+          <div class="work-panel" data-admin-only>
             <div class="panel-heading">
               <h3>Evolução do semestre</h3>
               <div class="chart-legend" id="chartLegend">
@@ -973,6 +997,15 @@
                   </select>
                 </label>
 
+                <div class="tx-sale-hint" id="txSaleHint">
+                  <span class="material-symbols-rounded" aria-hidden="true">point_of_sale</span>
+                  <p>
+                    Vendeu um produto do catálogo? Registre em Vendas: o estoque baixa, o lucro é
+                    calculado e a entrada aparece aqui sozinha. Lançar aqui também contaria a venda duas vezes.
+                  </p>
+                  <button class="ghost-button" type="button" id="txGoToSale">Registrar venda</button>
+                </div>
+
                 <label class="field">
                   <span class="field__label">Descrição</span>
                   <input name="description" id="txDescription" required placeholder="Ex.: Vendas do dia" />
@@ -1043,7 +1076,7 @@
             <div class="modal__panel modal__panel--wide" role="dialog" aria-modal="true" aria-labelledby="bankModalTitle">
               <header class="modal__head">
                 <div class="bank-title">
-                  <span class="status-badge status-badge--warning">Em desenvolvimento</span>
+                  <span class="status-badge status-badge--warning">Protótipo</span>
                   <h3 id="bankModalTitle">Conecte seu banco</h3>
                 </div>
                 <button class="drawer__close" type="button" data-close-bank aria-label="Fechar">✕</button>
@@ -1052,6 +1085,15 @@
               <p class="bank-intro">
                 Hoje você exporta o extrato e anexa aqui. Com a conexão direta, os lançamentos entram
                 sozinhos — sem baixar arquivo nenhum, todo dia.
+              </p>
+
+              <p class="bank-prototype">
+                <span class="material-symbols-rounded" aria-hidden="true">info</span>
+                <span>
+                  Esta tela mostra como a conexão vai funcionar, mas ela ainda não existe: por enquanto,
+                  use <strong>Importar extrato</strong>. Os logos ilustram os bancos do Open Finance;
+                  a WageUp não tem parceria com nenhum deles nem com a Pluggy.
+                </span>
               </p>
 
               <div class="bank-grid">
@@ -1177,7 +1219,12 @@
                   <select name="product" id="chargeProduct">
                     <option value="">Cobrança avulsa</option>
                   </select>
-                  <small class="field__hint">Escolher um produto preenche a descrição e o valor.</small>
+                  <small class="field__hint">Cobrança de produto vira venda quando for paga e baixa o estoque.</small>
+                </label>
+
+                <label class="field" id="chargeQuantityField" hidden>
+                  <span class="field__label">Quantidade</span>
+                  <input name="quantity" id="chargeQuantity" type="number" min="1" step="1" value="1" inputmode="numeric" />
                 </label>
 
                 <label class="field">
@@ -1234,6 +1281,121 @@
                   <button class="ghost-button" type="button" id="pixCopyBtn">Copiar código</button>
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="sales">
+          <div class="summary-grid summary-grid--trio">
+            <article class="summary-card">
+              <span>Vendido no mês</span>
+              <strong id="salesTotal" class="value-currency">R$ 0,00</strong>
+            </article>
+            <article class="summary-card">
+              <span>Lucro real no mês</span>
+              <strong id="salesProfit" class="value-currency value-positive">R$ 0,00</strong>
+            </article>
+            <article class="summary-card">
+              <span>Unidades vendidas</span>
+              <strong id="salesUnits" class="summary-card__count">0</strong>
+            </article>
+          </div>
+
+          <div class="work-panel">
+            <div class="panel-heading panel-heading--toolbar">
+              <h3>Vendas</h3>
+              <div class="panel-heading__actions">
+                <button class="primary-button" type="button" id="openSaleModal">
+                  <span class="material-symbols-rounded" aria-hidden="true">add</span>Registrar venda
+                </button>
+              </div>
+            </div>
+
+            <div class="record-filters">
+              <div class="record-filters__month">
+                <button class="icon-btn" type="button" id="salesPrevMonth" aria-label="Mês anterior">
+                  <span class="material-symbols-rounded" aria-hidden="true">chevron_left</span>
+                </button>
+                <span class="record-filters__label" id="salesMonthLabel">—</span>
+                <button class="icon-btn" type="button" id="salesNextMonth" aria-label="Próximo mês">
+                  <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="charge-list" id="salesRows"></div>
+          </div>
+
+          <!-- Detalhes da venda -->
+          <div class="drawer" id="saleDrawer" hidden>
+            <div class="drawer__overlay" data-close-sale></div>
+            <aside class="drawer__panel" role="dialog" aria-modal="true" aria-labelledby="saleDrawerTitle">
+              <header class="drawer__head">
+                <div>
+                  <p class="drawer__date" id="saleDrawerTitle">Venda</p>
+                  <span class="drawer__weekday" id="saleDrawerKind"></span>
+                </div>
+                <button class="drawer__close" type="button" data-close-sale aria-label="Fechar">✕</button>
+              </header>
+              <div class="drawer__body" id="saleDrawerBody"></div>
+            </aside>
+          </div>
+
+          <!-- Registrar venda -->
+          <div class="modal" id="saleModal" hidden>
+            <div class="modal__overlay" data-close-sale-modal></div>
+            <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="saleModalTitle">
+              <header class="modal__head">
+                <h3 id="saleModalTitle">Registrar venda</h3>
+                <button class="drawer__close" type="button" data-close-sale-modal aria-label="Fechar">✕</button>
+              </header>
+
+              <form class="modal__form" id="saleForm">
+                <label class="field">
+                  <span class="field__label">Produto</span>
+                  <select name="product_id" id="saleProduct" required></select>
+                </label>
+
+                <div class="field-row">
+                  <label class="field">
+                    <span class="field__label">Quantidade</span>
+                    <input name="quantity" id="saleQuantity" type="number" min="1" step="1" value="1" inputmode="numeric" required />
+                  </label>
+                  <label class="field">
+                    <span class="field__label">Preço por unidade</span>
+                    <input name="unit_price" id="salePrice" inputmode="numeric" required placeholder="R$ 0,00" autocomplete="off" />
+                  </label>
+                </div>
+                <small class="field__hint">Mude o preço para registrar desconto ou preço combinado. Custo e taxas vêm do cadastro.</small>
+
+                <div class="field-row">
+                  <label class="field">
+                    <span class="field__label">Pagamento</span>
+                    <select name="payment_method" id="saleMethod">
+                      <option value="dinheiro">Dinheiro</option>
+                      <option value="pix">PIX</option>
+                      <option value="cartao">Cartão</option>
+                      <option value="outro">Outro</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span class="field__label">Data</span>
+                    <input name="occurred_at" id="saleDate" type="date" />
+                  </label>
+                </div>
+
+                <div class="sale-preview" id="salePreview" aria-live="polite">
+                  <span>Total <strong class="value-currency" id="salePreviewTotal">R$ 0,00</strong></span>
+                  <span id="salePreviewProfitLabel">Lucro real <strong class="value-currency value-positive" id="salePreviewProfit">R$ 0,00</strong></span>
+                </div>
+
+                <p class="modal__error" id="saleFormError" role="alert" hidden></p>
+
+                <div class="modal__actions">
+                  <button class="ghost-button" type="button" data-close-sale-modal>Cancelar</button>
+                  <button class="primary-button" type="submit" id="saleSubmit">Registrar</button>
+                </div>
+              </form>
             </div>
           </div>
         </section>
@@ -1549,12 +1711,14 @@
       // reduzido, as interações continuam funcionando e só a animação
       // decorativa é que desliga.
       (function () {
-        if (typeof gsap === "undefined") return;
-
         const shell = document.querySelector(".site-shell");
         if (!shell) return;
 
-        const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        // Sem o GSAP (CDN fora do ar, rede que bloqueia, bloqueador de
+        // anúncio), a página segue como no movimento reduzido: a calculadora
+        // e a demo de PIX não podem depender de uma biblioteca de efeito.
+        const hasGsap = typeof gsap !== "undefined" && typeof ScrollTrigger !== "undefined";
+        const prefersReduced = !hasGsap || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         if (!prefersReduced) gsap.registerPlugin(ScrollTrigger);
 
         const $ = (sel, root) => (root || document).querySelector(sel);

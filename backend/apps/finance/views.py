@@ -1,8 +1,11 @@
 import logging
+from datetime import timedelta
 
 from django.conf import settings
 from django.db import transaction as db_transaction
+from django.utils import timezone
 from rest_framework import status, viewsets
+from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import api_view, parser_classes, permission_classes, throttle_classes
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
@@ -35,6 +38,24 @@ class TransactionViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         business = Business.objects.filter(owner=self.request.user).first()
         serializer.save(business=business)
+
+    # A entrada de uma venda se desfaz cancelando a venda, que devolve o
+    # estoque junto. Editar ou apagar aqui deixaria venda e financeiro em
+    # desacordo.
+    def perform_update(self, serializer):
+        self._recusar_se_for_venda(serializer.instance)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        self._recusar_se_for_venda(instance)
+        instance.delete()
+
+    @staticmethod
+    def _recusar_se_for_venda(instance):
+        if instance.source == Transaction.Source.SALE:
+            raise ValidationError(
+                {"detail": "Esta entrada veio de uma venda. Cancele a venda na tela de Vendas."}
+            )
 
 
 @api_view(["GET"])
@@ -229,10 +250,18 @@ def statement_preview(request):
         .values_list("external_id", flat=True)
     )
 
+    parecidos = _ja_lancados_na_plataforma(business, lancamentos, ja_existentes)
+
     linhas = []
-    for item in lancamentos:
+    for indice, item in enumerate(lancamentos):
         linha = item.as_dict()
         linha["duplicate"] = item.external_id in ja_existentes
+        parecido = parecidos.get(indice)
+        linha["possible_match"] = {
+            "description": parecido.description,
+            "occurred_at": parecido.occurred_at.isoformat(),
+            "source": parecido.source,
+        } if parecido else None
         linhas.append(linha)
 
     return Response({
@@ -241,11 +270,68 @@ def statement_preview(request):
         "file_hash": arquivo_hash,
         "total": len(linhas),
         "duplicates": sum(1 for linha in linhas if linha["duplicate"]),
+        "possible_matches": sum(1 for linha in linhas if linha["possible_match"]),
         "already_imported": StatementImport.objects.filter(
             business=business, file_hash=arquivo_hash
         ).exists(),
         "transactions": linhas,
     })
+
+
+def _dia(momento):
+    """Dia do lancamento no fuso do projeto, venha ele com fuso ou sem."""
+    if timezone.is_aware(momento):
+        return timezone.localtime(momento).date()
+    return momento.date()
+
+
+def _ja_lancados_na_plataforma(business, lancamentos, ja_existentes):
+    """Linhas do extrato que parecem algo ja lancado dentro da plataforma.
+
+    A venda paga em dinheiro na conta, o PIX recebido fora da plataforma e o
+    lancamento manual entram no financeiro na hora. Quando o extrato do banco
+    chega, o mesmo dinheiro aparece de novo, e importar tudo inflaria entradas
+    e saidas. O FITID nao ajuda aqui: o que foi lancado na plataforma nao tem
+    external_id. O criterio e mesmo tipo, mesmo valor e data a no maximo um
+    dia de distancia (a venda da noite cai no banco no dia seguinte).
+
+    Cada lancamento da plataforma casa com uma linha so: duas vendas iguais no
+    mesmo dia precisam de duas linhas do extrato para ficarem cobertas.
+    Devolve {indice da linha: Transaction parecida}. Quem decide e o usuario:
+    a linha so vem desmarcada.
+    """
+    pendentes = [
+        (indice, item) for indice, item in enumerate(lancamentos)
+        if item.external_id not in ja_existentes
+    ]
+    if not pendentes:
+        return {}
+
+    um_dia = timedelta(days=1)
+    dias = [_dia(item.occurred_at) for _, item in pendentes]
+    livres = list(
+        Transaction.objects.filter(
+            business=business,
+            external_id="",
+            occurred_at__date__gte=min(dias) - um_dia,
+            occurred_at__date__lte=max(dias) + um_dia,
+        ).order_by("occurred_at")
+    )
+
+    casados = {}
+    for indice, item in pendentes:
+        dia = _dia(item.occurred_at)
+        melhor = None
+        for lancado in livres:
+            if lancado.type != item.type or lancado.amount != item.amount:
+                continue
+            distancia = abs((_dia(lancado.occurred_at) - dia).days)
+            if distancia <= 1 and (melhor is None or distancia < melhor[0]):
+                melhor = (distancia, lancado)
+        if melhor:
+            livres.remove(melhor[1])
+            casados[indice] = melhor[1]
+    return casados
 
 
 @api_view(["POST"])

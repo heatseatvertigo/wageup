@@ -5,7 +5,7 @@
 Plataforma para microempreendedores brasileiros (TCC). Permite gestão financeira simplificada, geração de cobranças via Pix, análise de desempenho e campanhas de marketing com IA.
 
 Usuário **admin**: acessa módulo financeiro completo (transações, PIX via Abacate Pay).
-Usuário **member**: cadastro de produtos, marketing com IA, onboarding.
+Usuário **member**: cadastro de produtos, vendas, marketing com IA, onboarding.
 
 O escopo completo está em `Escopo TCC.pdf`, dentro de `docs/` (pasta local, não versionada).
 
@@ -28,6 +28,7 @@ backend/apps/
 ├── products/     # Catálogo, cálculo de margem e foto do produto
 ├── finance/      # Transações, importação de extrato, insights e assistente — só admin
 ├── payments/     # Cobranças PIX via Abacate Pay — só admin
+├── sales/        # Vendas: ligam produto, estoque e financeiro — admin e member
 └── marketing/    # Chat de marketing com IA (DeepSeek, Anthropic como alternativa)
 ```
 
@@ -167,6 +168,9 @@ GET/POST        /api/payments/               # Só admin, gera PIX via Abacate P
 GET             /api/payments/summary/       # Consolidação de recebíveis
 POST            /api/payments/<id>/check/    # Sincroniza status com a Abacate Pay
 POST            /api/payments/webhooks/abacatepay/   # Webhook de confirmação
+GET/POST        /api/sales/?month=AAAA-MM    # Vendas do mês / registra venda (admin e member)
+POST            /api/sales/<uuid>/cancel/    # Cancela: devolve estoque e tira a entrada do financeiro
+GET             /api/sales/summary/?month=AAAA-MM   # Lucro realizado por produto no mês
 POST            /api/marketing/chat/         # Pedido livre ao chat de marketing (DeepSeek; Anthropic como alternativa)
 GET/POST        /api/marketing/conversations/          # Lista ou cria conversa de marketing
 GET/DELETE      /api/marketing/conversations/<uuid>/   # Mensagens ou remoção
@@ -216,6 +220,14 @@ GET             /api/health/                 # Health check (aberto, sem throttl
 
 18. **Marketing é um chat, não um formulário**: a tela usa o mesmo componente do assistente financeiro (`createChat()` em `app.js`) e o usuário escreve o pedido livremente. O histórico vive em `MarketingConversation`/`MarketingMessage`, no servidor. Provedores na mesma ordem do assistente financeiro: DeepSeek, depois Anthropic, depois resposta local. A IA recebe o catálogo inteiro com a margem real (`marketing/assistant.py`); o produto e o canal da campanha são deduzidos do nome citado no pedido, ou herdados da campanha anterior da conversa quando o pedido não cita outro assunto. Só a resposta que traz a seção "Ideia de imagem" vira `MarketingCampaign` e ganha imagem — pergunta solta ("que hashtag uso?") não gera imagem nem registro.
 
+19. **Venda liga produto, estoque e financeiro** (`apps/sales/services.py`): a venda copia preço, custo, taxa e imposto do produto no momento da venda e grava o lucro real — preço e custo mudam depois, o lucro de uma venda antiga não. Estoque insuficiente bloqueia, com `UPDATE ... WHERE stock >= quantidade` para duas vendas simultâneas não deixarem o estoque negativo; produto com unidade serviço não controla estoque. A venda lança a entrada no financeiro com `Transaction.Source.SALE`, e essa entrada não é editada nem apagada em Movimentações: desfaz-se cancelando a venda, que devolve o estoque. Venda não tem editar nem apagar.
+
+20. **PIX de produto vira venda só quando é pago**: o estoque é conferido ao gerar a cobrança, mas a baixa e a venda acontecem na conciliação do pagamento (`record_finance_income`), reaproveitando a entrada do PIX. Como o dinheiro já entrou, ali o estoque não bloqueia: baixa até zero e `Sale.stock_moved` guarda quanto saiu de fato, que é o que volta num estorno.
+
+21. **Member registra venda, mas não vê o financeiro**: cada conta tem o próprio negócio, então a entrada da venda do member cai no financeiro do negócio dele. A visão geral do member mostra só o lucro por produto; cards, calendário e gráfico leem o financeiro e ficam escondidos (`data-admin-only`).
+
+22. **Extrato não conta duas vezes o que já foi lançado na plataforma** (`_ja_lancados_na_plataforma` em `finance/views.py`): venda, PIX e lançamento manual não têm `external_id`, então a deduplicação por FITID (decisão 17) não os pega, mas o banco mostra o mesmo dinheiro no extrato. Na prévia, uma linha com mesmo tipo, mesmo valor e data a até um dia de distância vem desmarcada com `possible_match`. Cada lançamento casa com uma linha só. É sugestão, não bloqueio: o usuário pode marcar e importar. Venda no cartão (cai dias depois, já com a taxa descontada) não é reconhecida.
+
 ---
 
 ## Deploy no Render + Neon
@@ -240,6 +252,9 @@ Para domínio próprio: configurar `CUSTOM_DOMAIN=seudominio.com` nas variáveis
 - [backend/apps/accounts/email_backends.py](backend/apps/accounts/email_backends.py) — backend de e-mail via API do Resend
 - [backend/apps/accounts/tests.py](backend/apps/accounts/tests.py) — testes da recuperação de senha
 - [backend/apps/payments/services.py](backend/apps/payments/services.py) — cliente Abacate Pay
+- [backend/apps/payments/tests.py](backend/apps/payments/tests.py) — testes do PIX: webhook, conciliação com o financeiro e isolamento
+- [backend/apps/sales/services.py](backend/apps/sales/services.py) — regras da venda: estoque, lucro real, lançamento no financeiro, PIX de produto
+- [backend/apps/sales/tests.py](backend/apps/sales/tests.py) — testes das vendas
 - [backend/apps/marketing/views.py](backend/apps/marketing/views.py) — rotas do chat de marketing e das conversas
 - [backend/apps/marketing/assistant.py](backend/apps/marketing/assistant.py) — contexto do catálogo, prompt e chamada à IA (DeepSeek/Anthropic) do chat de marketing
 - [backend/apps/marketing/recommendations.py](backend/apps/marketing/recommendations.py) — recomendações de ação a partir do catálogo

@@ -20,6 +20,7 @@ from apps.finance.insights import brl, gather_metrics
 from apps.finance.models import Transaction
 from apps.payments.models import Payment
 from apps.products.models import Product
+from apps.sales.services import intervalo_do_mes, resumo_vendas
 
 MONTHS_PT = [
     "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -148,11 +149,17 @@ def build_context(business):
     metrics = gather_metrics(business)
     series = monthly_series(business)
 
+    # margin_value desconta outros custos, taxa e imposto (decisao 13 do
+    # CLAUDE.md). Preco menos custo faria o assistente prometer um lucro que
+    # nao existe.
     products = sorted(
         Product.objects.filter(business=business),
-        key=lambda item: float(item.price) - float(item.cost),
+        key=lambda item: item.margin_value,
         reverse=True,
     )[:5]
+
+    agora = timezone.localtime()
+    vendas_mes = resumo_vendas(business, *intervalo_do_mes(agora.year, agora.month))
 
     recent = Transaction.objects.filter(business=business).order_by("-occurred_at")[:RECENT_LIMIT]
 
@@ -165,12 +172,17 @@ def build_context(business):
             {
                 "name": item.name,
                 "price": float(item.price),
-                "cost": float(item.cost),
-                "margin": float(item.price) - float(item.cost),
+                "cost": float(item.variable_cost),
+                "margin": float(item.margin_value),
                 "stock": item.stock,
             }
             for item in products
         ],
+        "sales_month": {
+            "label": f"{MONTHS_PT[agora.month - 1]} de {agora.year}",
+            "totals": vendas_mes["totals"],
+            "products": vendas_mes["products"][:8],
+        },
         "recent": [
             {
                 "description": item.description,
@@ -238,11 +250,31 @@ def format_context(context):
         for item in context["top_products"]:
             lines.append(
                 f"- {item['name']}: preço {brl(item['price'])}, "
-                f"custo {brl(item['cost'])}, margem {brl(item['margin'])}, "
-                f"estoque {item['stock']}"
+                f"custo por unidade {brl(item['cost'])}, margem real {brl(item['margin'])} "
+                f"por unidade (já descontados taxa e imposto), estoque {item['stock']}"
             )
     else:
         lines.append("- Nenhum produto cadastrado.")
+
+    vendas = context["sales_month"]
+    totais = vendas["totals"]
+    lines.append("")
+    lines.append(
+        f"VENDAS DE {vendas['label'].upper()} — lucro realizado, já descontados custo, "
+        "taxa e imposto. O valor das vendas JÁ ESTÁ contado nas entradas acima; nunca some os dois."
+    )
+    if totais["count"]:
+        lines.append(
+            f"- Total: {totais['count']} venda(s), {totais['quantity']} unidade(s), "
+            f"faturamento {brl(totais['total'])}, lucro {brl(totais['profit'])}"
+        )
+        for item in vendas["products"]:
+            lines.append(
+                f"- {item['product_name']}: {item['quantity']} unidade(s), "
+                f"faturamento {brl(item['total'])}, lucro {brl(item['profit'])}"
+            )
+    else:
+        lines.append("- Nenhuma venda registrada neste mês.")
 
     lines.append("")
     lines.append("MOVIMENTAÇÕES RECENTES:")

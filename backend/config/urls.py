@@ -39,6 +39,7 @@ urlpatterns = [
     path('api/finance/assistant/conversations/<uuid:conversation_id>/', assistant_conversation_detail, name='assistant-conversation-detail'),
     path('api/payments/', include('apps.payments.urls')),
     path('api/marketing/', include('apps.marketing.urls')),
+    path('api/sales/', include('apps.sales.urls')),
     re_path(r'^(?P<path>app\.js|styles\.css)$', serve, {'document_root': settings.ROOT_DIR / 'frontend'}),
     path('', frontend_index, name='frontend-index'),
 ]

@@ -46,6 +46,7 @@ class Transaction(models.Model):
         MANUAL = "manual", "Lancamento manual"
         PIX = "pix", "Cobranca PIX"
         IMPORT = "import", "Extrato importado"
+        SALE = "sale", "Venda"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     business = models.ForeignKey(

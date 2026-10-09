@@ -40,7 +40,8 @@ let calendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1
 const TX_SOURCE = {
   pix: { label: "Cobrança PIX", tone: "positive" },
   import: { label: "Extrato importado", tone: "neutral" },
-  manual: { label: "Lançamento manual", tone: "neutral" }
+  manual: { label: "Lançamento manual", tone: "neutral" },
+  sale: { label: "Venda", tone: "positive" }
 };
 // Mesmo motivo: renderProducts() lê este mapa, e render() roda no topo.
 
@@ -53,6 +54,18 @@ let txMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let txAllPeriods = false;
 let txEditingId = null;
 let txRange = { start: null, end: null };
+
+// Tela de Vendas e painéis da visão geral. Declarados aqui pelo mesmo motivo
+// do estado de Movimentações: o boot roda antes do resto do arquivo.
+let salesMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let currentSales = [];
+// Versão dos dados na tela: render() sobe a cada mudança, e os insights só
+// são pedidos de novo à IA quando ela mudou desde a última leitura.
+let dataVersion = 0;
+let insightsVersion = -1;
+// Recomendações de marketing: também chamam a IA, então seguem a mesma regra.
+let marketingRecommendations = [];
+let marketingRecsVersion = -1;
 
 const siteShell = document.querySelector(".site-shell");
 const authShell = document.querySelector("#auth");
@@ -73,6 +86,7 @@ const viewTitles = {
   "finance-assistant": "Assistente de IA",
   products: "Produtos",
   "app-marketing": "Marketing",
+  sales: "Vendas",
   help: "Ajuda"
 };
 
@@ -199,7 +213,14 @@ document.querySelectorAll("[data-view]").forEach((button) => {
 // O item não abre view nenhuma: passar o mouse revela os módulos financeiros
 // em cascata e o clique apenas abre/recolhe essa cascata.
 
-function setNavGroupOpen(group, open) {
+// Hover e foco abrem o grupo, e o clique vem logo em seguida: sem esta marca,
+// o clique fecharia o que o mouse (ou o toque, que também foca) acabou de abrir.
+const NAV_GROUP_CLICK_GRACE_MS = 500;
+
+function setNavGroupOpen(group, open, { byHover = false } = {}) {
+  if (open && byHover && !group.classList.contains("is-open")) {
+    group.dataset.openedAt = String(performance.now());
+  }
   group.classList.toggle("is-open", open);
   group.querySelector(".nav-group__toggle")?.setAttribute("aria-expanded", String(open));
 }
@@ -208,17 +229,19 @@ document.querySelectorAll("[data-nav-group]").forEach((group) => {
   const toggle = group.querySelector(".nav-group__toggle");
 
   toggle?.addEventListener("click", () => {
+    const openedAt = Number(group.dataset.openedAt || 0);
+    if (performance.now() - openedAt < NAV_GROUP_CLICK_GRACE_MS) return;
     setNavGroupOpen(group, !group.classList.contains("is-open"));
   });
 
   // Hover abre; ao sair, só recolhe se nenhuma view do grupo estiver ativa.
-  group.addEventListener("mouseenter", () => setNavGroupOpen(group, true));
+  group.addEventListener("mouseenter", () => setNavGroupOpen(group, true, { byHover: true }));
   group.addEventListener("mouseleave", () => {
     if (!group.classList.contains("has-active")) setNavGroupOpen(group, false);
   });
 
   // Teclado: abre ao focar qualquer item e recolhe ao sair do grupo.
-  group.addEventListener("focusin", () => setNavGroupOpen(group, true));
+  group.addEventListener("focusin", () => setNavGroupOpen(group, true, { byHover: true }));
   group.addEventListener("focusout", (event) => {
     if (group.contains(event.relatedTarget)) return;
     if (!group.classList.contains("has-active")) setNavGroupOpen(group, false);
@@ -399,6 +422,14 @@ document.querySelector("#txAllPeriods")?.addEventListener("click", (event) => {
   document.querySelector("#txRangeTrigger")?.classList.remove("is-active");
   event.currentTarget.classList.toggle("is-active", txAllPeriods);
   renderTransactions();
+});
+
+document.querySelector("#txType")?.addEventListener("change", () => updateTxSaleHint());
+
+document.querySelector("#txGoToSale")?.addEventListener("click", () => {
+  closeTxModal();
+  setView("sales");
+  openSaleModal();
 });
 
 document.querySelector("#transactionForm")?.addEventListener("submit", async (event) => {
@@ -790,7 +821,12 @@ document.querySelectorAll("[data-close-charge-modal]").forEach((el) =>
 );
 
 document.querySelector("#chargeProduct")?.addEventListener("change", (event) => {
+  document.querySelector("#chargeQuantity").value = 1;
   applyProductToCharge(event.target.value);
+});
+
+document.querySelector("#chargeQuantity")?.addEventListener("input", () => {
+  applyProductToCharge(document.querySelector("#chargeProduct").value);
 });
 
 // Máscara de moeda: reescreve o campo a cada tecla, sempre no formato R$.
@@ -840,7 +876,11 @@ document.querySelector("#chargeForm")?.addEventListener("submit", async (event) 
         customer_name: (form.get("customer_name") || "").trim(),
         customer_email: (form.get("customer_email") || "").trim(),
         customer_tax_id: (form.get("customer_tax_id") || "").trim(),
-        customer_cellphone: (form.get("customer_cellphone") || "").trim()
+        customer_cellphone: (form.get("customer_cellphone") || "").trim(),
+        // Cobrança de produto: paga, vira venda e baixa o estoque.
+        ...(form.get("product")
+          ? { product_id: form.get("product"), quantity: parseInt(form.get("quantity"), 10) || 1 }
+          : {})
       })
     });
   } catch (requestError) {
@@ -1121,11 +1161,19 @@ function setView(viewName) {
   // A navegação fica recolhida em trilha de ícones em toda a plataforma e se
   // abre ao passar o mouse ou receber foco pelo teclado.
   appShell.classList.add("is-rail");
-  if (viewName === "overview") { renderSummary(); renderCalendar(); renderSemesterChart(); }
+  if (viewName === "overview") {
+    renderSummary(); renderCalendar(); renderSemesterChart();
+    loadProfitTable();
+    loadInsights();
+  }
   if (viewName === "payments") loadPayments();
+  if (viewName === "sales") loadSales();
   // A conversa vive no servidor: ao abrir a tela, restaura o histórico.
   if (viewName === "finance-assistant") financeChat.ensureStarted();
-  if (viewName === "app-marketing") marketingChat.ensureStarted();
+  if (viewName === "app-marketing") {
+    marketingChat.ensureStarted();
+    loadMarketingRecommendations();
+  }
 }
 
 function setDemoView(viewName) {
@@ -1183,6 +1231,7 @@ function startWordRotator() {
 // ─── Render ───────────────────────────────────────────────────────────────────
 
 function render() {
+  dataVersion += 1;
   renderSummary();
   renderTransactions();
   renderProducts();
@@ -1287,6 +1336,7 @@ function shiftCalendarMonth(delta) {
   renderSummary();
   renderCalendar();
   renderSemesterChart();
+  loadProfitTable();
 }
 
 function openDayDrawer(key) {
@@ -1792,6 +1842,8 @@ function openTxDrawer(id) {
   const entrada = item.type === "income";
   const origem = txSourceInfo(item.source);
   const doPix = item.source === "pix";
+  const daVenda = item.source === "sale";
+  const somenteLeitura = doPix || daVenda;
 
   document.querySelector("#txDrawerTitle").textContent = item.description;
   const kind = document.querySelector("#txDrawerKind");
@@ -1811,13 +1863,15 @@ function openTxDrawer(id) {
     ])}
     ${doPix
       ? `<p class="drawer__note">Esta entrada foi criada automaticamente quando a cobrança PIX foi paga. Editar aqui faria o financeiro divergir da cobrança, então ela é somente leitura.</p>`
+      : daVenda
+      ? `<p class="drawer__note">Esta entrada veio de uma venda. Para desfazer, cancele a venda na tela de Vendas: o estoque volta junto.</p>`
       : `<div class="drawer__actions">
            <button class="ghost-button" type="button" id="txEdit">Editar</button>
            <button class="ghost-button ghost-button--danger" type="button" id="txDelete">Excluir</button>
          </div>`}
   `;
 
-  if (!doPix) {
+  if (!somenteLeitura) {
     document.querySelector("#txEdit")?.addEventListener("click", () => {
       closeTxDrawer();
       openTxModal(item);
@@ -2019,13 +2073,25 @@ function renderImportReview() {
     const valor = Number(linha.amount);
     const quando = new Date(linha.occurred_at).toLocaleDateString("pt-BR");
     const id = `importRow${indice}`;
+    // Já importado (mesmo FITID) ou parecido com algo lançado na plataforma
+    // (venda, PIX, lançamento manual): nos dois casos a linha vem desmarcada.
+    const parecido = linha.possible_match;
+    const desmarcada = linha.duplicate || Boolean(parecido);
+    const etiqueta = linha.duplicate
+      ? `<span class="import-row__tag status-badge status-badge--neutral">Já importado</span>`
+      : parecido
+      ? `<span class="import-row__tag status-badge status-badge--warning"
+               title="${escapeHtml(`${parecido.description} · ${new Date(parecido.occurred_at).toLocaleDateString("pt-BR")}`)}">
+           Já lançado: ${escapeHtml(txSourceInfo(parecido.source).label)}
+         </span>`
+      : `<span class="import-row__tag"></span>`;
     return `
-      <div class="import-row ${linha.duplicate ? "import-row--duplicate" : ""}" data-import-row
+      <div class="import-row ${desmarcada ? "import-row--duplicate" : ""}" data-import-row
            data-external-id="${escapeHtml(linha.external_id)}"
            data-occurred-at="${escapeHtml(linha.occurred_at)}"
            data-amount="${escapeHtml(linha.amount)}">
         <input class="import-row__check" type="checkbox" id="${id}" data-import-check
-               ${linha.duplicate ? "" : "checked"} />
+               ${desmarcada ? "" : "checked"} />
         <label class="import-row__date" for="${id}">${escapeHtml(quando)}</label>
         <input class="import-row__field" data-import-desc aria-label="Descrição"
                value="${escapeHtml(linha.description)}" maxlength="180" />
@@ -2036,9 +2102,8 @@ function renderImportReview() {
         <span class="value-currency import-row__amount ${entrada ? "value-positive" : "value-negative"}">
           ${entrada ? "+" : "−"} ${formatMoney(valor)}
         </span>
-        <span class="import-row__tag ${linha.duplicate ? "status-badge status-badge--neutral" : ""}">
-          ${linha.duplicate ? "Já importado" : ""}
-        </span>
+        ${etiqueta}
+        ${parecido ? `<p class="import-row__match">Parece ${escapeHtml(parecido.description)}, de ${escapeHtml(new Date(parecido.occurred_at).toLocaleDateString("pt-BR"))}. Importar contaria o mesmo dinheiro duas vezes.</p>` : ""}
       </div>`;
   }).join("");
 
@@ -2053,10 +2118,14 @@ function updateImportSummary() {
   const total = importPreview?.transactions.length || 0;
   const marcados = selectedImportRows().length;
   const duplicados = importPreview?.duplicates || 0;
+  const parecidos = importPreview?.possible_matches || 0;
 
   const partes = [`${marcados} de ${total} lançamentos selecionados`];
   if (duplicados) {
     partes.push(`${duplicados} já ${duplicados === 1 ? "existe" : "existem"} no financeiro e ${duplicados === 1 ? "veio desmarcado" : "vieram desmarcados"}`);
+  }
+  if (parecidos) {
+    partes.push(`${parecidos} ${parecidos === 1 ? "parece já ter sido lançado" : "parecem já ter sido lançados"} na plataforma e ${parecidos === 1 ? "veio desmarcado" : "vieram desmarcados"}`);
   }
   if (importPreview?.already_imported) {
     partes.push("este arquivo já foi importado antes");
@@ -2091,6 +2160,7 @@ function openTxModal(item) {
   document.querySelector("#txSubmit").textContent = item ? "Salvar" : "Adicionar";
 
   document.querySelector("#txType").value = item ? item.type : "income";
+  updateTxSaleHint();
   document.querySelector("#txDescription").value = item ? item.description : "";
   document.querySelector("#txAmount").value = item ? formatMoney(item.amount) : "";
   document.querySelector("#txDate").value = item ? dateKey(transactionDate(item)) : dateKey(new Date());
@@ -2103,6 +2173,14 @@ function openTxModal(item) {
   requestAnimationFrame(() => modal.classList.add("is-open"));
   document.addEventListener("keydown", txModalEscHandler);
   document.querySelector("#txDescription")?.focus();
+}
+
+// Entrada nova pode ser a venda de um produto, que tem tela própria: lá o
+// estoque baixa e o lucro é calculado. Lançada aqui, nada disso acontece.
+function updateTxSaleHint() {
+  const dica = document.querySelector("#txSaleHint");
+  if (!dica) return;
+  dica.hidden = Boolean(txEditingId) || document.querySelector("#txType").value !== "income";
 }
 
 function closeTxModal() {
@@ -2220,6 +2298,7 @@ function openChargeModal() {
   const form = document.querySelector("#chargeForm");
   form.reset();
   document.querySelector("#chargeAmount").value = "";
+  document.querySelector("#chargeQuantityField").hidden = true;
   const error = document.querySelector("#chargeFormError");
   error.hidden = true;
   error.textContent = "";
@@ -2260,9 +2339,12 @@ function renderChargeProducts() {
 
 function applyProductToCharge(productId) {
   const product = state.products.find((item) => String(item.id) === String(productId));
+  const quantityField = document.querySelector("#chargeQuantityField");
+  if (quantityField) quantityField.hidden = !product;
   if (!product) return;
-  document.querySelector("#chargeDescription").value = product.name;
-  const cents = Math.round(Number(product.price) * 100);
+  const quantidade = Math.max(1, parseInt(document.querySelector("#chargeQuantity").value, 10) || 1);
+  document.querySelector("#chargeDescription").value = quantidade > 1 ? `${quantidade}x ${product.name}` : product.name;
+  const cents = Math.round(Number(product.price) * 100) * quantidade;
   document.querySelector("#chargeAmount").value = formatMoney(cents / 100);
 }
 
@@ -2834,7 +2916,10 @@ function createChat(cfg) {
     ask(question);
   });
 
-  $(cfg.ids.newButton)?.addEventListener("click", () => startNew());
+  $(cfg.ids.newButton)?.addEventListener("click", () => {
+    startNew();
+    if (window.matchMedia("(max-width: 768px)").matches) setAsideOpen(false);
+  });
 
   $(cfg.ids.toggle)?.addEventListener("click", () => {
     setAsideOpen($(cfg.ids.shell)?.classList.contains("is-collapsed"));
@@ -2872,7 +2957,10 @@ function createChat(cfg) {
     if (currentId === null) startNew();
   }
 
-  return { startNew, ensureStarted };
+  // No celular a lista cobre o chat: a tela abre com ela recolhida.
+  if (window.matchMedia("(max-width: 768px)").matches) setAsideOpen(false);
+
+  return { startNew, ensureStarted, refreshSuggestions: renderSuggestions };
 }
 
 // ─── Assistente financeiro ──────────────────────────────────────────────────
@@ -2969,7 +3057,46 @@ async function showCampaignImage(article, actions, campaignId) {
 
 // Sugestões que citam o catálogo de verdade: o produto de melhor margem é o
 // que mais vale divulgar. Sem produto, ficam as genéricas.
+const MARKETING_GOALS = {
+  promocao: "promoção",
+  lancamento: "lançamento",
+  relacionamento: "relacionamento com os clientes"
+};
+
+async function loadMarketingRecommendations() {
+  if (marketingRecsVersion === dataVersion) return;
+  marketingRecsVersion = dataVersion;
+  try {
+    const data = await apiRequest("/marketing/recommendations/");
+    marketingRecommendations = data.recommendations || [];
+  } catch {
+    return;
+  }
+  marketingChat.refreshSuggestions();
+}
+
+// Cada recomendação vira um pedido pronto para o chat. O pedido muda com a
+// situação do produto: em prejuízo a conversa é sobre preço, com estoque
+// baixo é sobre avisar quem já compra, e só no resto é campanha.
+function recommendationSuggestion(rec) {
+  const produto = (state.products || []).find((item) => String(item.id) === String(rec.product_id));
+  if (!produto) return null;
+  const label = `${rec.title}: ${rec.text}`;
+  if (Number(produto.margin_value) < 0) {
+    return { label, ask: `${produto.name} está dando prejuízo. Como posso ajustar o preço sem perder clientes?` };
+  }
+  if (produto.is_low_stock) {
+    return { label, ask: `Escreva uma mensagem de WhatsApp avisando meus clientes que restam poucas unidades de ${produto.name}` };
+  }
+  const objetivo = MARKETING_GOALS[rec.goal] || "promoção";
+  return { label, ask: `Crie uma campanha de ${objetivo} para o ${rec.channel || "Instagram"} divulgando ${produto.name}` };
+}
+
 function marketingSuggestions() {
+  const recomendadas = marketingRecommendations.map(recommendationSuggestion).filter(Boolean).slice(0, 3);
+  if (recomendadas.length) {
+    return [...recomendadas, { ask: "Me dê 5 ideias de vídeos curtos para o TikTok" }];
+  }
   const ativos = (state.products || []).filter((p) => p.is_active !== false);
   const melhor = [...ativos].sort((a, b) => Number(b.margin_value ?? 0) - Number(a.margin_value ?? 0))[0];
   const itens = [];
@@ -3087,6 +3214,400 @@ async function apiRequest(path, options = {}) {
   if (response.status === 204) return null;
   return response.json();
 }
+
+// ─── Vendas ─────────────────────────────────────────────────────────────────
+// A venda liga o catálogo ao estoque e ao financeiro. Admin e membro
+// registram; quem calcula custo, taxa e lucro é o servidor, a partir do
+// produto no banco. A tela só repete a conta para mostrar a prévia.
+
+const SALE_METHODS = { dinheiro: "Dinheiro", pix: "PIX", cartao: "Cartão", outro: "Outro" };
+
+function monthParam(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function controlsStock(product) {
+  return product.unit !== "srv";
+}
+
+async function loadSales() {
+  const label = document.querySelector("#salesMonthLabel");
+  if (label) label.textContent = `${CAL_MONTHS[salesMonth.getMonth()]} de ${salesMonth.getFullYear()}`;
+  try {
+    currentSales = await apiRequest(`/sales/?month=${monthParam(salesMonth)}`);
+  } catch {
+    currentSales = [];
+  }
+  renderSales();
+}
+
+function shiftSalesMonth(delta) {
+  salesMonth = new Date(salesMonth.getFullYear(), salesMonth.getMonth() + delta, 1);
+  loadSales();
+}
+
+function profitBadge(lucro) {
+  const valor = Number(lucro) || 0;
+  return valor < 0
+    ? `<span class="status-badge status-badge--negative">Prejuízo ${formatMoney(Math.abs(valor))}</span>`
+    : `<span class="status-badge status-badge--positive">Lucro ${formatMoney(valor)}</span>`;
+}
+
+function renderSales() {
+  const container = document.querySelector("#salesRows");
+  if (!container) return;
+
+  const concluidas = currentSales.filter((venda) => venda.status === "concluida");
+  const somar = (campo) => concluidas.reduce((total, venda) => total + (Number(venda[campo]) || 0), 0);
+  const lucro = somar("profit");
+  document.querySelector("#salesTotal").textContent = formatMoney(somar("total"));
+  const lucroEl = document.querySelector("#salesProfit");
+  lucroEl.textContent = formatMoney(lucro);
+  lucroEl.classList.toggle("value-positive", lucro >= 0);
+  lucroEl.classList.toggle("value-negative", lucro < 0);
+  document.querySelector("#salesUnits").textContent = String(somar("quantity"));
+
+  if (!currentSales.length) {
+    container.innerHTML = `<p class="empty-state">${
+      state.products.length
+        ? "Nenhuma venda neste mês. Registre uma venda para o estoque e o lucro andarem juntos."
+        : "Cadastre um produto em Produtos para registrar a primeira venda."
+    }</p>`;
+    return;
+  }
+
+  container.innerHTML = currentSales.map((venda) => {
+    const cancelada = venda.status === "cancelada";
+    const quando = new Date(venda.occurred_at).toLocaleDateString("pt-BR");
+    const origem = venda.source === "pix" ? " · Cobrança PIX" : "";
+    return `
+      <button class="charge-row" type="button" data-sale="${escapeHtml(venda.id)}">
+        <span class="charge-row__main">
+          <strong>${escapeHtml(`${venda.quantity}x ${venda.product_name}`)}</strong>
+          <small>${escapeHtml(`${quando} · ${SALE_METHODS[venda.payment_method] || "Outro"}${origem}`)}</small>
+        </span>
+        <span class="charge-row__side">
+          <span class="value-currency charge-row__amount ${cancelada ? "" : "value-positive"}">
+            ${cancelada ? "" : "+ "}${formatMoney(venda.total)}
+          </span>
+          ${cancelada
+            ? `<span class="status-badge status-badge--neutral">Cancelada</span>`
+            : profitBadge(venda.profit)}
+        </span>
+        <span class="charge-row__chevron material-symbols-rounded" aria-hidden="true">chevron_right</span>
+      </button>`;
+  }).join("");
+
+  container.querySelectorAll("[data-sale]").forEach((linha) => {
+    linha.addEventListener("click", () => openSaleDrawer(linha.dataset.sale));
+  });
+}
+
+function openSaleDrawer(id) {
+  const drawer = document.querySelector("#saleDrawer");
+  const venda = currentSales.find((item) => String(item.id) === String(id));
+  if (!drawer || !venda) return;
+
+  const cancelada = venda.status === "cancelada";
+  const doPix = venda.source === "pix";
+  const lucro = Number(venda.profit) || 0;
+
+  document.querySelector("#saleDrawerTitle").textContent = `${venda.quantity}x ${venda.product_name}`;
+  const kind = document.querySelector("#saleDrawerKind");
+  kind.textContent = cancelada ? "Cancelada" : "Concluída";
+  kind.className = `drawer__weekday ${cancelada ? "" : "status-text--positive"}`;
+
+  document.querySelector("#saleDrawerBody").innerHTML = `
+    <div class="drawer__amount">
+      <span>${lucro < 0 ? "Prejuízo" : "Lucro real"}</span>
+      <strong class="value-currency ${lucro < 0 ? "status-text--negative" : "status-text--positive"}">${formatMoney(Math.abs(lucro))}</strong>
+    </div>
+    ${drawerRows("Venda", [
+      ["Produto", venda.product_name],
+      ["Quantidade", String(venda.quantity)],
+      ["Preço por unidade", formatMoney(venda.unit_price)],
+      ["Total", formatMoney(venda.total)],
+      ["Pagamento", SALE_METHODS[venda.payment_method] || "Outro"],
+      ["Data", new Date(venda.occurred_at).toLocaleDateString("pt-BR")],
+      ["Origem", doPix ? "Cobrança PIX paga" : "Registrada na tela de vendas"]
+    ])}
+    ${drawerRows("De onde sai o lucro", [
+      ["Total vendido", formatMoney(venda.total)],
+      ["Custo dos produtos", `− ${formatMoney(venda.cost_total)}`],
+      ["Taxa e imposto", `− ${formatMoney(venda.fees)}`],
+      [lucro < 0 ? "Prejuízo" : "Lucro real", formatMoney(lucro)]
+    ])}
+    ${cancelada
+      ? `<p class="drawer__note">Venda cancelada${venda.canceled_at ? ` em ${formatDateTime(venda.canceled_at)}` : ""}. O estoque voltou e a entrada saiu do financeiro.</p>`
+      : doPix
+      ? `<p class="drawer__note">Esta venda veio de uma cobrança PIX paga. Para desfazer, estorne a cobrança: a venda é cancelada e o estoque volta.</p>`
+      : `<p class="modal__error" id="saleCancelError" role="alert" hidden></p>
+         <div class="drawer__actions">
+           <button class="ghost-button ghost-button--danger" type="button" id="saleCancel">Cancelar venda</button>
+         </div>`}
+  `;
+
+  // Cancelar pede um segundo clique: devolve estoque e mexe no financeiro.
+  document.querySelector("#saleCancel")?.addEventListener("click", async (event) => {
+    const botao = event.currentTarget;
+    if (botao.dataset.confirm !== "1") {
+      botao.dataset.confirm = "1";
+      botao.textContent = "Confirmar cancelamento";
+      return;
+    }
+    botao.disabled = true;
+    try {
+      await apiRequest(`/sales/${venda.id}/cancel/`, { method: "POST" });
+    } catch (requestError) {
+      const erro = document.querySelector("#saleCancelError");
+      erro.textContent = requestError.message;
+      erro.hidden = false;
+      botao.disabled = false;
+      return;
+    }
+    closeSaleDrawer();
+    await refreshAfterSale();
+  });
+
+  drawer.hidden = false;
+  requestAnimationFrame(() => drawer.classList.add("is-open"));
+  document.addEventListener("keydown", saleDrawerEscHandler);
+}
+
+function closeSaleDrawer() {
+  const drawer = document.querySelector("#saleDrawer");
+  if (!drawer) return;
+  drawer.classList.remove("is-open");
+  document.removeEventListener("keydown", saleDrawerEscHandler);
+  window.setTimeout(() => { drawer.hidden = true; }, 300);
+}
+
+function saleDrawerEscHandler(event) {
+  if (event.key === "Escape") closeSaleDrawer();
+}
+
+function saleSelectedProduct() {
+  const id = document.querySelector("#saleProduct")?.value;
+  return state.products.find((item) => String(item.id) === String(id));
+}
+
+function openSaleModal() {
+  const modal = document.querySelector("#saleModal");
+  if (!modal) return;
+
+  const select = document.querySelector("#saleProduct");
+  const ativos = state.products.filter((product) => product.is_active !== false);
+  select.innerHTML = ativos.map((product) => {
+    const semEstoque = controlsStock(product) && !(Number(product.stock) > 0);
+    const estoque = controlsStock(product) ? `${product.stock ?? 0} em estoque` : "serviço";
+    return `<option value="${escapeHtml(product.id)}" ${semEstoque ? "disabled" : ""}>
+      ${escapeHtml(product.name)} — ${formatMoney(product.price)} · ${semEstoque ? "sem estoque" : estoque}
+    </option>`;
+  }).join("");
+  const primeiroDisponivel = select.querySelector("option:not([disabled])");
+  if (primeiroDisponivel) select.value = primeiroDisponivel.value;
+
+  document.querySelector("#saleQuantity").value = 1;
+  document.querySelector("#saleMethod").value = "dinheiro";
+  document.querySelector("#saleDate").value = dateKey(new Date());
+  applyProductToSale();
+
+  const erro = document.querySelector("#saleFormError");
+  erro.hidden = !(ativos.length === 0 || !primeiroDisponivel);
+  erro.textContent = ativos.length === 0
+    ? "Cadastre um produto ativo em Produtos antes de registrar uma venda."
+    : !primeiroDisponivel ? "Todos os produtos estão sem estoque. Atualize o estoque em Produtos." : "";
+  document.querySelector("#saleSubmit").disabled = !primeiroDisponivel;
+
+  modal.hidden = false;
+  requestAnimationFrame(() => modal.classList.add("is-open"));
+  document.addEventListener("keydown", saleModalEscHandler);
+  select.focus();
+}
+
+function closeSaleModal() {
+  const modal = document.querySelector("#saleModal");
+  if (!modal) return;
+  modal.classList.remove("is-open");
+  document.removeEventListener("keydown", saleModalEscHandler);
+  window.setTimeout(() => { modal.hidden = true; }, 300);
+}
+
+function saleModalEscHandler(event) {
+  if (event.key === "Escape") closeSaleModal();
+}
+
+function applyProductToSale() {
+  const product = saleSelectedProduct();
+  document.querySelector("#salePrice").value = product ? formatMoney(Number(product.price) || 0) : "";
+  updateSalePreview();
+}
+
+// Mesma conta do servidor (apps/sales/services.py): taxa por unidade
+// arredondada ao centavo. Mudou lá, mude aqui.
+function updateSalePreview() {
+  const product = saleSelectedProduct();
+  const quantidade = Math.max(0, parseInt(document.querySelector("#saleQuantity").value, 10) || 0);
+  const precoCentavos = centsFromMasked(document.querySelector("#salePrice").value);
+  const preview = document.querySelector("#salePreview");
+  if (!preview) return;
+
+  let totalCentavos = 0;
+  let lucroCentavos = 0;
+  if (product) {
+    const custoCentavos = Math.round((Number(product.cost) || 0) * 100) + Math.round((Number(product.other_costs) || 0) * 100);
+    const percentual = (Number(product.fee_percent) || 0) + (Number(product.tax_percent) || 0);
+    const taxaCentavos = Math.round(precoCentavos * percentual / 100);
+    totalCentavos = precoCentavos * quantidade;
+    lucroCentavos = (precoCentavos - custoCentavos - taxaCentavos) * quantidade;
+  }
+  const prejuizo = lucroCentavos < 0;
+  preview.innerHTML = `
+    <span>Total <strong class="value-currency">${formatMoney(totalCentavos / 100)}</strong></span>
+    <span>${prejuizo ? "Prejuízo" : "Lucro real"} <strong class="value-currency ${prejuizo ? "value-negative" : "value-positive"}">${formatMoney(Math.abs(lucroCentavos) / 100)}</strong></span>`;
+}
+
+// Venda mexe no estoque (produtos) e no financeiro (movimentações): as três
+// telas são recarregadas do servidor, que é quem fez a conta.
+async function refreshAfterSale() {
+  try {
+    state = await loadRemoteState();
+    render();
+  } catch {
+    // A lista de vendas abaixo ainda mostra o que mudou.
+  }
+  await loadSales();
+  loadProfitTable();
+}
+
+document.querySelector("#openSaleModal")?.addEventListener("click", () => openSaleModal());
+document.querySelectorAll("[data-close-sale-modal]").forEach((el) => el.addEventListener("click", closeSaleModal));
+document.querySelectorAll("[data-close-sale]").forEach((el) => el.addEventListener("click", closeSaleDrawer));
+document.querySelector("#salesPrevMonth")?.addEventListener("click", () => shiftSalesMonth(-1));
+document.querySelector("#salesNextMonth")?.addEventListener("click", () => shiftSalesMonth(1));
+document.querySelector("#saleProduct")?.addEventListener("change", () => applyProductToSale());
+document.querySelector("#saleQuantity")?.addEventListener("input", () => updateSalePreview());
+document.querySelector("#salePrice")?.addEventListener("input", (event) => {
+  const input = event.target;
+  input.value = centsFromMasked(input.value) ? maskMoney(input.value) : "";
+  updateSalePreview();
+});
+
+document.querySelector("#saleForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = new FormData(event.currentTarget);
+  const erro = document.querySelector("#saleFormError");
+  const submit = document.querySelector("#saleSubmit");
+
+  const quantidade = parseInt(form.get("quantity"), 10) || 0;
+  if (quantidade < 1) {
+    erro.textContent = "Informe uma quantidade maior que zero.";
+    erro.hidden = false;
+    return;
+  }
+
+  const payload = {
+    product_id: form.get("product_id"),
+    quantity: quantidade,
+    unit_price: centsFromMasked(form.get("unit_price")) / 100,
+    payment_method: form.get("payment_method")
+  };
+  const data = form.get("occurred_at");
+  if (data && data !== dateKey(new Date())) payload.occurred_at = `${data}T12:00:00`;
+
+  erro.hidden = true;
+  submit.disabled = true;
+  submit.textContent = "Registrando...";
+  try {
+    await apiRequest("/sales/", { method: "POST", body: JSON.stringify(payload) });
+  } catch (requestError) {
+    erro.textContent = requestError.message;
+    erro.hidden = false;
+    return;
+  } finally {
+    submit.disabled = false;
+    submit.textContent = "Registrar";
+  }
+
+  closeSaleModal();
+  // Venda registrada em outro mês: a lista acompanha o mês da venda.
+  const quando = data ? new Date(`${data}T12:00:00`) : new Date();
+  salesMonth = new Date(quando.getFullYear(), quando.getMonth(), 1);
+  await refreshAfterSale();
+});
+
+// ─── Visão geral: lucro por produto e insights ──────────────────────────────
+
+async function loadProfitTable() {
+  const container = document.querySelector("#ovProfitTable");
+  if (!container || !currentUser) return;
+  const mes = `${CAL_MONTHS[calendarCursor.getMonth()]} de ${calendarCursor.getFullYear()}`;
+
+  let resumo;
+  try {
+    resumo = await apiRequest(`/sales/summary/?month=${monthParam(calendarCursor)}`);
+  } catch {
+    container.innerHTML = `<p class="empty-state">Não foi possível carregar as vendas agora.</p>`;
+    return;
+  }
+
+  if (!resumo.products?.length) {
+    container.innerHTML = `<p class="empty-state">Nenhuma venda em ${escapeHtml(mes.toLowerCase())}. Registre vendas para ver quanto cada produto rende de verdade.</p>`;
+    return;
+  }
+
+  const linha = (nome, meta, lucro, extraClass = "") => `
+    <div class="profit-row ${extraClass}">
+      <span class="profit-row__name">${escapeHtml(nome)}</span>
+      <span class="profit-row__meta">${escapeHtml(meta)}</span>
+      <span class="profit-row__value">${profitBadge(lucro)}</span>
+    </div>`;
+
+  const totais = resumo.totals;
+  container.innerHTML = resumo.products.map((item) => linha(
+    item.product_name,
+    `${item.quantity} ${item.quantity === 1 ? "unidade" : "unidades"} · faturou ${formatMoney(item.total)}`,
+    item.profit
+  )).join("") + linha(
+    `Total de ${mes.toLowerCase()}`,
+    `${totais.count} ${totais.count === 1 ? "venda" : "vendas"} · faturou ${formatMoney(totais.total)}`,
+    totais.profit,
+    "profit-row--total"
+  );
+}
+
+// Os insights chamam a IA, que custa por chamada: só são pedidos de novo
+// quando os dados mudaram desde a última leitura, ou pelo botão Atualizar.
+async function loadInsights(force = false) {
+  const container = document.querySelector("#ovInsights");
+  if (!container || !canAccessFinance()) return;
+  if (insightsVersion === dataVersion && !force) return;
+  insightsVersion = dataVersion;
+
+  container.innerHTML = `<p class="empty-state">Lendo os números do negócio...</p>`;
+  let data;
+  try {
+    data = await apiRequest("/finance/insights/");
+  } catch (requestError) {
+    insightsVersion = -1;
+    container.innerHTML = `<p class="empty-state">${escapeHtml(requestError.message || "Não foi possível gerar os insights agora.")}</p>`;
+    return;
+  }
+  const lista = data.insights || [];
+  container.innerHTML = lista.length
+    ? lista.map((item) => `
+        <article class="insight-item">
+          <strong>${escapeHtml(item.title)}</strong>
+          <p>${escapeHtml(item.text)}</p>
+        </article>`).join("")
+    : `<p class="empty-state">Sem insights por enquanto.</p>`;
+}
+
+document.querySelector("#ovInsightsRefresh")?.addEventListener("click", () => loadInsights(true));
+
+document.querySelectorAll("[data-goto-view]").forEach((button) => {
+  button.addEventListener("click", () => setView(button.dataset.gotoView));
+});
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
