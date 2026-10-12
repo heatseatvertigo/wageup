@@ -177,6 +177,8 @@ POST            /api/marketing/chat/         # Pedido livre ao chat de marketing
 GET/POST        /api/marketing/conversations/          # Lista ou cria conversa de marketing
 GET/DELETE      /api/marketing/conversations/<uuid>/   # Mensagens ou remoção
 GET             /api/marketing/recommendations/  # O que divulgar em seguida, pela margem real do catálogo
+POST            /api/marketing/actions/      # Botão da tela: product_id + action (campaign/launch/whatsapp)
+GET             /api/marketing/products/     # Situação de cada produto no mês e a ação sugerida
 GET             /api/marketing/campaigns/<uuid>/image/   # Imagem da campanha, guardada no banco
 GET/POST        /api/marketing/campaigns/
 GET             /api/health/                 # Health check (aberto, sem throttle)
@@ -229,6 +231,8 @@ GET             /api/health/                 # Health check (aberto, sem throttl
 21. **Member registra venda, mas não vê o financeiro**: cada conta tem o próprio negócio, então a entrada da venda do member cai no financeiro do negócio dele. A visão geral do member mostra só o lucro por produto; cards, calendário e gráfico leem o financeiro e ficam escondidos (`data-admin-only`).
 
 22. **Extrato não conta duas vezes o que já foi lançado na plataforma** (`_ja_lancados_na_plataforma` em `finance/views.py`): venda, PIX e lançamento manual não têm `external_id`, então a deduplicação por FITID (decisão 17) não os pega, mas o banco mostra o mesmo dinheiro no extrato. Na prévia, uma linha com mesmo tipo, mesmo valor e data a até um dia de distância vem desmarcada com `possible_match`. Cada lançamento casa com uma linha só. É sugestão, não bloqueio: o usuário pode marcar e importar. Venda no cartão (cai dias depois, já com a taxa descontada) não é reconhecida.
+
+23. **Marketing abre em ações, não no chat**: a aba Ações mostra o que fazer a partir das vendas, da margem e do estoque, e cada botão leva a um resultado concreto. A ação de cada produto sai de `tipo_de_acao` em `marketing/recommendations.py`, pela situação dele, nunca pelo texto da IA: prejuízo leva ao preço, sem estoque ao estoque, estoque baixo ao aviso de WhatsApp, o resto à campanha. `POST /api/marketing/actions/` monta o pedido no servidor com o nome do produto vindo do banco e passa pelo mesmo `_conversar` do chat, então a campanha sai igual e "Ajustar no chat" continua a conversa. O aviso de WhatsApp abre o WhatsApp do MEI com o texto (`wa.me/?text=`): a plataforma não envia mensagem, porque não tem lista de clientes nem a API paga do WhatsApp Business.
 
 ---
 

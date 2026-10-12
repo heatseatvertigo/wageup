@@ -66,6 +66,8 @@ let insightsVersion = -1;
 // Recomendações de marketing: também chamam a IA, então seguem a mesma regra.
 let marketingRecommendations = [];
 let marketingRecsVersion = -1;
+// Aba da tela de marketing: "actions" (o que fazer agora) ou "chat".
+let marketingTab = "actions";
 
 const siteShell = document.querySelector(".site-shell");
 const authShell = document.querySelector("#auth");
@@ -202,10 +204,15 @@ document.querySelectorAll("[data-demo-view]").forEach((button) => {
 });
 
 document.querySelectorAll("[data-view]").forEach((button) => {
-  button.addEventListener("click", () => {
+  button.addEventListener("click", (event) => {
     if (button.dataset.adminOnly !== undefined && !canAccessFinance()) return;
     setView(button.dataset.view);
     sidebar.classList.remove("open");
+    // Clique de mouse (detail > 0) solta o foco: com o foco preso, a barra
+    // lateral ficava expandida e recolhia no primeiro clique no conteúdo,
+    // deslocando a tela embaixo do cursor e perdendo o clique. Pelo teclado
+    // (detail 0) o foco fica, para a navegação continuar de onde estava.
+    if (event.detail > 0) button.blur();
   });
 });
 
@@ -1157,7 +1164,10 @@ function setView(viewName) {
 
   title.textContent = viewTitles[viewName] || "Wage Up";
   // As telas de chat escondem o título da página: a barra do chat basta.
-  document.querySelector(".dashboard")?.classList.toggle("is-chat", CHAT_VIEWS.includes(viewName));
+  // O marketing só vira tela de chat na aba Conversa; na aba Ações é uma
+  // tela comum, com título e rolagem.
+  const emChat = CHAT_VIEWS.includes(viewName) && !(viewName === "app-marketing" && marketingTab === "actions");
+  document.querySelector(".dashboard")?.classList.toggle("is-chat", emChat);
   // A navegação fica recolhida em trilha de ícones em toda a plataforma e se
   // abre ao passar o mouse ou receber foco pelo teclado.
   appShell.classList.add("is-rail");
@@ -1171,8 +1181,9 @@ function setView(viewName) {
   // A conversa vive no servidor: ao abrir a tela, restaura o histórico.
   if (viewName === "finance-assistant") financeChat.ensureStarted();
   if (viewName === "app-marketing") {
-    marketingChat.ensureStarted();
+    setMarketingTab(marketingTab, { fromView: true });
     loadMarketingRecommendations();
+    if (marketingTab === "actions") loadMarketingActions();
   }
 }
 
@@ -2960,7 +2971,7 @@ function createChat(cfg) {
   // No celular a lista cobre o chat: a tela abre com ela recolhida.
   if (window.matchMedia("(max-width: 768px)").matches) setAsideOpen(false);
 
-  return { startNew, ensureStarted, refreshSuggestions: renderSuggestions };
+  return { startNew, ensureStarted, openConversation, refreshSuggestions: renderSuggestions };
 }
 
 // ─── Assistente financeiro ──────────────────────────────────────────────────
@@ -3073,6 +3084,7 @@ async function loadMarketingRecommendations() {
     return;
   }
   marketingChat.refreshSuggestions();
+  renderMarketingCards();
 }
 
 // Cada recomendação vira um pedido pronto para o chat. O pedido muda com a
@@ -3131,6 +3143,356 @@ const marketingChat = createChat({
   suggestions: marketingSuggestions,
   renderBot: renderMarketingReply
 });
+
+
+// ─── Marketing: aba Ações ───────────────────────────────────────────────────
+// A tela abre mostrando o que fazer, a partir das vendas, da margem e do
+// estoque. Cada botão leva a um resultado concreto: a campanha pronta, o
+// aviso para o WhatsApp ou o campo do produto que precisa de ajuste. O chat
+// continua na aba Conversa, para o pedido livre e para ajustar o que o botão
+// gerou.
+
+let marketingProducts = [];
+let marketingCards = [];
+let marketingGallery = [];
+let marketingResult = null;
+
+// Rótulo do botão por ação. "Avisar clientes" prometeria um envio que a
+// plataforma não faz: ela prepara a mensagem e o envio é no WhatsApp do MEI.
+const MKT_ACTION_LABEL = {
+  campaign: "Criar promoção",
+  launch: "Criar post de lançamento",
+  whatsapp: "Criar aviso para WhatsApp",
+  price: "Ajustar preço",
+  stock: "Atualizar estoque"
+};
+const MKT_TONE = { positive: "positive", warning: "warning", negative: "negative", neutral: "neutral" };
+const MKT_GENERATES = ["campaign", "launch", "whatsapp"];
+
+function setMarketingTab(tab, { fromView = false } = {}) {
+  marketingTab = tab;
+  const acoes = tab === "actions";
+  document.querySelector("#mktActions").hidden = !acoes;
+  document.querySelector("#marketingShell").hidden = acoes;
+  document.querySelectorAll("[data-mkt-tab]").forEach((botao) => {
+    const ativo = botao.dataset.mktTab === tab;
+    botao.classList.toggle("is-active", ativo);
+    botao.setAttribute("aria-selected", String(ativo));
+  });
+  document.querySelector(".dashboard")?.classList.toggle("is-chat", !acoes);
+  document.querySelector("#app-marketing").classList.toggle("view--full", !acoes);
+  if (acoes) {
+    if (!fromView) loadMarketingActions();
+  } else {
+    marketingChat.ensureStarted();
+  }
+}
+
+function marketingProduct(id) {
+  return (state.products || []).find((item) => String(item.id) === String(id));
+}
+
+async function loadMarketingActions() {
+  await Promise.all([loadMarketingProducts(), loadMarketingGallery()]);
+  renderMarketingCards();
+}
+
+async function loadMarketingProducts() {
+  try {
+    marketingProducts = await apiRequest("/marketing/products/");
+  } catch {
+    marketingProducts = [];
+  }
+  renderMarketingProducts();
+}
+
+function renderMarketingCards() {
+  const container = document.querySelector("#mktCards");
+  if (!container) return;
+
+  // Um cartão por produto: duas recomendações do mesmo produto dividiriam a
+  // atenção sem dizer nada novo.
+  const vistos = new Set();
+  const cards = marketingRecommendations.filter((rec) => {
+    if (!rec.product_id || !rec.action || vistos.has(rec.product_id)) return false;
+    vistos.add(rec.product_id);
+    return true;
+  }).slice(0, 4);
+  marketingCards = cards;
+  if (!cards.length) {
+    container.innerHTML = (state.products || []).length
+      ? `<p class="empty-state">Lendo os números do negócio...</p>`
+      : `<div class="empty-state">Cadastre seus produtos para receber recomendações.
+           <button class="ghost-button" type="button" data-goto-view="products">Ir para Produtos</button></div>`;
+    return;
+  }
+
+  container.innerHTML = cards.map((rec, indice) => {
+    const produto = marketingProduct(rec.product_id) || {};
+    const linha = marketingProducts.find((item) => String(item.product_id) === String(rec.product_id));
+    const tom = MKT_TONE[linha?.tone] || (rec.action === "price" ? "negative" : "positive");
+    const margem = Number(produto.margin_value ?? linha?.margin ?? 0);
+    const gera = MKT_GENERATES.includes(rec.action);
+    const rotulo = rec.action === "campaign" ? `Criar promoção no ${rec.channel || "Instagram"}` : MKT_ACTION_LABEL[rec.action];
+    return `
+      <article class="mkt-card">
+        <span class="status-badge status-badge--${tom}">${escapeHtml(rec.title)}</span>
+        <h4 class="mkt-card__product">${escapeHtml(rec.product_name)}</h4>
+        <p class="mkt-card__reason">${escapeHtml(rec.text)}</p>
+        <dl class="mkt-card__numbers">
+          <div><dt>${margem < 0 ? "Prejuízo/un" : "Lucro/un"}</dt>
+               <dd class="value-currency ${margem < 0 ? "value-negative" : "value-positive"}">${margem < 0 ? "− " : ""}${formatMoney(Math.abs(margem))}</dd></div>
+          <div><dt>Estoque</dt><dd class="value-currency">${linha && !linha.controls_stock ? "serviço" : `${produto.stock ?? linha?.stock ?? 0} un`}</dd></div>
+        </dl>
+        <button class="${gera ? "primary-button" : "ghost-button"}" type="button" data-mkt-card="${indice}">${escapeHtml(rotulo)}</button>
+        ${gera ? `<button class="mkt-card__alt" type="button" data-mkt-card-chat="${indice}">Ajustar o pedido no chat</button>` : ""}
+      </article>`;
+  }).join("");
+
+}
+
+function renderMarketingProducts() {
+  const container = document.querySelector("#mktProducts");
+  if (!container) return;
+  if (!marketingProducts.length) {
+    container.innerHTML = `<p class="empty-state">Nenhum produto ativo no catálogo.</p>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="mkt-row mkt-row--head" aria-hidden="true">
+      <span>Produto</span><span>Vendidos</span><span>Lucro real</span><span>Estoque</span><span>Situação</span><span></span>
+    </div>` + marketingProducts.map((linha, indice) => {
+    const lucro = Number(linha.profit_month) || 0;
+    return `
+      <div class="mkt-row">
+        <span class="mkt-row__name">${escapeHtml(linha.name)}</span>
+        <span class="mkt-row__cell" data-label="Vendidos">${linha.quantity_month}</span>
+        <span class="mkt-row__cell value-currency ${lucro < 0 ? "value-negative" : lucro > 0 ? "value-positive" : ""}" data-label="Lucro real">${lucro < 0 ? "− " : ""}${formatMoney(Math.abs(lucro))}</span>
+        <span class="mkt-row__cell" data-label="Estoque">${linha.controls_stock ? linha.stock : "serviço"}</span>
+        <span class="mkt-row__status"><span class="status-badge status-badge--${MKT_TONE[linha.tone] || "neutral"}">${escapeHtml(linha.status)}</span></span>
+        <span class="mkt-row__action"><button class="ghost-button" type="button" data-mkt-product="${indice}">${escapeHtml(MKT_ACTION_LABEL[linha.action] || "Criar promoção")}</button></span>
+      </div>`;
+  }).join("");
+
+}
+
+// Primeira linha útil da campanha, para o título do card da galeria.
+function campaignHeadline(texto, reserva) {
+  const chamada = String(texto || "").match(/\*\*Chamada principal:\*\*\s*(.+)/i);
+  return (chamada ? chamada[1] : reserva || "Campanha").replace(/\*\*/g, "").trim();
+}
+
+async function loadMarketingGallery() {
+  const container = document.querySelector("#mktGallery");
+  if (!container) return;
+  let campanhas = [];
+  try {
+    const data = await apiRequest("/marketing/campaigns/");
+    campanhas = (Array.isArray(data) ? data : data.results || []).filter((c) => c.generated_text).slice(0, 6);
+  } catch {
+    // A galeria vazia não impede as ações.
+  }
+  marketingGallery = campanhas;
+  if (!campanhas.length) {
+    container.innerHTML = `<p class="empty-state">As campanhas que você gerar aparecem aqui, com o texto e a imagem para baixar.</p>`;
+    return;
+  }
+
+  container.innerHTML = campanhas.map((c, indice) => `
+    <article class="mkt-shot">
+      <div class="mkt-shot__image" data-mkt-shot-image="${escapeHtml(c.id)}">
+        <span class="material-symbols-rounded" aria-hidden="true">image</span>
+      </div>
+      <div class="mkt-shot__body">
+        <span class="mkt-shot__meta">${escapeHtml(c.channel || "Instagram")} · ${escapeHtml(new Date(c.created_at).toLocaleDateString("pt-BR"))}${c.product_name ? ` · ${escapeHtml(c.product_name)}` : ""}</span>
+        <h4>${escapeHtml(campaignHeadline(c.generated_text, c.product_name))}</h4>
+        <button class="ghost-button" type="button" data-mkt-shot="${indice}">Ver campanha</button>
+      </div>
+    </article>`).join("");
+
+
+  campanhas.filter((c) => c.has_image).forEach(async (c) => {
+    const url = await campaignImageUrl(c.id);
+    const alvo = container.querySelector(`[data-mkt-shot-image="${CSS.escape(String(c.id))}"]`);
+    if (url && alvo) alvo.innerHTML = `<img src="${url}" alt="Imagem da campanha" />`;
+  });
+}
+
+// A rota da imagem exige o token: busca com fetch e guarda o object URL.
+const campaignImageCache = new Map();
+async function campaignImageUrl(id) {
+  if (campaignImageCache.has(id)) return campaignImageCache.get(id);
+  try {
+    const response = await fetch(`${apiBaseUrl}/marketing/campaigns/${id}/image/`, {
+      headers: { Authorization: `Token ${authToken}` }
+    });
+    if (!response.ok) return null;
+    const url = URL.createObjectURL(await response.blob());
+    campaignImageCache.set(id, url);
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+async function runMarketingAction(productId, action, channel) {
+  // Preço e estoque se resolvem no cadastro do produto, não com campanha:
+  // divulgar produto em prejuízo é vender no vermelho.
+  if (action === "price" || action === "stock") {
+    const produto = marketingProduct(productId);
+    setView("products");
+    if (produto) {
+      openProductModal(produto);
+      window.setTimeout(() => document.querySelector(action === "price" ? "#productPrice" : "#productStock")?.focus(), 350);
+    }
+    return;
+  }
+
+  const produto = marketingProduct(productId);
+  const titulo = action === "whatsapp" ? "Aviso para WhatsApp" : action === "launch" ? "Post de lançamento" : "Promoção";
+  openMarketingResult({ loading: true, title: `${titulo}: ${produto?.name || "produto"}` });
+
+  try {
+    const resultado = await apiRequest("/marketing/actions/", {
+      method: "POST",
+      body: JSON.stringify({ product_id: productId, action, channel: channel || "Instagram" })
+    });
+    openMarketingResult({ ...resultado, title: `${titulo}: ${produto?.name || "produto"}`, productId, channel });
+  } catch (erro) {
+    openMarketingResult({ error: erro.message || "Não foi possível gerar agora.", title: titulo, action, productId, channel });
+    return;
+  }
+  // A campanha nova muda a galeria, a situação dos produtos e as recomendações.
+  marketingRecsVersion = -1;
+  loadMarketingActions();
+  loadMarketingRecommendations();
+}
+
+function openMarketingResult(resultado) {
+  marketingResult = resultado;
+  const modal = document.querySelector("#mktResultModal");
+  const corpo = document.querySelector("#mktResultBody");
+  document.querySelector("#mktResultTitle").textContent = resultado.title || "Campanha";
+
+  if (resultado.loading) {
+    corpo.innerHTML = `<p class="mkt-result__loading">Criando com a sua margem e o seu estoque... pode levar alguns segundos.</p>`;
+  } else if (resultado.error) {
+    corpo.innerHTML = `<p class="modal__error">${escapeHtml(resultado.error)}</p>
+      <div class="modal__actions"><button class="primary-button" type="button" data-mkt-again>Tentar de novo</button></div>`;
+  } else {
+    const whatsapp = resultado.action === "whatsapp";
+    const textoLimpo = String(resultado.message || "").replace(/\*\*/g, "");
+    corpo.innerHTML = `
+      <div class="mkt-result__text">${String(resultado.message || "").split(/\n{2,}/).map((p) => `<p>${formatCampaignText(p.trim())}</p>`).join("")}</div>
+      <div class="mkt-result__image" id="mktResultImage" hidden></div>
+      ${whatsapp ? `<p class="mkt-result__note">A mensagem abre no seu WhatsApp já escrita. Você escolhe para quem mandar: um contato, um grupo ou uma lista de transmissão.</p>` : ""}
+      ${whatsapp && resultado.provider === "local-demo" ? `<p class="mkt-result__note">Mensagem padrão: a IA de marketing não respondeu, então o texto não foi personalizado.</p>` : ""}
+      <div class="mkt-result__actions">
+        ${whatsapp ? `<a class="primary-button" href="https://wa.me/?text=${encodeURIComponent(textoLimpo)}" target="_blank" rel="noopener">Abrir no WhatsApp</a>` : ""}
+        <button class="${whatsapp ? "ghost-button" : "primary-button"}" type="button" data-mkt-copy>Copiar texto</button>
+        <a class="ghost-button" id="mktResultDownload" hidden>Baixar imagem</a>
+        ${resultado.productId ? `<button class="ghost-button" type="button" data-mkt-again>Gerar de novo</button>` : ""}
+        ${resultado.conversation?.id ? `<button class="ghost-button" type="button" data-mkt-chat>Ajustar no chat</button>` : ""}
+      </div>`;
+
+    corpo.querySelector("[data-mkt-copy]").addEventListener("click", async (event) => {
+      try {
+        await navigator.clipboard.writeText(textoLimpo);
+        event.currentTarget.textContent = "Copiado";
+      } catch {
+        event.currentTarget.textContent = "Não foi possível copiar";
+      }
+    });
+    corpo.querySelector("[data-mkt-chat]")?.addEventListener("click", () => {
+      closeMarketingResult();
+      setMarketingTab("chat");
+      marketingChat.openConversation(resultado.conversation.id);
+    });
+    if (resultado.has_image && resultado.campaign_id) {
+      campaignImageUrl(resultado.campaign_id).then((url) => {
+        if (!url || marketingResult !== resultado) return;
+        const caixa = document.querySelector("#mktResultImage");
+        caixa.innerHTML = `<img src="${url}" alt="Imagem gerada para a campanha" />`;
+        caixa.hidden = false;
+        const baixar = document.querySelector("#mktResultDownload");
+        baixar.href = url;
+        baixar.download = `campanha-${String(resultado.campaign_id).slice(0, 8)}.jpg`;
+        baixar.hidden = false;
+      });
+    }
+  }
+
+  corpo.querySelector("[data-mkt-again]")?.addEventListener("click", () =>
+    runMarketingAction(resultado.productId, resultado.action, resultado.channel)
+  );
+
+  if (modal.hidden) {
+    modal.hidden = false;
+    requestAnimationFrame(() => modal.classList.add("is-open"));
+    document.addEventListener("keydown", marketingResultEscHandler);
+  }
+}
+
+function closeMarketingResult() {
+  const modal = document.querySelector("#mktResultModal");
+  if (!modal) return;
+  modal.classList.remove("is-open");
+  marketingResult = null;
+  document.removeEventListener("keydown", marketingResultEscHandler);
+  window.setTimeout(() => { modal.hidden = true; }, 300);
+}
+
+function marketingResultEscHandler(event) {
+  if (event.key === "Escape") closeMarketingResult();
+}
+
+document.querySelectorAll("[data-close-mkt-result]").forEach((el) => el.addEventListener("click", closeMarketingResult));
+
+// Cliques delegados: as listas são redesenhadas quando chegam os dados, e
+// um ouvinte preso ao botão antigo perderia o clique de quem foi rápido.
+document.querySelector("#mktCards")?.addEventListener("click", (event) => {
+  const acao = event.target.closest("[data-mkt-card]");
+  const chat = event.target.closest("[data-mkt-card-chat]");
+  if (acao) {
+    const rec = marketingCards[Number(acao.dataset.mktCard)];
+    if (rec) runMarketingAction(rec.product_id, rec.action, rec.channel);
+  } else if (chat) {
+    const rec = marketingCards[Number(chat.dataset.mktCardChat)];
+    const sugestao = rec && recommendationSuggestion(rec);
+    setMarketingTab("chat");
+    const campo = document.querySelector("#marketingInput");
+    if (campo && sugestao) {
+      campo.value = sugestao.ask;
+      campo.focus();
+    }
+  } else if (event.target.closest("[data-goto-view]")) {
+    setView("products");
+  }
+});
+
+document.querySelector("#mktProducts")?.addEventListener("click", (event) => {
+  const botao = event.target.closest("[data-mkt-product]");
+  const linha = botao && marketingProducts[Number(botao.dataset.mktProduct)];
+  if (linha) runMarketingAction(linha.product_id, linha.action);
+});
+
+document.querySelector("#mktGallery")?.addEventListener("click", (event) => {
+  const botao = event.target.closest("[data-mkt-shot]");
+  const c = botao && marketingGallery[Number(botao.dataset.mktShot)];
+  if (!c) return;
+  openMarketingResult({
+    action: "campaign",
+    title: campaignHeadline(c.generated_text, c.product_name),
+    message: c.generated_text,
+    campaign_id: c.id,
+    has_image: c.has_image,
+    conversation: c.metadata?.conversation_id ? { id: c.metadata.conversation_id } : null
+  });
+});
+document.querySelectorAll("[data-mkt-tab]").forEach((botao) =>
+  botao.addEventListener("click", () => setMarketingTab(botao.dataset.mktTab))
+);
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 

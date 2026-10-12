@@ -445,6 +445,8 @@ class RecomendacaoComVendasTests(_VendasBase):
         )
         brigadeiro = self._produto("Brigadeiro", price="3", cost="1", stock=50)
         self._vender(brigadeiro, quantidade=5)
+        # Parado so conta para produto com mais de 30 dias de cadastro.
+        Product.objects.filter(pk=self.bolo.pk).update(created_at=timezone.now() - timedelta(days=40))
 
         recomendacoes = self.client.get("/api/marketing/recommendations/").data["recommendations"]
 

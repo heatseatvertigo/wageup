@@ -1564,7 +1564,53 @@
         </section>
 
         <section class="view view--full" id="app-marketing">
-          <div class="assistant-shell" id="marketingShell">
+          <!-- Aba Ações: o que divulgar agora. A aba Conversa é o chat de sempre. -->
+          <div class="mkt" id="mktActions" role="tabpanel" aria-label="Ações de marketing">
+            <div class="mkt__top">
+              <p class="mkt__lead">O que divulgar agora, a partir das suas vendas, margem e estoque.</p>
+              <div class="seg" role="tablist" aria-label="Modo do marketing">
+                <button class="seg__btn is-active" type="button" role="tab" aria-selected="true" data-mkt-tab="actions">Ações</button>
+                <button class="seg__btn" type="button" role="tab" aria-selected="false" data-mkt-tab="chat">Conversa com a IA</button>
+              </div>
+            </div>
+
+            <section class="work-panel" aria-labelledby="mktNowTitle">
+              <div class="panel-heading">
+                <h3 id="mktNowTitle">O que fazer agora</h3>
+                <span>A partir das vendas do mês, da margem real e do estoque</span>
+              </div>
+              <div class="mkt-cards" id="mktCards" aria-live="polite"></div>
+            </section>
+
+            <section class="work-panel" aria-labelledby="mktProductsTitle">
+              <div class="panel-heading">
+                <h3 id="mktProductsTitle">Seus produtos este mês</h3>
+                <span>Lucro real: já descontados custo, taxa e imposto</span>
+              </div>
+              <div class="mkt-products" id="mktProducts"></div>
+            </section>
+
+            <section class="work-panel" aria-labelledby="mktGalleryTitle">
+              <div class="panel-heading">
+                <h3 id="mktGalleryTitle">Campanhas geradas</h3>
+              </div>
+              <div class="mkt-gallery" id="mktGallery"></div>
+            </section>
+
+            <!-- Resultado de um botão: a campanha ou o aviso, pronto para usar -->
+            <div class="modal" id="mktResultModal" hidden>
+              <div class="modal__overlay" data-close-mkt-result></div>
+              <div class="modal__panel modal__panel--wide" role="dialog" aria-modal="true" aria-labelledby="mktResultTitle">
+                <header class="modal__head">
+                  <h3 id="mktResultTitle">Campanha</h3>
+                  <button class="drawer__close" type="button" data-close-mkt-result aria-label="Fechar">✕</button>
+                </header>
+                <div class="mkt-result" id="mktResultBody" aria-live="polite"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="assistant-shell" id="marketingShell" role="tabpanel" aria-label="Conversa com a IA de marketing" hidden>
 
             <aside class="chat-aside" id="marketingAside" aria-label="Campanhas e conversas anteriores">
               <div class="chat-aside__head">
@@ -1585,6 +1631,10 @@
                   <span class="material-symbols-rounded" aria-hidden="true">menu</span>
                 </button>
                 <p class="chatbox__conversation" id="marketingTitle">Nova conversa</p>
+                <div class="seg seg--compact" role="tablist" aria-label="Modo do marketing">
+                  <button class="seg__btn" type="button" role="tab" aria-selected="false" data-mkt-tab="actions">Ações</button>
+                  <button class="seg__btn is-active" type="button" role="tab" aria-selected="true" data-mkt-tab="chat">Conversa</button>
+                </div>
               </header>
 
               <div class="chatbox__thread" id="marketingThread" role="log" aria-live="polite" aria-label="Conversa com a IA de marketing"></div>

@@ -23,7 +23,8 @@ from .assistant import (
 )
 from .images import extrair_prompt, gerar_imagem
 from .models import CampaignImage, MarketingCampaign, MarketingConversation, MarketingMessage
-from .recommendations import build_recommendations
+from apps.products.models import Product
+from .recommendations import build_recommendations, situacao_dos_produtos
 from .serializers import MarketingCampaignSerializer
 
 logger = logging.getLogger(__name__)
@@ -37,7 +38,13 @@ class MarketingCampaignViewSet(viewsets.ModelViewSet):
         business = Business.objects.filter(owner=self.request.user).first()
         if not business:
             return MarketingCampaign.objects.none()
-        return MarketingCampaign.objects.filter(business=business)
+        # select_related para a galeria saber o produto e se ha imagem sem uma
+        # consulta por campanha; os bytes da imagem ficam de fora.
+        return (
+            MarketingCampaign.objects.filter(business=business)
+            .select_related("product", "image")
+            .defer("image__data")
+        )
 
     def perform_create(self, serializer):
         business = Business.objects.filter(owner=self.request.user).first()
@@ -148,6 +155,18 @@ def marketing_chat(request):
             ).first()
         except (ValueError, ValidationError):
             conversation = None
+
+    return Response(_conversar(business, pedido, conversation), status=status.HTTP_201_CREATED)
+
+
+def _conversar(business, pedido, conversation=None, produto_da_acao=None):
+    """Responde o pedido, guarda a conversa e, se for campanha, cria a campanha.
+
+    Usado pelo chat e pelos botoes de acao da tela: o botao monta o pedido e
+    passa por aqui, entao a campanha sai igual a do chat e "Ajustar no chat"
+    continua a mesma conversa. `produto_da_acao` vem do banco pelo id: o
+    botao nao depende de o nome aparecer escrito no pedido.
+    """
     if conversation is None:
         conversation = MarketingConversation.objects.create(business=business)
     if not conversation.title:
@@ -162,7 +181,7 @@ def marketing_chat(request):
     # mesmo produto. Pedido que cita outro assunto ("agora do cachorro
     # quente") nao herda: herdar trocaria o que o usuario pediu.
     ultima = next((m.campaign for m in reversed(anteriores) if m.campaign), None)
-    produto = produto_citado(pedido, catalogo(business))
+    produto = produto_da_acao or produto_citado(pedido, catalogo(business))
     if produto is None and ultima is not None and not assunto_do_pedido(pedido):
         produto = ultima.product
     canal = canal_citado(pedido) or (ultima.channel if ultima else None)
@@ -195,16 +214,64 @@ def marketing_chat(request):
     )
     conversation.save()
 
-    return Response(
-        {
-            "provider": provider,
-            "message": resposta,
-            "conversation": _serialize_conversation(conversation),
-            "campaign_id": str(campaign.id) if campaign else None,
-            "has_image": tem_imagem,
-        },
-        status=status.HTTP_201_CREATED,
-    )
+    return {
+        "provider": provider,
+        "message": resposta,
+        "conversation": _serialize_conversation(conversation),
+        "campaign_id": str(campaign.id) if campaign else None,
+        "has_image": tem_imagem,
+    }
+
+
+# O pedido que cada botao manda para a IA. O nome do produto vem do banco.
+PEDIDOS_DAS_ACOES = {
+    "campaign": "Crie uma campanha de promoção para o {canal} divulgando {nome}.",
+    "launch": "Crie um post de lançamento para o {canal} apresentando {nome}, que ainda não teve divulgação.",
+    "whatsapp": (
+        "Escreva só uma mensagem curta de WhatsApp para eu mandar aos meus clientes avisando "
+        "que restam poucas unidades de {nome}. Sem campanha e sem ideia de imagem: só o texto "
+        "da mensagem, pronto para colar."
+    ),
+}
+CANAIS_DAS_ACOES = ("Instagram", "WhatsApp", "TikTok")
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@throttle_classes([AIRateThrottle])
+def marketing_action(request):
+    """Executa o botao de um cartao ou de um produto da tela de marketing.
+
+    Recebe o id do produto e o tipo de acao; o pedido para a IA e montado
+    aqui, com o nome do banco. A resposta e a mesma do chat, numa conversa
+    nova, que a tela abre quando o usuario quer ajustar.
+    """
+    business = _business_or_none(request)
+    acao = str(request.data.get("action") or "")
+    if acao not in PEDIDOS_DAS_ACOES:
+        return Response({"detail": "Ação inválida."}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        produto = Product.objects.filter(pk=request.data.get("product_id"), business=business).first()
+    except (ValueError, ValidationError):
+        produto = None
+    if business is None or produto is None:
+        return Response({"detail": "Produto não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+    canal = request.data.get("channel")
+    canal = canal if canal in CANAIS_DAS_ACOES else "Instagram"
+    pedido = PEDIDOS_DAS_ACOES[acao].format(nome=produto.name, canal=canal)
+    resultado = _conversar(business, pedido, produto_da_acao=produto)
+    return Response({**resultado, "action": acao}, status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def marketing_products(request):
+    """Situacao de cada produto no mes, para a tabela da tela de marketing."""
+    business = _business_or_none(request)
+    if business is None:
+        return Response([])
+    return Response(situacao_dos_produtos(business))
 
 
 def _gerar_imagem_da_campanha(campaign, product_name, channel):

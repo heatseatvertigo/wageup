@@ -104,6 +104,14 @@ Endpoints: `GET|POST /api/sales/?month=AAAA-MM`, `POST /api/sales/<id>/cancel/`,
 
 ## 5. Marketing com Inteligência Artificial
 
+- [x] **A tela abre mostrando o que fazer**, não um chat vazio. Duas abas: **Ações** e **Conversa com a IA**
+- [x] **"O que fazer agora"**: até 4 cartões, um por produto, com o motivo e os números (lucro por unidade, estoque). O botão de cada cartão faz uma coisa concreta:
+  - **Criar promoção** / **Criar post de lançamento**: gera a campanha na hora (texto e imagem), com produto e canal já definidos, e salva na galeria
+  - **Criar aviso para WhatsApp**: a IA escreve a mensagem e o botão **Abrir no WhatsApp** abre o WhatsApp do MEI já com o texto; ele escolhe para quem mandar. A plataforma não envia mensagem: não há lista de clientes nem integração paga com o WhatsApp Business
+  - **Ajustar preço** / **Atualizar estoque**: abre o cadastro do produto no campo certo. Produto em prejuízo nunca vira campanha
+- [x] No resultado: **Copiar texto**, **Baixar imagem**, **Gerar de novo** e **Ajustar no chat**, que abre a conversa criada pela ação
+- [x] **"Seus produtos este mês"**: cada produto com vendidos, lucro real, estoque, a situação (Prejuízo, Sem estoque, Estoque baixo, Parado há N dias, Nunca divulgado, Em alta) e a ação certa. O que precisa de atenção vem primeiro
+- [x] **"Campanhas geradas"**: galeria das últimas campanhas, com imagem, canal e produto
 - [x] Chat de marketing com pedido livre (post, campanha, legenda, ideias de vídeo, mensagem para clientes), no mesmo formato do assistente financeiro, com histórico de conversas
 - [x] A IA conhece o catálogo e a margem real de cada produto; o produto e o canal saem do próprio pedido
 - [x] Provedores em cascata, como no assistente financeiro: DeepSeek (`DEEPSEEK_API_KEY`), Anthropic como alternativa (`ANTHROPIC_API_KEY`) e, sem nenhuma chave ou com as duas fora do ar, uma campanha local montada a partir do assunto do pedido
@@ -112,7 +120,7 @@ Endpoints: `GET|POST /api/sales/?month=AAAA-MM`, `POST /api/sales/<id>/cancel/`,
 - [x] **Recomendações automáticas de ação** (`GET /api/marketing/recommendations/`): devolve o que divulgar em seguida, na ordem produto em prejuízo (revisar preço antes) → produto de margem alta nunca divulgado → produto com estoque baixo (repor antes) → melhor margem do catálogo. Cada item já traz produto, canal e objetivo resolvidos
 - [x] Sem `ANTHROPIC_API_KEY`, ou se a chamada falhar, as recomendações saem de regras locais sobre os mesmos números
 - [x] **As recomendações aparecem como sugestões no chat de marketing**: cada uma vira um pedido pronto. Produto em prejuízo vira pergunta sobre preço, produto com estoque baixo vira mensagem para clientes, o resto vira pedido de campanha
-- [x] Recomendação de **produto parado**: margem boa, tem estoque e não vendeu nos últimos 30 dias (só vale quando o negócio registra vendas)
+- [x] Recomendação de **produto parado**: margem boa, tem estoque, está cadastrado há mais de 30 dias e não vendeu nesse período (só vale quando o negócio registra vendas)
 - [x] Produto sem estoque nunca é recomendado para divulgar
 - [x] **Geração da imagem da campanha**: sai junto com o texto, a partir da "ideia de imagem" que a própria campanha escreveu — texto e imagem falam da mesma coisa
 - [x] Cloudflare Workers AI (FLUX.1-schnell) quando há `CLOUDFLARE_ACCOUNT_ID` e `CLOUDFLARE_API_TOKEN`; o plano free dá ~500 imagens de 1024x1024 por dia
