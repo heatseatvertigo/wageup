@@ -250,10 +250,12 @@ def format_context(context):
     lines += [
         "",
         f"MÊS ATUAL ({metrics['month_label']}):",
-        f"- Entradas (faturamento): {brl(metrics['month_income'])} "
-        f"— em {metrics['prev_month_label']}: {brl(metrics['prev_income'])}",
+        f"- Entradas (faturamento) até hoje: {brl(metrics['month_income'])} "
+        f"— no mesmo período de {metrics['prev_month_label']}: {brl(metrics['prev_income'])}",
         f"- Saídas: {brl(metrics['month_expense'])}",
-        f"- Lucro: {brl(metrics['month_profit'])} — em {metrics['prev_month_label']}: {brl(metrics['prev_profit'])}",
+        f"- Lucro até hoje: {brl(metrics['month_profit'])} — no mesmo período de "
+        f"{metrics['prev_month_label']}: {brl(metrics['prev_profit'])}",
+        "- Para o mês anterior inteiro, use a lista dos últimos 6 meses abaixo.",
         f"- Entrou hoje: {brl(dias['today'])}",
         (
             f"- Melhor dia do mês: {dias['best_day']['date']}, com {brl(dias['best_day']['total'])} de entradas"

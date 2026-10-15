@@ -625,3 +625,48 @@ class InsightsDoMesTests(TestCase):
         self.assertEqual(dados["provider"], "anthropic")
         self.assertEqual(dados["insights"][0]["action"]["product_name"], "Bolo")
         self.assertIsNone(dados["insights"][1]["action"])
+
+
+@override_settings(ANTHROPIC_API_KEY="", DEEPSEEK_API_KEY="")
+class ComparacaoDoMesTests(TestCase):
+    """O mes corrente compara com o mesmo periodo do anterior, nao com o mes inteiro."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.admin = User.objects.create_user(username="a@w.local", email="a@w.local", password="x")
+        UserProfile.objects.create(user=self.admin, role="admin")
+        self.business = Business.objects.create(owner=self.admin, name="Negocio")
+
+    def test_mes_anterior_conta_so_ate_o_mesmo_dia(self):
+        from .insights import gather_metrics
+
+        agora = timezone.localtime()
+        inicio = agora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        inicio_ant = (inicio - timedelta(days=1)).replace(day=1)
+        # Dentro do mesmo periodo do mes anterior: conta.
+        Transaction.objects.create(
+            business=self.business, description="cedo", type="income", amount=Decimal("100"),
+            occurred_at=inicio_ant + timedelta(hours=1),
+        )
+        # Depois do mesmo dia no mes anterior: fica de fora da comparacao.
+        Transaction.objects.create(
+            business=self.business, description="tarde", type="income", amount=Decimal("900"),
+            occurred_at=inicio - timedelta(minutes=1),
+        )
+
+        metricas = gather_metrics(self.business)
+
+        if agora.day < 28:
+            self.assertEqual(metricas["prev_income"], 100.0)
+
+    def test_servico_nao_conta_como_estoque_baixo(self):
+        from apps.products.models import Product
+
+        from .insights import gather_metrics
+
+        Product.objects.create(
+            business=self.business, name="Corte", unit=Product.Unit.SERVICE,
+            price=Decimal("50"), cost=Decimal("5"), stock=0,
+        )
+
+        self.assertEqual(gather_metrics(self.business)["low_stock_count"], 0)

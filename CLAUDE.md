@@ -143,6 +143,8 @@ python backend/manage.py runserver
 
 O `.env` só é lido quando o servidor sobe: depois de mudar uma chave, reinicie o `runserver`.
 
+Conta de demonstração (apresentação do TCC): `python backend/manage.py seed_demo` cria `demo@wageup.local` com dois meses de vendas, despesas, meta, PIX pago e pendente, campanha e um produto em cada situação do marketing. Sem `--password`, gera e imprime uma senha. `--reset` recria; ele só apaga conta com o marcador `DEMO-WAGEUP` em `Business.document`. As datas são relativas ao dia em que o comando roda: rode de novo perto da apresentação. Para produção, rode a partir da sua máquina com `DATABASE_URL` apontando para o Neon.
+
 Acesse `http://localhost:8000`. O frontend é servido na raiz (`/`).
 
 ---
@@ -280,6 +282,7 @@ Para domínio próprio: configurar `CUSTOM_DOMAIN=seudominio.com` nas variáveis
 - [backend/apps/finance/statements/](backend/apps/finance/statements/) — leitura de extrato bancário, um módulo por formato
 - [backend/apps/finance/tests.py](backend/apps/finance/tests.py) — testes da leitura de OFX e da importação
 - [backend/apps/accounts/throttles.py](backend/apps/accounts/throttles.py) — limites de requisição por rota
+- [backend/apps/businesses/management/commands/seed_demo.py](backend/apps/businesses/management/commands/seed_demo.py) — conta de demonstração com dados realistas
 - [frontend/app.js](frontend/app.js) — toda a lógica do SPA
 - [frontend/styles.css](frontend/styles.css) — CSS atual do SPA
 - [frontend/index.html](frontend/index.html) — HTML do SPA

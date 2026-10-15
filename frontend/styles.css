@@ -26,6 +26,9 @@
   --color-positive: #0E9E68;
   --color-negative: #C2453F;
   --color-warning:  #B4791E;
+  /* Fundos claros dos estados negativo e de atenção (badges, avisos) */
+  --color-negative-subtle: #FBEDED;
+  --color-warning-subtle:  #FBF3E4;
   --color-neutral:  #5F7168;
   --color-accent:   #14B87A;
 
@@ -1864,7 +1867,7 @@ select:focus {
 }
 
 .ghost-button--danger:hover {
-  background: #FBEDED;
+  background: var(--color-negative-subtle);
   border-color: var(--color-negative);
   color: var(--color-negative);
 }
@@ -2313,7 +2316,7 @@ select:focus {
 
 .msg--error {
   padding: var(--space-3) var(--space-4);
-  background: #FBEDED;
+  background: var(--color-negative-subtle);
   border-radius: var(--radius-md);
   color: var(--color-negative);
 }
@@ -3566,8 +3569,8 @@ kbd {
 }
 
 .status-badge--positive { background: var(--color-brand-subtle); color: var(--color-positive); }
-.status-badge--warning  { background: #FBF3E4; color: var(--color-warning); }
-.status-badge--negative { background: #FBEDED; color: var(--color-negative); }
+.status-badge--warning  { background: var(--color-warning-subtle); color: var(--color-warning); }
+.status-badge--negative { background: var(--color-negative-subtle); color: var(--color-negative); }
 .status-badge--neutral  { background: var(--color-surface-muted); color: var(--color-text-secondary); }
 
 .status-text--positive { color: var(--color-positive); }
@@ -3695,7 +3698,7 @@ kbd {
 
 .modal__error {
   padding: var(--space-3);
-  background: #FBEDED;
+  background: var(--color-negative-subtle);
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
   color: var(--color-negative);
@@ -3784,8 +3787,8 @@ kbd {
   color: var(--color-positive);
 }
 
-.pix-screen__status[data-state="expired"] { background: #FBEDED; color: var(--color-negative); }
-.pix-screen__status[data-state="error"]   { background: #FBF3E4; color: var(--color-warning); }
+.pix-screen__status[data-state="expired"] { background: var(--color-negative-subtle); color: var(--color-negative); }
+.pix-screen__status[data-state="error"]   { background: var(--color-warning-subtle); color: var(--color-warning); }
 
 .pix-screen__pulse {
   width: 8px;
@@ -4057,9 +4060,9 @@ td:first-child { font-weight: var(--weight-medium); }
 }
 
 .status--paid     { background: var(--color-brand-subtle); color: var(--color-positive); }
-.status--pending  { background: #FFF8EC; color: var(--color-warning); }
+.status--pending  { background: var(--color-warning-subtle); color: var(--color-warning); }
 .status--failed,
-.status--canceled { background: #FFF0F0; color: var(--color-negative); }
+.status--canceled { background: var(--color-negative-subtle); color: var(--color-negative); }
 .status--refunded { background: var(--color-surface-muted); color: var(--color-text-secondary); }
 
 .payment-list__actions {

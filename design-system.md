@@ -62,6 +62,8 @@ profundo para peso e texto, menta para destaques, e neutros levemente puxados pa
   --color-positive:      #0E9E68;   /* Receita, lucro, crescimento */
   --color-negative:      #C2453F;   /* Despesa, prejuízo, erro */
   --color-warning:       #B4791E;   /* Atenção, pendente, "em breve" */
+  --color-negative-subtle: #FBEDED; /* Fundo de badge, aviso e hover de ação negativa */
+  --color-warning-subtle:  #FBF3E4; /* Fundo de badge e aviso de atenção */
   --color-neutral:       #5F7168;   /* Neutro informativo */
 
   /* Accent (uso pontual) */

@@ -183,8 +183,9 @@ def tipo_de_acao(produto, goal=None):
         return "stock"
     if produto["low_stock"]:
         return "whatsapp"
-    # Vendia e caiu: o produto ja e conhecido, o que traz de volta e oferta.
-    if produto.get("falling"):
+    # Vendia e caiu, ou parou de vender: o produto ja e conhecido, o que traz
+    # de volta e oferta, como o cartao diz.
+    if produto.get("falling") or produto.get("stale"):
         return "campaign"
     if goal == "lancamento" or produto["never_promoted"]:
         return "launch"
@@ -398,8 +399,11 @@ def _fallback(sinais):
 
     # Queda de vendas vem antes da estreia: um produto que vendia e parou de
     # vender e o que mais perde dinheiro agora, mesmo nunca tendo tido campanha.
+    # Estoque baixo fica de fora de "recupere" e "tire da prateleira": o
+    # botao seria o aviso de WhatsApp, e o cartao "Reponha antes de divulgar"
+    # ja trata o produto.
     for produto in sinais["falling"]:
-        if any(r["product_id"] == produto["id"] for r in recomendacoes):
+        if produto["low_stock"] or any(r["product_id"] == produto["id"] for r in recomendacoes):
             continue
         recomendacoes.append(_acao(
             "Recupere as vendas",
@@ -428,7 +432,7 @@ def _fallback(sinais):
         break
 
     for produto in sinais["stale"]:
-        if any(r["product_id"] == produto["id"] for r in recomendacoes):
+        if produto["low_stock"] or any(r["product_id"] == produto["id"] for r in recomendacoes):
             continue
         recomendacoes.append(_acao(
             "Tire da prateleira",

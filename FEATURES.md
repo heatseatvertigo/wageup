@@ -171,6 +171,7 @@ Endpoints: `POST /api/finance/assistant/`, `GET|POST /api/finance/assistant/conv
 ## 9. Administração e visibilidade de dados
 
 - [x] Django Admin (`/admin/`) configurado para todos os modelos (contas, negócios, produtos, transações, pagamentos, campanhas) com filtros e busca — útil para inspecionar o banco de dados sem precisar de SQL
+- [x] **Conta de demonstração** (`python backend/manage.py seed_demo`): a confeitaria fictícia "Doces da Ana", com dois meses de vendas em PIX, dinheiro e cartão, despesas, meta, cobrança PIX paga e pendente, campanha e um produto em cada situação do marketing (prejuízo, estoque baixo, vendas caindo, parado, nunca divulgado, em alta). As datas acompanham o dia em que o comando roda; `--reset` recria, e só apaga conta criada por ele
 - [x] Conta de admin do Guilherme (`guilherme.maiellaroo@gmail.com`) com `role=admin`, liberando o módulo financeiro
 
 ## 10. Segurança e operação
@@ -180,7 +181,7 @@ Endpoints: `POST /api/finance/assistant/`, `GET|POST /api/finance/assistant/conv
 - [x] Em produção: HTTPS obrigatório, HSTS, cookies com `Secure`, API navegável do DRF desligada e recusa de subir com a `SECRET_KEY` de exemplo
 - [x] Webhook da Abacate Pay só funciona com segredo configurado, comparado em tempo constante. Sem o segredo, qualquer um poderia marcar uma cobrança como paga
 - [x] Logs da aplicação aparecem na saída do servidor (antes se perdiam)
-- [x] Testes automatizados: 219 casos — produtos 16 (margem, preço sugerido, foto), financeiro 41 (leitura de OFX, importação ponta a ponta, extrato que repete o que já foi lançado, insights do mês com botão de ação e a meta), contas 14 (recuperação de senha e entrega pelo Resend), marketing 66 (margem real no prompt, isolamento por negócio, recomendações, ações e a geração de imagem), pagamentos 38 (webhook só com o segredo certo, PIX pago vira uma receita e uma só, estorno, valor zero ou negativo recusado, falhas da Abacate Pay e isolamento por negócio), vendas 44 (lucro real, estoque que nunca fica negativo, cancelamento, PIX de produto, resumo do mês, vendas caindo, forma de pagamento no financeiro, insights, assistente e recomendações)
+- [x] Testes automatizados: 228 casos — produtos 16 (margem, preço sugerido, foto), financeiro 43 (leitura de OFX, importação ponta a ponta, extrato que repete o que já foi lançado, insights do mês com botão de ação, comparação com o mesmo período do mês anterior e a meta), contas 14 (recuperação de senha e entrega pelo Resend), marketing 68 (margem real no prompt, isolamento por negócio, recomendações, ações, exclusão de campanha e a geração de imagem), pagamentos 38 (webhook só com o segredo certo, PIX pago vira uma receita e uma só, estorno, valor zero ou negativo recusado, falhas da Abacate Pay e isolamento por negócio), vendas 44 (lucro real, estoque que nunca fica negativo, cancelamento, PIX de produto, resumo do mês, vendas caindo, forma de pagamento no financeiro, insights, assistente e recomendações), demonstração 5 (uma situação de cada no marketing, e o `--reset` que nunca apaga conta de verdade)
 - [x] Teste das telas num navegador automático (desktop e celular, admin e membro): cadastro, produtos, vendas, movimentações, extrato, PIX, assistente, marketing e recuperação de senha
 - [ ] Testes com a IA de verdade: os testes simulam as respostas da DeepSeek, da Anthropic e da Cloudflare; nenhum chama o modelo real
 
@@ -198,6 +199,7 @@ Fora do escopo do PDF, mas pendente: as **variáveis do Resend no Render** e um 
 
 | Feature | Como testar |
 |---|---|
+| Demonstração | `python backend/manage.py seed_demo --password "<senha>"` → entrar com `demo@wageup.local` → Visão geral, Marketing e Assistente já têm o que mostrar |
 | Página inicial | Abrir `/` deslogado → tocar no botão da demo de PIX (o status vira "pago") → usar a calculadora de margem → abrir o FAQ |
 | Cadastro/login | Acessar a landing page → "Entrar" → criar conta ou usar Google |
 | Recuperação de senha | Tela de login → "Esqueci minha senha" → informar o e-mail → abrir o link recebido → definir a senha nova → entrar com ela |

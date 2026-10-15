@@ -1286,11 +1286,13 @@ function transactionsByDay() {
   return map;
 }
 
-function monthTotals(year, month) {
+// `ateDia` limita ao mesmo período: no dia 15, o mês anterior conta do 1 ao
+// 15. Comparar meio mês com o mês inteiro diria "50% abaixo" todo dia 15.
+function monthTotals(year, month, ateDia = 31) {
   const totais = { income: 0, expense: 0, methods: {} };
   state.transactions.forEach((transaction) => {
     const date = transactionDate(transaction);
-    if (date.getFullYear() !== year || date.getMonth() !== month) return;
+    if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() > ateDia) return;
     const amount = Number(transaction.amount) || 0;
     if (transaction.type === "income") {
       totais.income += amount;
@@ -1312,13 +1314,13 @@ function renderDelta(el, { text = "", icon = "", tone = "neutral" } = {}) {
     : "";
 }
 
-function percentDelta(atual, anterior, nomeAnterior, maiorEhMelhor = true) {
+function percentDelta(atual, anterior, ref, maiorEhMelhor = true) {
   if (!anterior) return {};
   const diferenca = ((atual - anterior) / anterior) * 100;
-  if (Math.abs(diferenca) < 1) return { text: `Igual a ${nomeAnterior}`, icon: "trending_flat" };
+  if (Math.abs(diferenca) < 1) return { text: ref.igual, icon: "trending_flat" };
   const subiu = diferenca > 0;
   return {
-    text: `${Math.abs(diferenca).toFixed(0)}% ${subiu ? "acima" : "abaixo"} de ${nomeAnterior}`,
+    text: `${Math.abs(diferenca).toFixed(0)}% ${subiu ? "acima" : "abaixo"} ${ref.de}`,
     icon: subiu ? "trending_up" : "trending_down",
     tone: subiu === maiorEhMelhor ? "positive" : "negative"
   };
@@ -1329,8 +1331,14 @@ function renderSummary() {
   const month = calendarCursor.getMonth();
   const atual = monthTotals(year, month);
   const anteriorData = new Date(year, month - 1, 1);
-  const anterior = monthTotals(anteriorData.getFullYear(), anteriorData.getMonth());
-  const nomeAnterior = CAL_MONTHS[anteriorData.getMonth()].toLowerCase();
+  const hoje = new Date();
+  const mesCorrente = year === hoje.getFullYear() && month === hoje.getMonth();
+  const anterior = monthTotals(anteriorData.getFullYear(), anteriorData.getMonth(), mesCorrente ? hoje.getDate() : 31);
+  const mesAnterior = CAL_MONTHS[anteriorData.getMonth()].toLowerCase();
+  // Como cada frase cita o mês anterior: inteiro, ou só o mesmo período.
+  const ref = mesCorrente
+    ? { de: `do mesmo período de ${mesAnterior}`, que: `que no mesmo período de ${mesAnterior}`, igual: `Igual ao mesmo período de ${mesAnterior}` }
+    : { de: `de ${mesAnterior}`, que: `que ${mesAnterior}`, igual: `Igual a ${mesAnterior}` };
   const temAnterior = anterior.income > 0 || anterior.expense > 0;
 
   const income = atual.income;
@@ -1340,11 +1348,11 @@ function renderSummary() {
 
   const incomeEl = document.querySelector("#ov-income");
   if (incomeEl) incomeEl.textContent = formatMoney(income);
-  renderDelta(document.querySelector("#ov-income-delta"), percentDelta(income, anterior.income, nomeAnterior));
+  renderDelta(document.querySelector("#ov-income-delta"), percentDelta(income, anterior.income, ref));
 
   const expenseEl = document.querySelector("#ov-expenses");
   if (expenseEl) expenseEl.textContent = formatMoney(expense);
-  renderDelta(document.querySelector("#ov-expenses-delta"), percentDelta(expense, anterior.expense, nomeAnterior, false));
+  renderDelta(document.querySelector("#ov-expenses-delta"), percentDelta(expense, anterior.expense, ref, false));
 
   const profitEl = document.querySelector("#ov-profit");
   if (profitEl) {
@@ -1356,9 +1364,9 @@ function renderSummary() {
   // que um percentual sobre base negativa.
   const diferencaLucro = profit - lucroAnterior;
   renderDelta(document.querySelector("#ov-profit-delta"), !temAnterior ? {} : Math.abs(diferencaLucro) < 0.01
-    ? { text: `Igual a ${nomeAnterior}`, icon: "trending_flat" }
+    ? { text: ref.igual, icon: "trending_flat" }
     : {
-        text: `${formatMoney(Math.abs(diferencaLucro))} ${diferencaLucro > 0 ? "a mais" : "a menos"} que ${nomeAnterior}`,
+        text: `${formatMoney(Math.abs(diferencaLucro))} ${diferencaLucro > 0 ? "a mais" : "a menos"} ${ref.que}`,
         icon: diferencaLucro > 0 ? "trending_up" : "trending_down",
         tone: diferencaLucro > 0 ? "positive" : "negative"
       });

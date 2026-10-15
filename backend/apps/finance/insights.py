@@ -12,6 +12,7 @@ texto da IA, como nas recomendações do marketing.
 """
 import json
 import re
+from datetime import timedelta
 
 from django.conf import settings
 from django.db.models import Sum
@@ -47,7 +48,9 @@ def gather_metrics(business):
     """Agrega os indicadores do negócio usados para gerar insights.
 
     `income`/`expense`/`profit` são o acumulado (o assistente usa); os
-    `month_*` são do mês corrente e `prev_*` do mês anterior.
+    `month_*` são do mês corrente e `prev_*` do mesmo período do mês
+    anterior: no dia 15, do dia 1 ao 15 de lá. Comparar meio mês com o mês
+    inteiro diria "50% abaixo" todo dia 15.
     """
     from .goals import progresso_da_meta
 
@@ -58,8 +61,11 @@ def gather_metrics(business):
     inicio, fim = intervalo_do_mes(agora.year, agora.month)
     month_income, month_expense = _entradas_e_saidas(txns.filter(occurred_at__gte=inicio, occurred_at__lt=fim))
     ano_ant, mes_ant = (agora.year - 1, 12) if agora.month == 1 else (agora.year, agora.month - 1)
+    inicio_ant = intervalo_do_mes(ano_ant, mes_ant)[0]
+    # Dia inteiro, como a tela: no dia 15, conta até o fim do dia 15 de lá.
+    corte = min(inicio_ant + timedelta(days=agora.day), inicio)
     prev_income, prev_expense = _entradas_e_saidas(
-        txns.filter(occurred_at__gte=intervalo_do_mes(ano_ant, mes_ant)[0], occurred_at__lt=inicio)
+        txns.filter(occurred_at__gte=inicio_ant, occurred_at__lt=corte)
     )
 
     payments = Payment.objects.filter(business=business)
@@ -69,9 +75,11 @@ def gather_metrics(business):
     products = list(Product.objects.filter(business=business))
     # `is_low_stock` respeita o min_stock que o dono cadastrou; o limite fixo
     # entra so quando ele nao definiu nenhum.
+    # Serviço não tem estoque: com estoque 0, entrava como "precisa repor".
     low_stock = [
         p for p in products
-        if p.is_low_stock or (p.min_stock == 0 and p.stock <= LOW_STOCK_FALLBACK)
+        if p.unit != Product.Unit.SERVICE
+        and (p.is_low_stock or (p.min_stock == 0 and p.stock <= LOW_STOCK_FALLBACK))
     ]
     # margin_value desconta outros custos, taxa e imposto. Ordenar por
     # preco menos custo elegeria como "melhor margem" um produto que, depois
@@ -190,11 +198,11 @@ def _call_claude(business, m, sinais):
 
     user_message = (
         f"Dados do negócio '{business.name}' em {m['month_label']}:\n"
-        f"- Entradas do mês: {brl(m['month_income'])} "
-        f"({m['prev_month_label']}: {brl(m['prev_income'])})\n"
+        f"- Entradas do mês até hoje: {brl(m['month_income'])} "
+        f"(mesmo período de {m['prev_month_label']}: {brl(m['prev_income'])})\n"
         f"- Saídas do mês: {brl(m['month_expense'])}\n"
-        f"- Lucro do mês: {brl(m['month_profit'])} "
-        f"({m['prev_month_label']}: {brl(m['prev_profit'])})\n"
+        f"- Lucro do mês até hoje: {brl(m['month_profit'])} "
+        f"(mesmo período de {m['prev_month_label']}: {brl(m['prev_profit'])})\n"
         + linha_meta +
         f"- Já recebido via PIX: {brl(m['received'])}\n"
         f"- A receber (PIX pendente): {brl(m['pending'])}\n"
@@ -273,8 +281,8 @@ def _fallback_insights(m, sinais):
 
     variacao = _variacao(m["month_income"], m["prev_income"])
     comparacao = (
-        f" Entrou {variacao} de {m['prev_month_label']}." if variacao and variacao != "igual"
-        else f" Entrou o mesmo que em {m['prev_month_label']}." if variacao else ""
+        f" Entrou {variacao} do mesmo período de {m['prev_month_label']}." if variacao and variacao != "igual"
+        else f" Entrou o mesmo que no mesmo período de {m['prev_month_label']}." if variacao else ""
     )
     if m["month_income"] == 0 and m["month_expense"] == 0:
         add("Saúde do mês", f"Nada lançado em {m['month_label']} ainda. Registre suas vendas para acompanhar o mês.")
