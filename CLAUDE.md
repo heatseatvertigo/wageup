@@ -143,6 +143,8 @@ python backend/manage.py runserver
 
 O `.env` só é lido quando o servidor sobe: depois de mudar uma chave, reinicie o `runserver`.
 
+Conta de demonstração (apresentação do TCC): `python backend/manage.py seed_demo` cria `demo@wageup.local` com dois meses de vendas, despesas, meta, PIX pago e pendente, campanha e um produto em cada situação do marketing. Sem `--password`, gera e imprime uma senha. `--reset` recria; ele só apaga conta com o marcador `DEMO-WAGEUP` em `Business.document`. As datas são relativas ao dia em que o comando roda: rode de novo perto da apresentação. Para produção, rode a partir da sua máquina com `DATABASE_URL` apontando para o Neon.
+
 Acesse `http://localhost:8000`. O frontend é servido na raiz (`/`).
 
 ---
@@ -162,7 +164,8 @@ GET/POST/DELETE /api/products/<id>/image/    # Foto do produto, guardada no banc
 GET/POST        /api/transactions/           # Só admin, filtrado por business
 POST            /api/transactions/import/preview/    # Lê o extrato enviado, não grava nada
 POST            /api/transactions/import/confirm/    # Grava o que o usuário confirmou
-GET             /api/finance/insights/       # Só admin, insights por IA do dashboard
+GET             /api/finance/insights/       # Só admin, insights do mês por IA, com botão de ação no marketing
+GET/PUT/DELETE  /api/finance/goal/?month=AAAA-MM   # Só admin, meta de faturamento do mês e quanto falta
 POST            /api/finance/assistant/      # Só admin, pergunta ao assistente financeiro
 GET/POST        /api/finance/assistant/conversations/          # Lista ou cria conversa
 GET/DELETE      /api/finance/assistant/conversations/<uuid>/   # Mensagens ou remoção
@@ -181,6 +184,7 @@ POST            /api/marketing/actions/      # Botão da tela: product_id + acti
 GET             /api/marketing/products/     # Situação de cada produto no mês e a ação sugerida
 GET             /api/marketing/campaigns/<uuid>/image/   # Imagem da campanha, guardada no banco
 GET/POST        /api/marketing/campaigns/
+DELETE          /api/marketing/campaigns/<uuid>/   # Exclui a campanha e a imagem; a conversa do chat fica
 GET             /api/health/                 # Health check (aberto, sem throttle)
 ```
 
@@ -234,6 +238,14 @@ GET             /api/health/                 # Health check (aberto, sem throttl
 
 23. **Marketing abre em ações, não no chat**: a aba Ações mostra o que fazer a partir das vendas, da margem e do estoque, e cada botão leva a um resultado concreto. A ação de cada produto sai de `tipo_de_acao` em `marketing/recommendations.py`, pela situação dele, nunca pelo texto da IA: prejuízo leva ao preço, sem estoque ao estoque, estoque baixo ao aviso de WhatsApp, o resto à campanha. `POST /api/marketing/actions/` monta o pedido no servidor com o nome do produto vindo do banco e passa pelo mesmo `_conversar` do chat, então a campanha sai igual e "Ajustar no chat" continua a conversa. O aviso de WhatsApp abre o WhatsApp do MEI com o texto (`wa.me/?text=`): a plataforma não envia mensagem, porque não tem lista de clientes nem a API paga do WhatsApp Business.
 
+
+24. **Meta é de faturamento, uma por mês** (`Goal`, `finance/goals.py`): compara com as entradas do mês no financeiro (venda, PIX, manual e extrato), não com o lucro — é o número que o MEI acompanha e o do exemplo do escopo. A conta mora em `progresso_da_meta`, usada pela rota, pelos insights e pelo assistente, para o card e o assistente nunca darem valores diferentes. Só admin, porque lê o financeiro.
+
+25. **Insights falam do mês e levam à ação** (`finance/insights.py`): entradas, saídas e lucro são do mês corrente, como os cards ao lado; o acumulado contradizia o "Lucro do mês". O insight que cita um produto traz `action` com o tipo de `tipo_de_acao` (decisão 23), e o botão abre o Marketing e dispara `POST /api/marketing/actions/`. É o caminho Financeiro → Insight → Recomendação → Marketing do RF12. O produto que a IA cita é resolvido pelo nome contra o catálogo do negócio; um produto ganha botão uma vez só.
+
+26. **Vendas caindo** (`gather_signals` em `marketing/recommendations.py`): unidades dos últimos 7 dias contra os 7 anteriores, com queda de 30% ou mais e pelo menos 3 unidades na semana anterior, para uma venda a menos não virar alarme. Vira a situação "Vendas caindo", recomendação "Recupere as vendas" (antes da estreia de produto nunca divulgado), insight e linha no contexto do assistente. A ação é promoção, não post de lançamento: o produto já é conhecido.
+
+27. **Forma de pagamento no lançamento** (`Transaction.payment_method`, mesmos valores de `Sale.PaymentMethod`): a venda copia a dela, o PIX conciliado é sempre PIX, o lançamento manual escolhe, e o extrato fica "não informado". A migração preencheu o histórico só onde a origem diz a forma; inventar para o resto faria o painel "Como o dinheiro entrou" afirmar algo que ninguém registrou.
 ---
 
 ## Deploy no Render + Neon
@@ -270,6 +282,7 @@ Para domínio próprio: configurar `CUSTOM_DOMAIN=seudominio.com` nas variáveis
 - [backend/apps/finance/statements/](backend/apps/finance/statements/) — leitura de extrato bancário, um módulo por formato
 - [backend/apps/finance/tests.py](backend/apps/finance/tests.py) — testes da leitura de OFX e da importação
 - [backend/apps/accounts/throttles.py](backend/apps/accounts/throttles.py) — limites de requisição por rota
+- [backend/apps/businesses/management/commands/seed_demo.py](backend/apps/businesses/management/commands/seed_demo.py) — conta de demonstração com dados realistas
 - [frontend/app.js](frontend/app.js) — toda a lógica do SPA
 - [frontend/styles.css](frontend/styles.css) — CSS atual do SPA
 - [frontend/index.html](frontend/index.html) — HTML do SPA

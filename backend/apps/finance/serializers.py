@@ -8,7 +8,7 @@ from .models import StatementImport, Transaction
 class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
-        fields = ["id", "description", "type", "amount", "source", "occurred_at", "created_at"]
+        fields = ["id", "description", "type", "amount", "source", "payment_method", "occurred_at", "created_at"]
         read_only_fields = ["id", "source", "created_at"]
         extra_kwargs = {"occurred_at": {"required": False}}
 

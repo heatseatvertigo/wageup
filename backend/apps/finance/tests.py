@@ -4,18 +4,20 @@ O foco e o leitor de OFX e a deduplicacao. Sao as duas partes onde um erro
 silencioso estraga o financeiro: leitura errada inverte entrada com saida, e
 falha de deduplicacao duplica lancamento a cada reimportacao.
 """
+from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
+from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
 from apps.accounts.models import UserProfile
 from apps.businesses.models import Business
 
-from .models import StatementImport, Transaction
+from .models import Goal, StatementImport, Transaction
 from .statements import StatementError, parse_statement
 from .statements.base import parse_decimal
 
@@ -446,3 +448,225 @@ class InsightsTests(TestCase):
         insights = self.client.get("/api/finance/insights/").data["insights"]
 
         self.assertNotIn("Alheio", " ".join(i["text"] for i in insights))
+
+
+@override_settings(ANTHROPIC_API_KEY="", DEEPSEEK_API_KEY="")
+class MetaTests(TestCase):
+    """Meta de faturamento do mes: conta igual no card, nos insights e no assistente."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.admin = User.objects.create_user(
+            username="admin@wageup.local", email="admin@wageup.local", password="x"
+        )
+        UserProfile.objects.create(user=self.admin, role="admin")
+        self.business = Business.objects.create(owner=self.admin, name="Negocio")
+        self.client = APIClient()
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {Token.objects.create(user=self.admin).key}")
+        self.hoje = timezone.localdate()
+        self.mes = f"{self.hoje.year:04d}-{self.hoje.month:02d}"
+
+    def _entrada(self, valor, quando=None, tipo="income"):
+        return Transaction.objects.create(
+            business=self.business, description="x", type=tipo, amount=Decimal(valor),
+            occurred_at=quando or timezone.now(),
+        )
+
+    def test_sem_meta_devolve_o_que_entrou_e_target_nulo(self):
+        self._entrada("300")
+
+        dados = self.client.get("/api/finance/goal/").data
+
+        self.assertIsNone(dados["target"])
+        self.assertEqual(dados["achieved"], Decimal("300.00"))
+        self.assertEqual(dados["month"], self.mes)
+
+    def test_define_meta_e_calcula_quanto_falta(self):
+        self._entrada("3880")
+        self._entrada("500", tipo="expense")  # saida nao conta para a meta
+
+        dados = self.client.put("/api/finance/goal/", {"target_amount": "5000"}, format="json").data
+
+        self.assertEqual(dados["target"], Decimal("5000.00"))
+        self.assertEqual(dados["achieved"], Decimal("3880.00"))
+        self.assertEqual(dados["remaining"], Decimal("1120.00"))
+        self.assertEqual(dados["percent"], 77.6)
+        self.assertFalse(dados["reached"])
+        self.assertGreaterEqual(dados["days_left"], 1)
+
+    def test_redefinir_atualiza_em_vez_de_duplicar(self):
+        self.client.put("/api/finance/goal/", {"target_amount": "1000"}, format="json")
+        self.client.put("/api/finance/goal/", {"target_amount": "2000"}, format="json")
+
+        self.assertEqual(Goal.objects.filter(business=self.business).count(), 1)
+        self.assertEqual(Goal.objects.get(business=self.business).target_amount, Decimal("2000.00"))
+
+    def test_entrada_de_outro_mes_nao_conta(self):
+        self._entrada("900", quando=timezone.now() - timedelta(days=40))
+        self.client.put("/api/finance/goal/", {"target_amount": "1000"}, format="json")
+
+        self.assertEqual(self.client.get("/api/finance/goal/").data["achieved"], Decimal("0.00"))
+
+    def test_meta_batida(self):
+        self._entrada("1500")
+
+        dados = self.client.put("/api/finance/goal/", {"target_amount": "1000"}, format="json").data
+
+        self.assertTrue(dados["reached"])
+        self.assertEqual(dados["remaining"], Decimal("0.00"))
+
+    def test_valores_invalidos_sao_recusados(self):
+        for valor in ("0", "-10", "abc", "NaN", "Infinity", None):
+            with self.subTest(valor=valor):
+                resposta = self.client.put("/api/finance/goal/", {"target_amount": valor}, format="json")
+                self.assertEqual(resposta.status_code, 400)
+        self.assertEqual(self.client.get("/api/finance/goal/?month=2026-13").status_code, 400)
+
+    def test_apagar_remove_a_meta(self):
+        self.client.put("/api/finance/goal/", {"target_amount": "1000"}, format="json")
+
+        dados = self.client.delete(f"/api/finance/goal/?month={self.mes}").data
+
+        self.assertIsNone(dados["target"])
+        self.assertFalse(Goal.objects.exists())
+
+    def test_meta_de_outro_negocio_nao_aparece(self):
+        User = get_user_model()
+        outro = User.objects.create_user(username="z@w.local", email="z@w.local", password="x")
+        Goal.objects.create(
+            business=Business.objects.create(owner=outro, name="Outro"),
+            month=self.hoje.replace(day=1), target_amount=Decimal("999"),
+        )
+
+        self.assertIsNone(self.client.get("/api/finance/goal/").data["target"])
+
+    def test_member_nao_acessa(self):
+        User = get_user_model()
+        member = User.objects.create_user(username="mei@wageup.local", email="mei@wageup.local", password="x")
+        UserProfile.objects.create(user=member, role="member")
+        cliente = APIClient()
+        cliente.credentials(HTTP_AUTHORIZATION=f"Token {Token.objects.create(user=member).key}")
+
+        self.assertEqual(cliente.get("/api/finance/goal/").status_code, 403)
+
+    def test_insight_e_assistente_falam_quanto_falta(self):
+        from .assistant import build_context, format_context
+
+        self._entrada("3880")
+        self.client.put("/api/finance/goal/", {"target_amount": "5000"}, format="json")
+
+        insights = self.client.get("/api/finance/insights/").data["insights"]
+        meta = next(i for i in insights if i["title"] == "Meta do mês")
+        self.assertIn("Você está a R$ 1.120,00 da sua meta", meta["text"])
+
+        texto = format_context(build_context(self.business))
+        self.assertIn("Meta de faturamento: R$ 5.000,00. Já entrou R$ 3.880,00 (78%)", texto)
+        self.assertIn("Entrou hoje: R$ 3.880,00", texto)
+        self.assertIn("Melhor dia do mês:", texto)
+
+
+@override_settings(ANTHROPIC_API_KEY="", DEEPSEEK_API_KEY="")
+class InsightsDoMesTests(TestCase):
+    """Os insights falam do mes, como os cards ao lado, e trazem botao de acao."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.admin = User.objects.create_user(
+            username="admin@wageup.local", email="admin@wageup.local", password="x"
+        )
+        UserProfile.objects.create(user=self.admin, role="admin")
+        self.business = Business.objects.create(owner=self.admin, name="Negocio")
+        self.client = APIClient()
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {Token.objects.create(user=self.admin).key}")
+
+    def test_lancamento_antigo_nao_entra_na_saude_do_mes(self):
+        Transaction.objects.create(
+            business=self.business, description="antigo", type="income", amount=Decimal("12000"),
+            occurred_at=timezone.now() - timedelta(days=70),
+        )
+        Transaction.objects.create(business=self.business, description="hoje", type="income", amount=Decimal("800"))
+
+        insights = self.client.get("/api/finance/insights/").data["insights"]
+
+        saude = next(i for i in insights if i["title"] == "Saúde do mês")
+        self.assertIn("Sobrou R$ 800,00", saude["text"])
+        self.assertNotIn("12.000", saude["text"])
+
+    def test_melhor_margem_traz_acao_do_produto(self):
+        from apps.products.models import Product
+
+        produto = Product.objects.create(
+            business=self.business, name="Bolo", price=Decimal("60"), cost=Decimal("20"), stock=30
+        )
+
+        insights = self.client.get("/api/finance/insights/").data["insights"]
+
+        melhor = next(i for i in insights if i["title"] == "Melhor margem")
+        self.assertEqual(melhor["action"], {"product_id": str(produto.id), "product_name": "Bolo", "type": "launch"})
+        saude = next(i for i in insights if i["title"] == "Saúde do mês")
+        self.assertIsNone(saude["action"])
+
+    def test_ia_nao_vincula_produto_inventado(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        from apps.products.models import Product
+
+        Product.objects.create(business=self.business, name="Bolo", price=Decimal("60"), cost=Decimal("20"), stock=30)
+        resposta = SimpleNamespace(content=[SimpleNamespace(text=(
+            '[{"title": "Divulgue o bolo", "text": "Rende bem.", "product_name": "bolo"},'
+            ' {"title": "Outro", "text": "Texto.", "product_name": "Produto de outro negocio"}]'
+        ))])
+
+        with override_settings(ANTHROPIC_API_KEY="chave-teste"), patch("anthropic.Anthropic") as cliente:
+            cliente.return_value.messages.create.return_value = resposta
+            dados = self.client.get("/api/finance/insights/").data
+
+        self.assertEqual(dados["provider"], "anthropic")
+        self.assertEqual(dados["insights"][0]["action"]["product_name"], "Bolo")
+        self.assertIsNone(dados["insights"][1]["action"])
+
+
+@override_settings(ANTHROPIC_API_KEY="", DEEPSEEK_API_KEY="")
+class ComparacaoDoMesTests(TestCase):
+    """O mes corrente compara com o mesmo periodo do anterior, nao com o mes inteiro."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.admin = User.objects.create_user(username="a@w.local", email="a@w.local", password="x")
+        UserProfile.objects.create(user=self.admin, role="admin")
+        self.business = Business.objects.create(owner=self.admin, name="Negocio")
+
+    def test_mes_anterior_conta_so_ate_o_mesmo_dia(self):
+        from .insights import gather_metrics
+
+        agora = timezone.localtime()
+        inicio = agora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        inicio_ant = (inicio - timedelta(days=1)).replace(day=1)
+        # Dentro do mesmo periodo do mes anterior: conta.
+        Transaction.objects.create(
+            business=self.business, description="cedo", type="income", amount=Decimal("100"),
+            occurred_at=inicio_ant + timedelta(hours=1),
+        )
+        # Depois do mesmo dia no mes anterior: fica de fora da comparacao.
+        Transaction.objects.create(
+            business=self.business, description="tarde", type="income", amount=Decimal("900"),
+            occurred_at=inicio - timedelta(minutes=1),
+        )
+
+        metricas = gather_metrics(self.business)
+
+        if agora.day < 28:
+            self.assertEqual(metricas["prev_income"], 100.0)
+
+    def test_servico_nao_conta_como_estoque_baixo(self):
+        from apps.products.models import Product
+
+        from .insights import gather_metrics
+
+        Product.objects.create(
+            business=self.business, name="Corte", unit=Product.Unit.SERVICE,
+            price=Decimal("50"), cost=Decimal("5"), stock=0,
+        )
+
+        self.assertEqual(gather_metrics(self.business)["low_stock_count"], 0)

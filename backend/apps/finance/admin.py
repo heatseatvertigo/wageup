@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import StatementImport, Transaction
+from .models import Goal, StatementImport, Transaction
 
 
 @admin.register(Transaction)
@@ -27,3 +27,14 @@ class StatementImportAdmin(admin.ModelAdmin):
     @admin.display(description="Dono")
     def owner_email(self, obj):
         return obj.business.owner.email if obj.business else "-"
+
+
+@admin.register(Goal)
+class GoalAdmin(admin.ModelAdmin):
+    list_display = ["month", "target_amount", "owner_email", "updated_at"]
+    search_fields = ["business__owner__email"]
+    ordering = ["-month"]
+
+    @admin.display(description="Dono")
+    def owner_email(self, obj):
+        return obj.business.owner.email

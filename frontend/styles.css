@@ -26,6 +26,9 @@
   --color-positive: #0E9E68;
   --color-negative: #C2453F;
   --color-warning:  #B4791E;
+  /* Fundos claros dos estados negativo e de atenção (badges, avisos) */
+  --color-negative-subtle: #FBEDED;
+  --color-warning-subtle:  #FBF3E4;
   --color-neutral:  #5F7168;
   --color-accent:   #14B87A;
 
@@ -1864,10 +1867,14 @@ select:focus {
 }
 
 .ghost-button--danger:hover {
-  background: #FBEDED;
+  background: var(--color-negative-subtle);
   border-color: var(--color-negative);
   color: var(--color-negative);
 }
+
+/* Excluir fica no fim da fileira, afastado das ações do dia a dia. */
+.mkt-result__delete { margin-left: auto; }
+.mkt-result__delete.is-confirming { border-color: var(--color-negative); }
 
 @media (max-width: 768px) {
   .record-filters { flex-direction: column; align-items: stretch; }
@@ -2309,7 +2316,7 @@ select:focus {
 
 .msg--error {
   padding: var(--space-3) var(--space-4);
-  background: #FBEDED;
+  background: var(--color-negative-subtle);
   border-radius: var(--radius-md);
   color: var(--color-negative);
 }
@@ -2671,11 +2678,170 @@ kbd {
 
 .panel-heading button .material-symbols-rounded { font-size: 1.1rem; }
 
-/* ─── Overview: cards duo ─── */
+/* ─── Overview: quatro cards do mês ─── */
 
-.summary-grid--duo {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  max-width: 640px;
+/* Um por linha no celular, dois no tablet, quatro no desktop: o valor em
+   DM Mono não cabe em quatro colunas estreitas, e auto-fit deixava um card
+   sozinho na segunda linha. */
+.summary-grid--quad { grid-template-columns: minmax(0, 1fr); }
+
+@media (min-width: 30rem) {
+  .summary-grid--quad { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 64rem) {
+  .summary-grid--quad { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+.summary-card__delta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 1.25rem;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.summary-card__delta .material-symbols-rounded { font-size: 1rem; }
+.summary-card__delta--positive { color: var(--color-positive); }
+.summary-card__delta--negative { color: var(--color-negative); }
+
+/* Meta do mês e formas de pagamento: lado a lado quando há espaço. */
+.overview-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-8);
+}
+
+@media (min-width: 64rem) {
+  .overview-pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+}
+
+.goal {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.goal__lead,
+.goal__so-far {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-normal);
+}
+
+.goal__so-far {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.goal__so-far strong { font-size: var(--text-lg); font-weight: var(--weight-medium); }
+
+.goal__numbers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.goal__numbers > strong {
+  font-size: var(--text-display-md);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-primary);
+  letter-spacing: var(--tracking-tight);
+}
+
+/* A barra cresce por transform, não por width (regra de animação). */
+.goal__bar,
+.method-row__bar {
+  display: block;
+  height: 0.625rem;
+  overflow: hidden;
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-full);
+}
+
+.goal__bar i,
+.method-row__bar i {
+  display: block;
+  height: 100%;
+  background: var(--color-brand-mid);
+  border-radius: var(--radius-full);
+  transform: scaleX(var(--share, 0));
+  transform-origin: left center;
+  transition: transform 0.6s ease;
+}
+
+.goal__bar--done i { background: var(--color-positive); }
+
+.goal__status {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--color-text-primary);
+}
+
+.goal__status .material-symbols-rounded { font-size: 1.2rem; }
+.goal__status--positive .material-symbols-rounded { color: var(--color-positive); }
+.goal__status--negative .material-symbols-rounded { color: var(--color-negative); }
+.goal__status--neutral .material-symbols-rounded { color: var(--color-brand-mid); }
+
+.goal-form {
+  display: grid;
+  gap: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.goal-form[hidden] { display: none; }
+
+.goal-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.method-list {
+  display: grid;
+  gap: var(--space-4);
+}
+
+/* Rótulo, percentual e valor na linha de cima; a barra embaixo. */
+.method-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+}
+
+.method-row__label {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-primary);
+}
+
+.method-row__share {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.method-row__value { font-size: var(--text-sm); }
+
+.method-row__bar { grid-column: 1 / -1; height: 0.5rem; }
+.method-row__bar--unknown i { background: var(--color-border-strong); }
+
+.method-list__note {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-normal);
 }
 
 /* ─── Calendário ─── */
@@ -3403,8 +3569,8 @@ kbd {
 }
 
 .status-badge--positive { background: var(--color-brand-subtle); color: var(--color-positive); }
-.status-badge--warning  { background: #FBF3E4; color: var(--color-warning); }
-.status-badge--negative { background: #FBEDED; color: var(--color-negative); }
+.status-badge--warning  { background: var(--color-warning-subtle); color: var(--color-warning); }
+.status-badge--negative { background: var(--color-negative-subtle); color: var(--color-negative); }
 .status-badge--neutral  { background: var(--color-surface-muted); color: var(--color-text-secondary); }
 
 .status-text--positive { color: var(--color-positive); }
@@ -3532,7 +3698,7 @@ kbd {
 
 .modal__error {
   padding: var(--space-3);
-  background: #FBEDED;
+  background: var(--color-negative-subtle);
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
   color: var(--color-negative);
@@ -3621,8 +3787,8 @@ kbd {
   color: var(--color-positive);
 }
 
-.pix-screen__status[data-state="expired"] { background: #FBEDED; color: var(--color-negative); }
-.pix-screen__status[data-state="error"]   { background: #FBF3E4; color: var(--color-warning); }
+.pix-screen__status[data-state="expired"] { background: var(--color-negative-subtle); color: var(--color-negative); }
+.pix-screen__status[data-state="error"]   { background: var(--color-warning-subtle); color: var(--color-warning); }
 
 .pix-screen__pulse {
   width: 8px;
@@ -3894,9 +4060,9 @@ td:first-child { font-weight: var(--weight-medium); }
 }
 
 .status--paid     { background: var(--color-brand-subtle); color: var(--color-positive); }
-.status--pending  { background: #FFF8EC; color: var(--color-warning); }
+.status--pending  { background: var(--color-warning-subtle); color: var(--color-warning); }
 .status--failed,
-.status--canceled { background: #FFF0F0; color: var(--color-negative); }
+.status--canceled { background: var(--color-negative-subtle); color: var(--color-negative); }
 .status--refunded { background: var(--color-surface-muted); color: var(--color-text-secondary); }
 
 .payment-list__actions {
@@ -5162,6 +5328,7 @@ td:first-child { font-weight: var(--weight-medium); }
 
 .insight-item {
   display: grid;
+  align-content: start;
   gap: var(--space-1);
   padding: var(--space-4);
   border: 1px solid var(--color-border);
@@ -5178,6 +5345,12 @@ td:first-child { font-weight: var(--weight-medium); }
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
   line-height: var(--leading-normal);
+}
+
+/* O botão fica no pé do card, alinhado à esquerda, mesmo com texto curto. */
+.insight-item__action {
+  justify-self: start;
+  margin-top: var(--space-2);
 }
 
 /* ─── Movimentações: entrada que deveria ser venda ─── */
