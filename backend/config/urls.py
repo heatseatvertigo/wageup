@@ -24,6 +24,7 @@ from apps.finance.views import (
     assistant_conversations,
     business_insights,
     finance_assistant,
+    finance_goal,
 )
 from .views import frontend_index, health_check
 
@@ -33,6 +34,7 @@ urlpatterns = [
     path('api/auth/', include('apps.accounts.urls')),
     path('api/products/', include('apps.products.urls')),
     path('api/transactions/', include('apps.finance.urls')),
+    path('api/finance/goal/', finance_goal, name='finance-goal'),
     path('api/finance/insights/', business_insights, name='business-insights'),
     path('api/finance/assistant/', finance_assistant, name='finance-assistant'),
     path('api/finance/assistant/conversations/', assistant_conversations, name='assistant-conversations'),

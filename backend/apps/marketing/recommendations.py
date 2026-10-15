@@ -16,6 +16,7 @@ produto de margem aparente e mandar o MEI vender o que menos rende.
 import json
 import logging
 import re
+from collections import Counter
 
 from datetime import timedelta
 
@@ -32,6 +33,13 @@ from .models import MarketingCampaign
 # Janela para "produto parado": vendeu nada nesse periodo, embora o negocio
 # tenha vendido outras coisas.
 DIAS_SEM_VENDA = 30
+
+# "Vendas caindo": compara as unidades dos ultimos 7 dias com as dos 7 dias
+# anteriores. Pede um volume minimo na semana anterior para uma venda a menos
+# num produto que vende pouco nao virar alarme.
+JANELA_QUEDA_DIAS = 7
+QUEDA_MINIMA = 0.3
+VOLUME_MINIMO_QUEDA = 3
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +78,22 @@ def gather_signals(business):
     )
     registra_vendas = bool(vendidos)
 
+    # Unidades por produto nas duas ultimas semanas, para achar quem caiu.
+    agora = timezone.now()
+    semana = timedelta(days=JANELA_QUEDA_DIAS)
+    recente, anterior = Counter(), Counter()
+    for produto_id, quantidade, quando in Sale.objects.filter(
+        business=business, status=Sale.Status.DONE, product__isnull=False,
+        occurred_at__gte=agora - 2 * semana, occurred_at__lte=agora,
+    ).values_list("product_id", "quantity", "occurred_at"):
+        (recente if quando >= agora - semana else anterior)[produto_id] += quantidade
+
+    def queda(produto):
+        antes, depois = anterior[produto.id], recente[produto.id]
+        if antes >= VOLUME_MINIMO_QUEDA and depois <= antes * (1 - QUEDA_MINIMA):
+            return {"before": antes, "recent": depois}
+        return None
+
     def parado(produto):
         tem_o_que_vender = produto.stock > 0 or produto.unit == Product.Unit.SERVICE
         # Produto cadastrado ha menos de 30 dias ainda nao teve tempo de vender.
@@ -87,6 +111,7 @@ def gather_signals(business):
             "low_stock": produto.is_low_stock,
             "never_promoted": produto.id not in ja_divulgados,
             "stale": parado(produto),
+            "falling": queda(produto),
             # Sem estoque nao se divulga: a campanha geraria pedido sem entrega.
             "has_stock": produto.stock > 0 or produto.unit == Product.Unit.SERVICE,
             "controls_stock": produto.unit != Product.Unit.SERVICE,
@@ -105,6 +130,10 @@ def gather_signals(business):
         "low_stock": [resumo(p) for p in ordenados if p.is_low_stock][:3],
         "negative_margin": [resumo(p) for p in ordenados if p.margin_value < 0][:3],
         "stale": [resumo(p) for p in ordenados if p.margin_value > 0 and parado(p)][:3],
+        "falling": [
+            resumo(p) for p in ordenados
+            if p.margin_value > 0 and queda(p) and (p.stock > 0 or p.unit == Product.Unit.SERVICE)
+        ][:3],
         "all_products": [resumo(p) for p in ordenados],
     }
 
@@ -154,6 +183,9 @@ def tipo_de_acao(produto, goal=None):
         return "stock"
     if produto["low_stock"]:
         return "whatsapp"
+    # Vendia e caiu: o produto ja e conhecido, o que traz de volta e oferta.
+    if produto.get("falling"):
+        return "campaign"
     if goal == "lancamento" or produto["never_promoted"]:
         return "launch"
     return "campaign"
@@ -194,6 +226,8 @@ def situacao_dos_produtos(business):
             situacao, tom, prioridade = "Sem estoque", "warning", 1
         elif produto["low_stock"]:
             situacao, tom, prioridade = "Estoque baixo", "warning", 2
+        elif produto["falling"]:
+            situacao, tom, prioridade = "Vendas caindo", "warning", 3
         elif produto["stale"]:
             situacao = f"Parado há {dias} dias" if dias is not None else f"Sem venda em {DIAS_SEM_VENDA} dias"
             tom, prioridade = "warning", 3
@@ -239,6 +273,11 @@ def _call_claude(business, sinais):
             marcas.append("PREJUÍZO por unidade")
         if p["stale"]:
             marcas.append(f"sem venda nos últimos {DIAS_SEM_VENDA} dias")
+        if p["falling"]:
+            marcas.append(
+                f"vendas caindo: {p['falling']['before']} un. na semana anterior, "
+                f"{p['falling']['recent']} nos últimos {JANELA_QUEDA_DIAS} dias"
+            )
         if not p["has_stock"]:
             marcas.append("SEM ESTOQUE")
         sufixo = f" [{', '.join(marcas)}]" if marcas else ""
@@ -256,7 +295,7 @@ def _call_claude(business, sinais):
         f"A margem informada já desconta embalagem, frete, taxa de cartão/PIX e imposto. "
         f"É o que sobra de verdade — use ela, não o preço, para decidir o que vale divulgar.\n\n"
         f"Recomende de 3 a 4 ações de marketing. Priorize: produto de margem alta que nunca "
-        f"foi divulgado; produto de margem boa parado, sem venda recente; produto com "
+        f"foi divulgado; produto de margem boa com vendas caindo ou parado, sem venda recente; produto com "
         f"estoque baixo (não vale empurrar volume); produto em "
         f"prejuízo (a ação é rever preço, não divulgar).\n\n"
         f"Responda APENAS com um array JSON válido, no formato:\n"
@@ -326,6 +365,16 @@ def _acao(title, text, produto=None, channel="Instagram", goal="promocao"):
     }
 
 
+def texto_da_queda(produto):
+    """Frase da queda de vendas, igual nas recomendacoes e nos insights."""
+    queda = produto["falling"]
+    return (
+        f"{produto['name']} vendeu {queda['before']} na semana anterior e "
+        f"{queda['recent']} nos últimos {JANELA_QUEDA_DIAS} dias. Uma promoção curta "
+        f"ajuda a recuperar o volume: ele deixa {brl(produto['margin'])} por unidade."
+    )
+
+
 def _sem_produtos():
     return [_acao(
         "Comece pelo catálogo",
@@ -347,9 +396,24 @@ def _fallback(sinais):
             goal="promocao",
         ))
 
+    # Queda de vendas vem antes da estreia: um produto que vendia e parou de
+    # vender e o que mais perde dinheiro agora, mesmo nunca tendo tido campanha.
+    for produto in sinais["falling"]:
+        if any(r["product_id"] == produto["id"] for r in recomendacoes):
+            continue
+        recomendacoes.append(_acao(
+            "Recupere as vendas",
+            texto_da_queda(produto),
+            produto,
+            goal="promocao",
+        ))
+        break
+
     melhor = sinais["best_margin"]
     for produto in sinais["never_promoted"]:
         if produto["margin"] <= 0 or produto["low_stock"] or not produto["has_stock"]:
+            continue
+        if any(r["product_id"] == produto["id"] for r in recomendacoes):
             continue
         # "O que mais rende" so quando e verdade: o primeiro nunca divulgado
         # pode nao ser o de melhor margem, que talvez esteja sem estoque.

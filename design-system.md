@@ -282,7 +282,18 @@ aberta ou em trilha:
 └─────────────────────────────┘
 ```
 
-Modificadores: `--duo` (dois cards, máx. 640px) e `--trio` (três cards, máx. 52rem).
+Modificadores: `--quad` (os quatro cards do mês na Visão geral: uma coluna no celular, duas a
+partir de 30rem, quatro a partir de 64rem) e `--trio` (três cards, máx. 52rem).
+
+Abaixo do valor, `.summary-card__delta` compara com o mês anterior: ícone (`trending_up`,
+`trending_down`, `trending_flat`) mais texto, com `--positive` ou `--negative` pelo que é bom
+para o negócio. Despesa que subiu é `--negative`. A cor nunca vem sem o texto.
+
+**Barra de progresso (`.goal__bar`, `.method-row__bar`)** — trilho `surface-muted` com
+`radius-full`; o preenchimento é um `<i>` com `transform: scaleX(var(--share))`, nunca `width`
+(regra de animação). `--share` vai de 0 a 1 no `style` do elemento. A meta usa `brand-mid` e
+passa a `positive` quando batida (`.goal__bar--done`); forma de pagamento não informada usa
+`border-strong`. A barra da meta leva `role="progressbar"` com `aria-valuenow`.
 
 **Card de produto (`.product-card`)** — foto, nome, preço, tag de margem e custos. Clicável:
 no hover a borda vira `brand-light`, ganha `shadow-sm` e sobe 2px.

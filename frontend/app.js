@@ -43,6 +43,14 @@ const TX_SOURCE = {
   manual: { label: "Lançamento manual", tone: "neutral" },
   sale: { label: "Venda", tone: "positive" }
 };
+// Forma de pagamento do lançamento. Vazio é "não informada": extrato e
+// lançamento antigo não dizem como o dinheiro entrou.
+const PAYMENT_METHOD_LABEL = { pix: "PIX", dinheiro: "Dinheiro", cartao: "Cartão", outro: "Outro" };
+const PAYMENT_METHOD_ORDER = ["pix", "dinheiro", "cartao", "outro", ""];
+// Meta do mês na visão geral: a última resposta da API e a chave
+// mês|versão dos dados, para não buscar de novo sem mudança.
+let ovGoal = null;
+let ovGoalKey = "";
 // Mesmo motivo: renderProducts() lê este mapa, e render() roda no topo.
 
 const PRODUCT_UNITS = {
@@ -456,7 +464,8 @@ document.querySelector("#transactionForm")?.addEventListener("submit", async (ev
   const payload = {
     description: form.get("description").trim(),
     type: form.get("type"),
-    amount: centavos / 100
+    amount: centavos / 100,
+    payment_method: form.get("payment_method") || ""
   };
   const data = form.get("occurred_at");
   if (data) payload.occurred_at = `${data}T12:00:00`;
@@ -1277,29 +1286,261 @@ function transactionsByDay() {
   return map;
 }
 
-function renderSummary() {
-  const year = calendarCursor.getFullYear();
-  const month = calendarCursor.getMonth();
-  let income = 0;
-  let expense = 0;
+function monthTotals(year, month) {
+  const totais = { income: 0, expense: 0, methods: {} };
   state.transactions.forEach((transaction) => {
     const date = transactionDate(transaction);
     if (date.getFullYear() !== year || date.getMonth() !== month) return;
     const amount = Number(transaction.amount) || 0;
-    if (transaction.type === "income") income += amount;
-    else expense += amount;
+    if (transaction.type === "income") {
+      totais.income += amount;
+      const forma = PAYMENT_METHOD_LABEL[transaction.payment_method] ? transaction.payment_method : "";
+      totais.methods[forma] = (totais.methods[forma] || 0) + amount;
+    } else {
+      totais.expense += amount;
+    }
   });
+  return totais;
+}
 
+// Comparação com o mês anterior: ícone e texto, nunca só a cor.
+function renderDelta(el, { text = "", icon = "", tone = "neutral" } = {}) {
+  if (!el) return;
+  el.className = `summary-card__delta summary-card__delta--${tone}`;
+  el.innerHTML = text
+    ? `${icon ? `<span class="material-symbols-rounded" aria-hidden="true">${icon}</span>` : ""}${escapeHtml(text)}`
+    : "";
+}
+
+function percentDelta(atual, anterior, nomeAnterior, maiorEhMelhor = true) {
+  if (!anterior) return {};
+  const diferenca = ((atual - anterior) / anterior) * 100;
+  if (Math.abs(diferenca) < 1) return { text: `Igual a ${nomeAnterior}`, icon: "trending_flat" };
+  const subiu = diferenca > 0;
+  return {
+    text: `${Math.abs(diferenca).toFixed(0)}% ${subiu ? "acima" : "abaixo"} de ${nomeAnterior}`,
+    icon: subiu ? "trending_up" : "trending_down",
+    tone: subiu === maiorEhMelhor ? "positive" : "negative"
+  };
+}
+
+function renderSummary() {
+  const year = calendarCursor.getFullYear();
+  const month = calendarCursor.getMonth();
+  const atual = monthTotals(year, month);
+  const anteriorData = new Date(year, month - 1, 1);
+  const anterior = monthTotals(anteriorData.getFullYear(), anteriorData.getMonth());
+  const nomeAnterior = CAL_MONTHS[anteriorData.getMonth()].toLowerCase();
+  const temAnterior = anterior.income > 0 || anterior.expense > 0;
+
+  const income = atual.income;
+  const expense = atual.expense;
   const profit = income - expense;
-  const profitEl = document.querySelector("#ov-profit");
+  const lucroAnterior = anterior.income - anterior.expense;
+
+  const incomeEl = document.querySelector("#ov-income");
+  if (incomeEl) incomeEl.textContent = formatMoney(income);
+  renderDelta(document.querySelector("#ov-income-delta"), percentDelta(income, anterior.income, nomeAnterior));
+
   const expenseEl = document.querySelector("#ov-expenses");
+  if (expenseEl) expenseEl.textContent = formatMoney(expense);
+  renderDelta(document.querySelector("#ov-expenses-delta"), percentDelta(expense, anterior.expense, nomeAnterior, false));
+
+  const profitEl = document.querySelector("#ov-profit");
   if (profitEl) {
     profitEl.textContent = formatMoney(profit);
     profitEl.classList.toggle("value-positive", profit >= 0);
     profitEl.classList.toggle("value-negative", profit < 0);
   }
-  if (expenseEl) expenseEl.textContent = formatMoney(expense);
+  // Lucro pode ser negativo nos dois meses: a diferença em reais diz mais
+  // que um percentual sobre base negativa.
+  const diferencaLucro = profit - lucroAnterior;
+  renderDelta(document.querySelector("#ov-profit-delta"), !temAnterior ? {} : Math.abs(diferencaLucro) < 0.01
+    ? { text: `Igual a ${nomeAnterior}`, icon: "trending_flat" }
+    : {
+        text: `${formatMoney(Math.abs(diferencaLucro))} ${diferencaLucro > 0 ? "a mais" : "a menos"} que ${nomeAnterior}`,
+        icon: diferencaLucro > 0 ? "trending_up" : "trending_down",
+        tone: diferencaLucro > 0 ? "positive" : "negative"
+      });
+
+  const marginEl = document.querySelector("#ov-margin");
+  if (marginEl) {
+    const margem = income > 0 ? (profit / income) * 100 : null;
+    marginEl.textContent = margem === null ? "—" : `${margem.toFixed(0)}%`;
+    marginEl.classList.toggle("value-positive", margem !== null && margem >= 0);
+    marginEl.classList.toggle("value-negative", margem !== null && margem < 0);
+    renderDelta(document.querySelector("#ov-margin-note"), margem === null
+      ? { text: "Sem entradas no mês" }
+      : margem >= 0
+      ? { text: `Sobram ${formatMoney(margem)} de cada R$ 100 que entram`, icon: "savings", tone: "positive" }
+      : { text: "Saiu mais do que entrou", icon: "warning", tone: "negative" });
+  }
+
+  renderMethods(atual);
+  loadGoal();
 }
+
+function renderMethods(totais) {
+  const container = document.querySelector("#ovMethods");
+  if (!container) return;
+  if (!totais.income) {
+    container.innerHTML = `<p class="empty-state">Nenhuma entrada neste mês. As vendas e os PIX pagos aparecem aqui separados por forma de pagamento.</p>`;
+    return;
+  }
+  const linhas = PAYMENT_METHOD_ORDER.filter((forma) => totais.methods[forma] > 0).map((forma) => {
+    const valor = totais.methods[forma];
+    const parte = valor / totais.income;
+    return `
+      <div class="method-row">
+        <span class="method-row__label">${escapeHtml(PAYMENT_METHOD_LABEL[forma] || "Não informada")}</span>
+        <span class="method-row__share">${(parte * 100).toFixed(0)}%</span>
+        <span class="method-row__value value-currency value-positive">${formatMoney(valor)}</span>
+        <span class="method-row__bar${forma ? "" : " method-row__bar--unknown"}" aria-hidden="true"><i style="--share: ${parte.toFixed(4)}"></i></span>
+      </div>`;
+  }).join("");
+  const semForma = totais.methods[""] > 0
+    ? `<p class="method-list__note">Entradas do extrato e lançamentos sem forma de pagamento ficam em "Não informada". Ao lançar uma entrada manual, escolha a forma.</p>`
+    : "";
+  container.innerHTML = linhas + semForma;
+}
+
+function monthKeyOf(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function cursorMonthKey() {
+  return monthKeyOf(calendarCursor);
+}
+
+async function loadGoal(force = false) {
+  if (!canAccessFinance() || !apiAvailable || !authToken) return;
+  const mes = cursorMonthKey();
+  const chave = `${mes}|${dataVersion}`;
+  if (!force && chave === ovGoalKey) return;
+  ovGoalKey = chave;
+  try {
+    const dados = await apiRequest(`/finance/goal/?month=${mes}`);
+    // O usuário pode ter trocado de mês enquanto a resposta vinha.
+    if (dados.month !== cursorMonthKey()) return;
+    ovGoal = dados;
+    renderGoal();
+  } catch (requestError) {
+    ovGoalKey = "";
+    ovGoal = null;
+    renderGoal(requestError.message);
+  }
+}
+
+function renderGoal(erro) {
+  const container = document.querySelector("#ovGoal");
+  if (!container) return;
+  const nomeMes = CAL_MONTHS[calendarCursor.getMonth()];
+  const rotulo = document.querySelector("#ovGoalMonth");
+  if (rotulo) rotulo.textContent = `${nomeMes} de ${calendarCursor.getFullYear()}`;
+
+  if (erro || !ovGoal) {
+    container.innerHTML = `<p class="empty-state">${escapeHtml(erro || "Carregando a meta...")}</p>`;
+    return;
+  }
+
+  if (ovGoal.target === null) {
+    container.innerHTML = `
+      <p class="goal__lead">Defina quanto quer faturar em ${escapeHtml(nomeMes.toLowerCase())}. A plataforma mostra quanto falta e quanto precisa entrar por dia.</p>
+      <p class="goal__so-far">${ovGoal.month < monthKeyOf(new Date()) ? "Entrou no mês" : "Entrou até agora"} <strong class="value-currency value-positive">${formatMoney(Number(ovGoal.achieved))}</strong></p>
+      <div><button class="primary-button" type="button" data-goal-edit>Definir meta</button></div>`;
+  } else {
+    const alvo = Number(ovGoal.target);
+    const feito = Number(ovGoal.achieved);
+    const falta = Number(ovGoal.remaining);
+    const parte = Math.min(feito / alvo, 1);
+    let status;
+    if (ovGoal.reached) {
+      const sobra = feito - alvo;
+      status = { tone: "positive", icon: "check_circle", text: sobra > 0
+        ? `Meta batida! Entrou ${formatMoney(sobra)} a mais que o planejado.`
+        : "Meta batida!" };
+    } else if (ovGoal.days_left > 0) {
+      status = { tone: "neutral", icon: "flag", text:
+        `Você está a ${formatMoney(falta)} da meta. Faltam ${ovGoal.days_left} dia${ovGoal.days_left === 1 ? "" : "s"}: ${formatMoney(Number(ovGoal.needed_per_day))} por dia.` };
+    } else {
+      status = { tone: "negative", icon: "flag", text: `O mês fechou a ${formatMoney(falta)} da meta.` };
+    }
+    container.innerHTML = `
+      <div class="goal__numbers">
+        <strong class="value-currency">${formatMoney(feito)}</strong>
+        <span>de <span class="value-currency">${formatMoney(alvo)}</span> · ${Math.floor(ovGoal.percent)}%</span>
+      </div>
+      <div class="goal__bar${ovGoal.reached ? " goal__bar--done" : ""}" role="progressbar" aria-label="Progresso da meta"
+           aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.min(Math.floor(ovGoal.percent), 100)}">
+        <i style="--share: ${parte.toFixed(4)}"></i>
+      </div>
+      <p class="goal__status goal__status--${status.tone}">
+        <span class="material-symbols-rounded" aria-hidden="true">${status.icon}</span>${escapeHtml(status.text)}
+      </p>
+      <div><button class="ghost-button" type="button" data-goal-edit>Alterar meta</button></div>`;
+  }
+  container.querySelector("[data-goal-edit]")?.addEventListener("click", openGoalForm);
+}
+
+function openGoalForm() {
+  const form = document.querySelector("#ovGoalForm");
+  if (!form || !ovGoal) return;
+  const input = document.querySelector("#ovGoalInput");
+  input.value = ovGoal.target !== null ? formatMoney(Number(ovGoal.target)) : "";
+  document.querySelector("#ovGoalFormLabel").textContent =
+    `Quanto você quer faturar em ${CAL_MONTHS[calendarCursor.getMonth()].toLowerCase()}?`;
+  document.querySelector("#ovGoalRemove").hidden = ovGoal.target === null;
+  document.querySelector("#ovGoalError").hidden = true;
+  form.hidden = false;
+  input.focus();
+}
+
+function closeGoalForm() {
+  const form = document.querySelector("#ovGoalForm");
+  if (form) form.hidden = true;
+}
+
+async function saveGoal(method, body) {
+  const erro = document.querySelector("#ovGoalError");
+  try {
+    const mes = cursorMonthKey();
+    ovGoal = await apiRequest(method === "DELETE" ? `/finance/goal/?month=${mes}` : "/finance/goal/", {
+      method,
+      body: body ? JSON.stringify({ ...body, month: mes }) : undefined
+    });
+    ovGoalKey = `${mes}|${dataVersion}`;
+    closeGoalForm();
+    renderGoal();
+    // O insight da meta muda junto.
+    loadInsights(true);
+  } catch (requestError) {
+    erro.textContent = requestError.message;
+    erro.hidden = false;
+  }
+}
+
+document.querySelector("#ovGoalInput")?.addEventListener("input", (event) => {
+  const input = event.target;
+  input.value = centsFromMasked(input.value) ? maskMoney(input.value) : "";
+});
+
+document.querySelector("#ovGoalForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const centavos = centsFromMasked(document.querySelector("#ovGoalInput").value);
+  if (centavos <= 0) {
+    const erro = document.querySelector("#ovGoalError");
+    erro.textContent = "Informe um valor maior que zero.";
+    erro.hidden = false;
+    return;
+  }
+  const botao = document.querySelector("#ovGoalSave");
+  botao.disabled = true;
+  await saveGoal("PUT", { target_amount: (centavos / 100).toFixed(2) });
+  botao.disabled = false;
+});
+
+document.querySelector("#ovGoalCancel")?.addEventListener("click", closeGoalForm);
+document.querySelector("#ovGoalRemove")?.addEventListener("click", () => saveGoal("DELETE"));
 
 function renderCalendar() {
   const grid = document.querySelector("#calGrid");
@@ -1712,7 +1953,7 @@ function renderTransactions() {
       <button class="charge-row" type="button" data-tx="${escapeHtml(item.id)}">
         <span class="charge-row__main">
           <strong>${escapeHtml(item.description)}</strong>
-          <small>${escapeHtml(quando)} · ${escapeHtml(origem.label)}</small>
+          <small>${escapeHtml(quando)} · ${escapeHtml(origem.label)}${PAYMENT_METHOD_LABEL[item.payment_method] ? ` · ${escapeHtml(PAYMENT_METHOD_LABEL[item.payment_method])}` : ""}</small>
         </span>
         <span class="charge-row__side">
           <span class="value-currency charge-row__amount ${entrada ? "value-positive" : "value-negative"}">
@@ -1870,6 +2111,7 @@ function openTxDrawer(id) {
       ["Tipo", entrada ? "Entrada" : "Saída"],
       ["Data", transactionDate(item).toLocaleDateString("pt-BR")],
       ["Origem", origem.label],
+      ["Forma de pagamento", PAYMENT_METHOD_LABEL[item.payment_method] || "Não informada"],
       ["Registrada em", formatDateTime(item.created_at)]
     ])}
     ${doPix
@@ -2174,6 +2416,7 @@ function openTxModal(item) {
   updateTxSaleHint();
   document.querySelector("#txDescription").value = item ? item.description : "";
   document.querySelector("#txAmount").value = item ? formatMoney(item.amount) : "";
+  document.querySelector("#txMethod").value = item ? item.payment_method || "" : "";
   document.querySelector("#txDate").value = item ? dateKey(transactionDate(item)) : dateKey(new Date());
 
   const erro = document.querySelector("#txFormError");
@@ -3394,7 +3637,11 @@ function openMarketingResult(resultado) {
         <a class="ghost-button" id="mktResultDownload" hidden>Baixar imagem</a>
         ${resultado.productId ? `<button class="ghost-button" type="button" data-mkt-again>Gerar de novo</button>` : ""}
         ${resultado.conversation?.id ? `<button class="ghost-button" type="button" data-mkt-chat>Ajustar no chat</button>` : ""}
-      </div>`;
+        ${resultado.campaign_id ? `<button class="ghost-button ghost-button--danger mkt-result__delete" type="button" data-mkt-delete>
+          <span class="material-symbols-rounded" aria-hidden="true">delete</span>Excluir campanha
+        </button>` : ""}
+      </div>
+      <p class="modal__error" id="mktResultError" role="alert" hidden></p>`;
 
     corpo.querySelector("[data-mkt-copy]").addEventListener("click", async (event) => {
       try {
@@ -3404,6 +3651,9 @@ function openMarketingResult(resultado) {
         event.currentTarget.textContent = "Não foi possível copiar";
       }
     });
+    corpo.querySelector("[data-mkt-delete]")?.addEventListener("click", (event) =>
+      deleteMarketingCampaign(resultado, event.currentTarget)
+    );
     corpo.querySelector("[data-mkt-chat]")?.addEventListener("click", () => {
       closeMarketingResult();
       setMarketingTab("chat");
@@ -3432,6 +3682,33 @@ function openMarketingResult(resultado) {
     requestAnimationFrame(() => modal.classList.add("is-open"));
     document.addEventListener("keydown", marketingResultEscHandler);
   }
+}
+
+// Excluir pede um segundo clique: apagar some com texto e imagem de vez.
+async function deleteMarketingCampaign(resultado, botao) {
+  if (!botao.classList.contains("is-confirming")) {
+    botao.classList.add("is-confirming");
+    botao.innerHTML = `<span class="material-symbols-rounded" aria-hidden="true">delete</span>Confirmar exclusão`;
+    return;
+  }
+  const erro = document.querySelector("#mktResultError");
+  botao.disabled = true;
+  try {
+    await apiRequest(`/marketing/campaigns/${resultado.campaign_id}/`, { method: "DELETE" });
+  } catch (requestError) {
+    botao.disabled = false;
+    erro.textContent = requestError.message || "Não foi possível excluir agora.";
+    erro.hidden = false;
+    return;
+  }
+  const url = campaignImageCache.get(resultado.campaign_id);
+  if (url) URL.revokeObjectURL(url);
+  campaignImageCache.delete(resultado.campaign_id);
+  closeMarketingResult();
+  // Sem a campanha, o produto pode voltar a "Nunca divulgado".
+  marketingRecsVersion = -1;
+  loadMarketingActions();
+  loadMarketingRecommendations();
 }
 
 function closeMarketingResult() {
@@ -3940,6 +4217,8 @@ async function loadProfitTable() {
 
 // Os insights chamam a IA, que custa por chamada: só são pedidos de novo
 // quando os dados mudaram desde a última leitura, ou pelo botão Atualizar.
+const INSIGHT_ACTION_ICON = { campaign: "campaign", launch: "campaign", whatsapp: "chat", price: "sell", stock: "inventory_2" };
+
 async function loadInsights(force = false) {
   const container = document.querySelector("#ovInsights");
   if (!container || !canAccessFinance()) return;
@@ -3957,12 +4236,27 @@ async function loadInsights(force = false) {
   }
   const lista = data.insights || [];
   container.innerHTML = lista.length
-    ? lista.map((item) => `
+    ? lista.map((item, indice) => `
         <article class="insight-item">
           <strong>${escapeHtml(item.title)}</strong>
           <p>${escapeHtml(item.text)}</p>
+          ${item.action && MKT_ACTION_LABEL[item.action.type] ? `
+            <button class="ghost-button insight-item__action" type="button" data-insight-action="${indice}">
+              <span class="material-symbols-rounded" aria-hidden="true">${INSIGHT_ACTION_ICON[item.action.type] || "campaign"}</span>${escapeHtml(MKT_ACTION_LABEL[item.action.type])}: ${escapeHtml(item.action.product_name)}
+            </button>` : ""}
         </article>`).join("")
     : `<p class="empty-state">Sem insights por enquanto.</p>`;
+
+  // O insight leva à ação: abre o Marketing e já gera a campanha, o aviso
+  // ou abre o cadastro do produto, como o botão do cartão de lá.
+  container.querySelectorAll("[data-insight-action]").forEach((botao) => {
+    botao.addEventListener("click", () => {
+      const acao = lista[Number(botao.dataset.insightAction)].action;
+      setView("app-marketing");
+      setMarketingTab("actions");
+      runMarketingAction(acao.product_id, acao.type);
+    });
+  });
 }
 
 document.querySelector("#ovInsightsRefresh")?.addEventListener("click", () => loadInsights(true));

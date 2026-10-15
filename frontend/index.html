@@ -754,15 +754,57 @@
         <section class="view active" id="overview">
           <!-- Cards, calendário e gráfico leem o financeiro, que é só do admin:
                para o membro mostravam zeros. O lucro por produto vale para os dois. -->
-          <div class="summary-grid summary-grid--duo" data-admin-only>
+          <div class="summary-grid summary-grid--quad" data-admin-only>
             <article class="summary-card">
-              <span>Lucro do mês</span>
-              <strong id="ov-profit" class="value-currency">R$ 0,00</strong>
+              <span>Faturamento do mês</span>
+              <strong id="ov-income" class="value-currency value-positive">R$ 0,00</strong>
+              <small class="summary-card__delta" id="ov-income-delta"></small>
             </article>
             <article class="summary-card">
               <span>Despesas do mês</span>
               <strong id="ov-expenses" class="value-currency value-negative">R$ 0,00</strong>
+              <small class="summary-card__delta" id="ov-expenses-delta"></small>
             </article>
+            <article class="summary-card">
+              <span>Lucro do mês</span>
+              <strong id="ov-profit" class="value-currency">R$ 0,00</strong>
+              <small class="summary-card__delta" id="ov-profit-delta"></small>
+            </article>
+            <article class="summary-card">
+              <span>Margem do mês</span>
+              <strong id="ov-margin" class="value-currency">—</strong>
+              <small class="summary-card__delta" id="ov-margin-note"></small>
+            </article>
+          </div>
+
+          <div class="overview-pair" data-admin-only>
+            <div class="work-panel">
+              <div class="panel-heading">
+                <h3>Meta do mês</h3>
+                <span id="ovGoalMonth"></span>
+              </div>
+              <div class="goal" id="ovGoal" aria-live="polite"></div>
+              <form class="goal-form" id="ovGoalForm" hidden>
+                <label class="field">
+                  <span class="field__label" id="ovGoalFormLabel">Quanto você quer faturar no mês?</span>
+                  <input name="target" id="ovGoalInput" inputmode="numeric" required placeholder="R$ 0,00" autocomplete="off" />
+                </label>
+                <p class="modal__error" id="ovGoalError" role="alert" hidden></p>
+                <div class="goal-form__actions">
+                  <button class="primary-button" type="submit" id="ovGoalSave">Salvar meta</button>
+                  <button class="ghost-button" type="button" id="ovGoalCancel">Cancelar</button>
+                  <button class="ghost-button ghost-button--danger" type="button" id="ovGoalRemove" hidden>Remover meta</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="work-panel">
+              <div class="panel-heading">
+                <h3>Como o dinheiro entrou</h3>
+                <span>entradas do mês</span>
+              </div>
+              <div class="method-list" id="ovMethods"></div>
+            </div>
           </div>
 
           <div class="work-panel">
@@ -1014,6 +1056,17 @@
                 <label class="field">
                   <span class="field__label">Valor</span>
                   <input name="amount" id="txAmount" inputmode="numeric" required placeholder="R$ 0,00" autocomplete="off" />
+                </label>
+
+                <label class="field">
+                  <span class="field__label">Forma de pagamento</span>
+                  <select name="payment_method" id="txMethod">
+                    <option value="">Não informar</option>
+                    <option value="dinheiro">Dinheiro</option>
+                    <option value="pix">PIX</option>
+                    <option value="cartao">Cartão</option>
+                    <option value="outro">Outro</option>
+                  </select>
                 </label>
 
                 <label class="field">

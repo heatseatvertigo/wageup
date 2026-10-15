@@ -306,6 +306,7 @@ def record_finance_income(payment):
         type=Transaction.TransactionType.INCOME,
         amount=payment.amount,
         source=Transaction.Source.PIX,
+        payment_method=Transaction.PaymentMethod.PIX,
     )
     payment.metadata = {**payment.metadata, "finance_transaction_id": str(transaction.id)}
     # Cobranca de produto: a entrada conciliada vira uma venda e baixa o estoque.
@@ -325,6 +326,7 @@ def record_finance_refund(payment):
         type=Transaction.TransactionType.EXPENSE,
         amount=payment.amount,
         source=Transaction.Source.PIX,
+        payment_method=Transaction.PaymentMethod.PIX,
     )
     payment.metadata = {**payment.metadata, "refund_transaction_id": str(transaction.id)}
     # A venda do PIX estornado e cancelada e o produto volta ao estoque. O

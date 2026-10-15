@@ -13,7 +13,7 @@ from datetime import date
 import requests
 from django.conf import settings
 from django.db.models import Count, Sum
-from django.db.models.functions import TruncMonth
+from django.db.models.functions import TruncDate, TruncMonth
 from django.utils import timezone
 
 from apps.finance.insights import brl, gather_metrics
@@ -49,6 +49,9 @@ SYSTEM_PROMPT = (
     "- Três ou quatro frases bastam. Se quiser mais, o usuário pergunta.\n"
     "- Termine sugerindo um próximo passo concreto quando fizer sentido — "
     "algo que a pessoa possa fazer hoje.\n"
+    "- Quando um produto estiver com vendas caindo, parado ou for o que mais "
+    "rende, sugira criar uma promoção dele na tela Marketing, que já monta a "
+    "campanha com a margem e o estoque do produto.\n"
     "- Texto corrido, SEM markdown: nada de **negrito**, listas com "
     "asteriscos ou títulos com #.\n\n"
     "REGRAS QUE NÃO SE QUEBRAM:\n"
@@ -144,6 +147,29 @@ def pix_charges(business):
     return {"by_status": by_status, "recent": recent, "total_count": charges.count()}
 
 
+def dias_do_mes(business):
+    """Entradas de hoje e o melhor dia do mês corrente, já somados."""
+    agora = timezone.localtime()
+    inicio, fim = intervalo_do_mes(agora.year, agora.month)
+    por_dia = (
+        Transaction.objects.filter(
+            business=business,
+            type=Transaction.TransactionType.INCOME,
+            occurred_at__gte=inicio,
+            occurred_at__lt=fim,
+        )
+        .annotate(dia=TruncDate("occurred_at", tzinfo=timezone.get_current_timezone()))
+        .values("dia")
+        .annotate(total=Sum("amount"))
+    )
+    totais = {row["dia"]: float(row["total"] or 0) for row in por_dia}
+    melhor = max(totais.items(), key=lambda item: item[1], default=None)
+    return {
+        "today": totais.get(agora.date(), 0.0),
+        "best_day": {"date": melhor[0].strftime("%d/%m/%Y"), "total": melhor[1]} if melhor else None,
+    }
+
+
 def build_context(business):
     """Reúne o retrato financeiro do negócio que vai no prompt."""
     metrics = gather_metrics(business)
@@ -163,9 +189,19 @@ def build_context(business):
 
     recent = Transaction.objects.filter(business=business).order_by("-occurred_at")[:RECENT_LIMIT]
 
+    # Import tardio: o marketing importa deste app.
+    from apps.marketing.recommendations import gather_signals
+
+    caindo = gather_signals(business)["falling"]
+
     return {
         "business_name": business.name,
         "metrics": metrics,
+        "days": dias_do_mes(business),
+        "falling": [
+            {"name": p["name"], "before": p["falling"]["before"], "recent": p["falling"]["recent"]}
+            for p in caindo
+        ],
         "series": series,
         "pix": pix_charges(business),
         "top_products": [
@@ -207,9 +243,40 @@ def format_context(context):
         f"- Lucro: {brl(metrics['profit'])}",
         f"- Recebido via PIX: {brl(metrics['received'])}",
         f"- A receber (PIX pendente): {brl(metrics['pending'])}",
-        "",
-        "ÚLTIMOS 6 MESES:",
     ]
+
+    meta = metrics["goal"]
+    dias = context["days"]
+    lines += [
+        "",
+        f"MÊS ATUAL ({metrics['month_label']}):",
+        f"- Entradas (faturamento): {brl(metrics['month_income'])} "
+        f"— em {metrics['prev_month_label']}: {brl(metrics['prev_income'])}",
+        f"- Saídas: {brl(metrics['month_expense'])}",
+        f"- Lucro: {brl(metrics['month_profit'])} — em {metrics['prev_month_label']}: {brl(metrics['prev_profit'])}",
+        f"- Entrou hoje: {brl(dias['today'])}",
+        (
+            f"- Melhor dia do mês: {dias['best_day']['date']}, com {brl(dias['best_day']['total'])} de entradas"
+            if dias["best_day"] else "- Melhor dia do mês: nenhuma entrada ainda"
+        ),
+    ]
+    if meta:
+        lines.append(
+            f"- Meta de faturamento: {brl(meta['target'])}. Já entrou {brl(meta['achieved'])} "
+            f"({meta['percent']:.0f}%). "
+            + (
+                "Meta batida."
+                if meta["reached"]
+                else f"Faltam {brl(meta['remaining'])} em {meta['days_left']} dia(s), "
+                f"{brl(meta['needed_per_day'])} por dia."
+            )
+        )
+    else:
+        lines.append(
+            "- Meta de faturamento: não definida. Se perguntarem, diga que dá para "
+            "definir no card Meta do mês, na Visão geral."
+        )
+    lines += ["", "ÚLTIMOS 6 MESES:"]
     for item in context["series"]:
         lines.append(
             f"- {item['label']}: entradas {brl(item['income'])}, "
@@ -275,6 +342,12 @@ def format_context(context):
             )
     else:
         lines.append("- Nenhuma venda registrada neste mês.")
+
+    if context["falling"]:
+        lines.append("")
+        lines.append("PRODUTOS COM VENDAS CAINDO (unidades, últimos 7 dias contra os 7 anteriores):")
+        for item in context["falling"]:
+            lines.append(f"- {item['name']}: {item['recent']} contra {item['before']}")
 
     lines.append("")
     lines.append("MOVIMENTAÇÕES RECENTES:")

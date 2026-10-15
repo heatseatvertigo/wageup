@@ -87,6 +87,7 @@ def registrar_venda(*, business, produto, quantidade, payment_method, preco_unit
         type=Transaction.TransactionType.INCOME,
         amount=valores["total"],
         source=Transaction.Source.SALE,
+        payment_method=payment_method,
         occurred_at=quando,
     )
     return Sale.objects.create(

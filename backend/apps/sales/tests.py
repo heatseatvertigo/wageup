@@ -329,6 +329,7 @@ class VendaPorPixTests(_VendasBase):
         self.assertEqual(venda.total, Decimal("120.00"))
         self.assertEqual(venda.profit, Decimal("62.80"))
         self.assertEqual(venda.transaction.source, Transaction.Source.PIX)
+        self.assertEqual(venda.transaction.payment_method, Transaction.PaymentMethod.PIX)
         # Uma entrada so: a do PIX, que a venda reaproveita.
         self.assertEqual(Transaction.objects.count(), 1)
         self.bolo.refresh_from_db()
@@ -470,3 +471,92 @@ class RecomendacaoComVendasTests(_VendasBase):
         self.assertTrue(all(r["product_name"] != "Bolo de cenoura" for r in divulgar))
         # O brigadeiro nao e o de melhor margem: o texto nao pode dizer que e.
         self.assertNotIn("é o que mais rende", divulgar[0]["text"])
+
+
+@override_settings(ANTHROPIC_API_KEY="", DEEPSEEK_API_KEY="")
+class QuedaDeVendasTests(_VendasBase):
+    """Produto que vendia e passou a vender menos vira acao, nao so o parado."""
+
+    def setUp(self):
+        super().setUp()
+        Product.objects.filter(pk=self.bolo.pk).update(stock=100)
+        self.bolo.refresh_from_db()
+
+    def _vender_ha(self, dias, quantidade, produto=None):
+        resposta = self._vender(produto, quantidade=quantidade)
+        Sale.objects.filter(pk=resposta.data["id"]).update(occurred_at=timezone.now() - timedelta(days=dias))
+
+    def test_queda_vira_situacao_recomendacao_e_insight_com_acao(self):
+        self._vender_ha(10, 6)
+        self._vender_ha(2, 1)
+
+        situacao = next(
+            linha for linha in self.client.get("/api/marketing/products/").data
+            if linha["name"] == "Bolo de cenoura"
+        )
+        self.assertEqual(situacao["status"], "Vendas caindo")
+
+        recomendacoes = self.client.get("/api/marketing/recommendations/").data["recommendations"]
+        queda = next(r for r in recomendacoes if r["title"] == "Recupere as vendas")
+        self.assertIn("vendeu 6 na semana anterior e 1 nos últimos 7 dias", queda["text"])
+
+        insights = self.client.get("/api/finance/insights/").data["insights"]
+        insight = next(i for i in insights if i["title"] == "Vendas caindo")
+        self.assertEqual(insight["action"]["product_id"], str(self.bolo.id))
+        # Vendia e caiu: promocao, nao post de lancamento, mesmo sem campanha antes.
+        self.assertEqual(insight["action"]["type"], "campaign")
+        self.assertEqual(situacao["action"], "campaign")
+
+    def test_pouco_volume_nao_conta_como_queda(self):
+        # 2 unidades na semana anterior, 0 nesta: abaixo do volume minimo.
+        self._vender_ha(10, 2)
+
+        recomendacoes = self.client.get("/api/marketing/recommendations/").data["recommendations"]
+
+        self.assertFalse(any(r["title"] == "Recupere as vendas" for r in recomendacoes))
+
+    def test_venda_estavel_nao_e_queda(self):
+        self._vender_ha(10, 5)
+        self._vender_ha(2, 5)
+
+        situacao = next(
+            linha for linha in self.client.get("/api/marketing/products/").data
+            if linha["name"] == "Bolo de cenoura"
+        )
+        self.assertNotEqual(situacao["status"], "Vendas caindo")
+
+    def test_assistente_recebe_a_queda_no_contexto(self):
+        from apps.finance.assistant import build_context, format_context
+
+        self._vender_ha(10, 6)
+        self._vender_ha(2, 1)
+
+        texto = format_context(build_context(self.business))
+
+        self.assertIn("Bolo de cenoura: 1 contra 6", texto)
+
+
+class FormaDePagamentoNoFinanceiroTests(_VendasBase):
+    """O dashboard separa PIX, dinheiro e cartao pela forma gravada no lancamento."""
+
+    def test_entrada_da_venda_copia_a_forma_de_pagamento(self):
+        self._vender(payment_method="cartao")
+
+        self.assertEqual(Transaction.objects.get().payment_method, "cartao")
+
+    def test_lancamento_manual_aceita_forma_de_pagamento(self):
+        resposta = self.client.post("/api/transactions/", {
+            "description": "Feira de sabado", "type": "income", "amount": "180", "payment_method": "dinheiro",
+        }, format="json")
+
+        self.assertEqual(resposta.status_code, 201)
+        self.assertEqual(resposta.data["payment_method"], "dinheiro")
+
+    def test_forma_de_pagamento_e_opcional_e_validada(self):
+        sem = self.client.post("/api/transactions/", {"description": "Aporte", "type": "income", "amount": "50"}, format="json")
+        invalida = self.client.post("/api/transactions/", {
+            "description": "x", "type": "income", "amount": "50", "payment_method": "cheque",
+        }, format="json")
+
+        self.assertEqual(sem.data["payment_method"], "")
+        self.assertEqual(invalida.status_code, 400)

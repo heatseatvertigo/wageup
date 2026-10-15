@@ -1,5 +1,6 @@
 import logging
-from datetime import timedelta
+from datetime import date, timedelta
+from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.db import transaction as db_transaction
@@ -14,9 +15,9 @@ from apps.accounts.permissions import IsAdminRole
 from apps.accounts.throttles import AIRateThrottle
 from apps.businesses.models import Business
 from .assistant import AssistantError, ask_assistant
-from .models import AssistantConversation, AssistantMessage
+from .goals import faturamento_do_mes, progresso_da_meta
 from .insights import build_insights
-from .models import StatementImport, Transaction
+from .models import AssistantConversation, AssistantMessage, Goal, StatementImport, Transaction
 from .serializers import StatementConfirmSerializer, TransactionSerializer
 from .statements import EXTENSOES_ACEITAS, StatementError, hash_arquivo, parse_statement
 
@@ -68,6 +69,64 @@ def business_insights(request):
         return Response({"provider": "local-demo", "insights": []})
     provider, insights = build_insights(business)
     return Response({"provider": provider, "insights": insights})
+
+
+def _mes_da_meta(valor):
+    """Le AAAA-MM; vazio e o mes atual. Devolve (ano, mes) ou None."""
+    if not valor:
+        hoje = timezone.localdate()
+        return hoje.year, hoje.month
+    try:
+        ano, mes = (int(parte) for parte in str(valor).split("-"))
+    except ValueError:
+        return None
+    return (ano, mes) if 1 <= mes <= 12 and 2000 <= ano <= 2100 else None
+
+
+def _resposta_da_meta(business, ano, mes):
+    progresso = progresso_da_meta(business, ano, mes)
+    if progresso:
+        return progresso
+    # Sem meta, a tela ainda mostra quanto entrou e convida a definir uma.
+    return {
+        "month": f"{ano:04d}-{mes:02d}",
+        "target": None,
+        "achieved": faturamento_do_mes(business, ano, mes).quantize(Decimal("0.01")),
+    }
+
+
+@api_view(["GET", "PUT", "DELETE"])
+@permission_classes([IsAdminRole])
+def finance_goal(request):
+    """Meta de faturamento do mes (?month=AAAA-MM; sem ele, o mes atual).
+
+    A meta compara com as entradas do financeiro, que e so do admin.
+    """
+    business = _business_or_none(request)
+    if not business:
+        return Response({"detail": "Nenhum negócio encontrado."}, status=status.HTTP_400_BAD_REQUEST)
+
+    mes_pedido = _mes_da_meta(request.data.get("month") if request.method == "PUT" else request.query_params.get("month"))
+    if not mes_pedido:
+        return Response({"detail": "Mês inválido. Use AAAA-MM."}, status=status.HTTP_400_BAD_REQUEST)
+    ano, mes = mes_pedido
+
+    if request.method == "PUT":
+        try:
+            alvo = Decimal(str(request.data.get("target_amount"))).quantize(Decimal("0.01"))
+        except (InvalidOperation, ValueError, TypeError):
+            return Response({"detail": "Informe o valor da meta."}, status=status.HTTP_400_BAD_REQUEST)
+        if not alvo.is_finite() or alvo <= 0:
+            return Response({"detail": "A meta precisa ser maior que zero."}, status=status.HTTP_400_BAD_REQUEST)
+        if alvo >= Decimal("10000000000"):
+            return Response({"detail": "Valor da meta grande demais."}, status=status.HTTP_400_BAD_REQUEST)
+        Goal.objects.update_or_create(
+            business=business, month=date(ano, mes, 1), defaults={"target_amount": alvo}
+        )
+    elif request.method == "DELETE":
+        Goal.objects.filter(business=business, month=date(ano, mes, 1)).delete()
+
+    return Response(_resposta_da_meta(business, ano, mes))
 
 
 def _serialize_conversation(conversation):

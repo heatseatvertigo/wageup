@@ -1,7 +1,7 @@
 # WageUp — O que a plataforma faz hoje
 
 > Documento de **funcionalidades** (visão de produto). Para arquitetura técnica, ver [`CLAUDE.md`](CLAUDE.md).
-> Última atualização: 2026-10-08.
+> Última atualização: 2026-10-15.
 
 Este arquivo existe para que a gente sempre saiba, em linguagem simples, **o que já está pronto, o que está pela metade e o que ainda não existe**. Sempre que uma feature for concluída ou alterada, atualize esta lista.
 
@@ -72,6 +72,7 @@ Endpoints: `GET|POST /api/sales/?month=AAAA-MM`, `POST /api/sales/<id>/cancel/`,
 - [x] Dashboard com indicadores (somatório de entradas/saídas, gráfico)
 - [x] Filtros por tipo e por período, com totais do recorte
 - [x] Cada lançamento mostra de onde veio: manual, cobrança PIX ou extrato importado
+- [x] **Forma de pagamento** em cada lançamento (PIX, dinheiro, cartão, outro). A venda copia a dela, o PIX pago é sempre PIX, a entrada manual escolhe no formulário, e o extrato fica "não informada". Lançamentos antigos foram preenchidos só onde a origem diz a forma
 
 ### Importação de extrato bancário
 
@@ -112,6 +113,7 @@ Endpoints: `GET|POST /api/sales/?month=AAAA-MM`, `POST /api/sales/<id>/cancel/`,
 - [x] No resultado: **Copiar texto**, **Baixar imagem**, **Gerar de novo** e **Ajustar no chat**, que abre a conversa criada pela ação
 - [x] **"Seus produtos este mês"**: cada produto com vendidos, lucro real, estoque, a situação (Prejuízo, Sem estoque, Estoque baixo, Parado há N dias, Nunca divulgado, Em alta) e a ação certa. O que precisa de atenção vem primeiro
 - [x] **"Campanhas geradas"**: galeria das últimas campanhas, com imagem, canal e produto
+- [x] **Excluir campanha** no card que mostra a campanha, com segundo clique para confirmar. Some o texto e a imagem; a conversa do chat continua, sem a imagem. Sem campanha, o produto pode voltar a "Nunca divulgado"
 - [x] Chat de marketing com pedido livre (post, campanha, legenda, ideias de vídeo, mensagem para clientes), no mesmo formato do assistente financeiro, com histórico de conversas
 - [x] A IA conhece o catálogo e a margem real de cada produto; o produto e o canal saem do próprio pedido
 - [x] Provedores em cascata, como no assistente financeiro: DeepSeek (`DEEPSEEK_API_KEY`), Anthropic como alternativa (`ANTHROPIC_API_KEY`) e, sem nenhuma chave ou com as duas fora do ar, uma campanha local montada a partir do assunto do pedido
@@ -120,6 +122,7 @@ Endpoints: `GET|POST /api/sales/?month=AAAA-MM`, `POST /api/sales/<id>/cancel/`,
 - [x] **Recomendações automáticas de ação** (`GET /api/marketing/recommendations/`): devolve o que divulgar em seguida, na ordem produto em prejuízo (revisar preço antes) → produto de margem alta nunca divulgado → produto com estoque baixo (repor antes) → melhor margem do catálogo. Cada item já traz produto, canal e objetivo resolvidos
 - [x] Sem `ANTHROPIC_API_KEY`, ou se a chamada falhar, as recomendações saem de regras locais sobre os mesmos números
 - [x] **As recomendações aparecem como sugestões no chat de marketing**: cada uma vira um pedido pronto. Produto em prejuízo vira pergunta sobre preço, produto com estoque baixo vira mensagem para clientes, o resto vira pedido de campanha
+- [x] Recomendação de **vendas caindo**: o produto vendeu 30% ou menos do que na semana anterior (com pelo menos 3 unidades nela, para uma venda a menos não virar alarme). Vira a situação "Vendas caindo" na tabela e o cartão "Recupere as vendas", com botão de promoção
 - [x] Recomendação de **produto parado**: margem boa, tem estoque, está cadastrado há mais de 30 dias e não vendeu nesse período (só vale quando o negócio registra vendas)
 - [x] Produto sem estoque nunca é recomendado para divulgar
 - [x] **Geração da imagem da campanha**: sai junto com o texto, a partir da "ideia de imagem" que a própria campanha escreveu — texto e imagem falam da mesma coisa
@@ -131,8 +134,14 @@ Endpoints: `GET|POST /api/sales/?month=AAAA-MM`, `POST /api/sales/<id>/cancel/`,
 ## 6. Visão geral / Dashboard
 
 - [x] Tela inicial com resumo do negócio (produtos cadastrados, transações recentes, indicadores financeiros para admins)
+- [x] **Quatro cards do mês**: faturamento, despesas, lucro e margem. Cada um compara com o mês anterior ("12% acima de setembro", "R$ 320,00 a mais que setembro"), com ícone e texto, não só cor. A margem vem em linguagem simples: "Sobram R$ 23,00 de cada R$ 100 que entram". Acompanham o mês do calendário
+- [x] **Meta do mês**: o MEI define quanto quer faturar no mês e vê a barra de progresso, quanto falta, quantos dias sobram e quanto precisa entrar por dia ("Você está a R$ 985,00 da meta. Faltam 17 dias: R$ 57,94 por dia"). Meta batida aparece como tal; mês que fechou abaixo também. Dá para definir, alterar e remover, inclusive de meses anteriores (`GET|PUT|DELETE /api/finance/goal/?month=AAAA-MM`)
+- [x] **Como o dinheiro entrou**: entradas do mês separadas por PIX, dinheiro, cartão, outro e não informada, com valor e percentual
 - [x] Insights por IA com base nos dados financeiros, recebíveis e produtos (`GET /api/finance/insights/`), só admin, com fallback local por regras quando não há `ANTHROPIC_API_KEY` ou a chamada à IA falha
 - [x] Painel **"O que os números dizem"** com os insights, incluindo o lucro das vendas do mês. A IA só é chamada de novo quando os dados mudaram, ou pelo botão Atualizar
+- [x] Os insights falam **do mês corrente**, como os cards. Antes somavam todo o histórico e contradiziam o "Lucro do mês" na mesma tela
+- [x] Insights da meta ("Você está a R$ 985,00 da sua meta de outubro"), da comparação com o mês anterior e de **vendas caindo**
+- [x] **O insight leva à ação**: quando cita um produto, ganha um botão ("Criar promoção: Bolo de pote", "Criar aviso para WhatsApp", "Ajustar preço") que abre o Marketing e já gera a campanha, o aviso ou abre o cadastro do produto. É o caminho Financeiro → Insight → Recomendação → Marketing do escopo
 - [x] Painel **Lucro por produto no mês**, a partir das vendas, para admin e membro. Acompanha o mês do calendário
 - [x] Para o membro, a visão geral mostra só o lucro por produto: os cards, o calendário e o gráfico leem o financeiro, que é só do admin, e mostravam zeros
 
@@ -141,6 +150,8 @@ Endpoints: `GET|POST /api/sales/?month=AAAA-MM`, `POST /api/sales/<id>/cancel/`,
 - [x] Chat em tela cheia onde o usuário pergunta sobre os próprios números ("quanto entrou este mês?", "qual produto tem a melhor margem?")
 - [x] Todo número é calculado em Python antes de chegar ao modelo — o modelo escreve o texto, mas não faz a conta. Isso evita valor inventado
 - [x] O assistente enxerga transações, cobranças PIX e produtos do negócio
+- [x] Responde sobre o **mês atual contra o anterior**, **quanto entrou hoje**, **o melhor dia do mês** e **a meta** ("quanto falta para minha meta?"). Sem meta definida, explica onde definir
+- [x] Sabe quais produtos estão com **vendas caindo** e sugere criar a promoção na tela de Marketing
 - [x] Histórico de conversas salvo no banco (`AssistantConversation` / `AssistantMessage`), não no navegador. Além de sobreviver ao recarregar a página, impede que o cliente forje o que foi dito antes
 - [x] Listar, abrir e apagar conversas anteriores
 - [x] Provedores em cascata: DeepSeek (`DEEPSEEK_API_KEY`), Anthropic como alternativa (`ANTHROPIC_API_KEY`) e, sem nenhuma chave, uma resposta local avisando que não está configurado
@@ -169,7 +180,7 @@ Endpoints: `POST /api/finance/assistant/`, `GET|POST /api/finance/assistant/conv
 - [x] Em produção: HTTPS obrigatório, HSTS, cookies com `Secure`, API navegável do DRF desligada e recusa de subir com a `SECRET_KEY` de exemplo
 - [x] Webhook da Abacate Pay só funciona com segredo configurado, comparado em tempo constante. Sem o segredo, qualquer um poderia marcar uma cobrança como paga
 - [x] Logs da aplicação aparecem na saída do servidor (antes se perdiam)
-- [x] Testes automatizados: 191 casos — produtos 16 (margem, preço sugerido, foto), financeiro 28 (leitura de OFX, importação ponta a ponta, extrato que repete o que já foi lançado e os insights), contas 14 (recuperação de senha e entrega pelo Resend), marketing 58 (margem real no prompt, isolamento por negócio, recomendações e a geração de imagem), pagamentos 38 (webhook só com o segredo certo, PIX pago vira uma receita e uma só, estorno, valor zero ou negativo recusado, falhas da Abacate Pay e isolamento por negócio), vendas 37 (lucro real, estoque que nunca fica negativo, cancelamento, PIX de produto, resumo do mês, insights, assistente e recomendações)
+- [x] Testes automatizados: 219 casos — produtos 16 (margem, preço sugerido, foto), financeiro 41 (leitura de OFX, importação ponta a ponta, extrato que repete o que já foi lançado, insights do mês com botão de ação e a meta), contas 14 (recuperação de senha e entrega pelo Resend), marketing 66 (margem real no prompt, isolamento por negócio, recomendações, ações e a geração de imagem), pagamentos 38 (webhook só com o segredo certo, PIX pago vira uma receita e uma só, estorno, valor zero ou negativo recusado, falhas da Abacate Pay e isolamento por negócio), vendas 44 (lucro real, estoque que nunca fica negativo, cancelamento, PIX de produto, resumo do mês, vendas caindo, forma de pagamento no financeiro, insights, assistente e recomendações)
 - [x] Teste das telas num navegador automático (desktop e celular, admin e membro): cadastro, produtos, vendas, movimentações, extrato, PIX, assistente, marketing e recuperação de senha
 - [ ] Testes com a IA de verdade: os testes simulam as respostas da DeepSeek, da Anthropic e da Cloudflare; nenhum chama o modelo real
 
@@ -177,9 +188,7 @@ Endpoints: `POST /api/finance/assistant/`, `GET|POST /api/finance/assistant/conv
 
 ## O que ainda falta (do escopo do TCC)
 
-Com base no `Escopo TCC.pdf`, os itens abaixo ainda não foram implementados:
-
-Nada. Os dois itens do escopo foram implementados — recomendações de marketing e geração de imagens.
+Comparado com o documento de escopo (RF01 a RF12 e os indicadores das seções 9 a 11), não falta funcionalidade. Os últimos itens fechados foram a meta de faturamento, os recebimentos por forma de pagamento, os cards com comparação com o mês anterior, a queda de vendas por produto e o botão que leva do insight à ação no marketing.
 
 Fora do escopo do PDF, mas pendente: as **variáveis do Resend no Render** e um **domínio verificado** para o e-mail chegar a qualquer usuário (o código está pronto e testado), os leitores de extrato em **CSV** e **PDF**, a **conexão direta com o banco** (hoje a tela é um protótipo) e o **giro de estoque**.
 
@@ -195,7 +204,10 @@ Fora do escopo do PDF, mas pendente: as **variáveis do Resend no Render** e um 
 | Onboarding | Após o primeiro login, preencher nome do negócio |
 | Produtos | Menu "Produtos" → cadastrar/editar/remover |
 | Vendas | Menu "Vendas" → "Registrar venda" → escolher o produto e a quantidade → conferir o lucro real na prévia → registrar. O estoque do produto baixa e a entrada aparece em Movimentações com origem "Venda". Pedir mais que o estoque deve mostrar "Só há N em estoque". Cancelar a venda devolve o estoque |
-| Financeiro | Login como admin → aba "Financeiro" → lançar transação |
+| Financeiro | Login como admin → aba "Financeiro" → lançar transação, escolhendo a forma de pagamento |
+| Meta do mês | Visão geral → "Definir meta" → informar o valor → a barra, o quanto falta e o valor por dia aparecem. O insight "Meta do mês" e o assistente ("quanto falta para minha meta?") dizem o mesmo número |
+| Insight que leva à ação | Visão geral → "O que os números dizem" → botão de um insight que cita produto → abre o Marketing e gera a promoção |
+| Vendas caindo | Registrar vendas de um produto em dias de duas semanas seguidas, com a segunda bem menor → Marketing mostra "Vendas caindo" e "Recupere as vendas" |
 | PIX | Login como admin → aba "Financeiro" → "Cobrança PIX" → preencher e gerar |
 | Marketing IA | Menu "Marketing" → escrever o pedido (ou escolher uma sugestão) → a IA responde no chat |
 | Imagem da campanha | Com `CLOUDFLARE_ACCOUNT_ID`/`CLOUDFLARE_API_TOKEN` (ou `MARKETING_IMAGE_FALLBACK=True`), pedir uma campanha ou post: a imagem aparece dentro da resposta, com botão para baixar. Sem provedor, a campanha sai só com o texto |

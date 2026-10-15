@@ -19,7 +19,7 @@ from apps.businesses.models import Business
 from apps.products.models import Product
 
 from .images import extrair_prompt, gerar_imagem
-from .models import CampaignImage, MarketingCampaign
+from .models import CampaignImage, MarketingCampaign, MarketingMessage
 
 
 # Sem provedor de imagem: estes testes sao do texto da campanha. Fixar aqui
@@ -726,6 +726,37 @@ class ImagemDaCampanhaTests(TestCase):
         self.assertEqual(bytes(imagem.data), PNG)
         self.assertEqual(imagem.provider, "pollinations")
         self.assertTrue(imagem.prompt)
+
+    @override_settings(
+        ANTHROPIC_API_KEY="", DEEPSEEK_API_KEY="", CLOUDFLARE_ACCOUNT_ID="", CLOUDFLARE_API_TOKEN="",
+        MARKETING_IMAGE_FALLBACK=True,
+    )
+    @patch("apps.marketing.images.requests.get")
+    def test_excluir_campanha_apaga_a_imagem_e_mantem_a_conversa(self, get):
+        get.return_value = _resposta_pollinations()
+        campanha = self._gerar().data["campaign_id"]
+
+        resposta = self.client.delete(f"/api/marketing/campaigns/{campanha}/")
+
+        self.assertEqual(resposta.status_code, 204)
+        self.assertFalse(MarketingCampaign.objects.filter(id=campanha).exists())
+        self.assertFalse(CampaignImage.objects.exists())
+        # A mensagem do chat fica, so perde o vinculo com a campanha.
+        mensagem = MarketingMessage.objects.get(role="assistant")
+        self.assertIsNone(mensagem.campaign_id)
+
+    def test_nao_exclui_campanha_de_outro_negocio(self):
+        User = get_user_model()
+        outro = User.objects.create_user(username="z@w.local", email="z@w.local", password="x")
+        alheia = MarketingCampaign.objects.create(
+            business=Business.objects.create(owner=outro, name="Outro"),
+            prompt="x", channel="Instagram", goal="promocao",
+        )
+
+        resposta = self.client.delete(f"/api/marketing/campaigns/{alheia.id}/")
+
+        self.assertEqual(resposta.status_code, 404)
+        self.assertTrue(MarketingCampaign.objects.filter(id=alheia.id).exists())
 
     # DEEPSEEK_API_KEY zerada: um .env com chave real faria o teste chamar a
     # DeepSeek de verdade, gastando credito e mudando o resultado.

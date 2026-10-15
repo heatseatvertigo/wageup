@@ -48,6 +48,14 @@ class Transaction(models.Model):
         IMPORT = "import", "Extrato importado"
         SALE = "sale", "Venda"
 
+    # Mesmos valores de Sale.PaymentMethod. Vazio e "nao informado": extrato
+    # importado e lancamento antigo nao dizem como o dinheiro entrou.
+    class PaymentMethod(models.TextChoices):
+        PIX = "pix", "PIX"
+        CASH = "dinheiro", "Dinheiro"
+        CARD = "cartao", "Cartao"
+        OTHER = "outro", "Outro"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     business = models.ForeignKey(
         "businesses.Business",
@@ -66,6 +74,14 @@ class Transaction(models.Model):
         max_length=16,
         choices=Source.choices,
         default=Source.MANUAL,
+    )
+    # Forma de pagamento, para o dashboard separar PIX, dinheiro e cartao.
+    # Venda copia a da venda; PIX conciliado e sempre PIX.
+    payment_method = models.CharField(
+        max_length=16,
+        choices=PaymentMethod.choices,
+        blank=True,
+        default="",
     )
     # Data do lançamento. Por padrão captura o momento da criação, mas é
     # editável para permitir lançar movimentações retroativas (ex.: um
@@ -144,3 +160,32 @@ class AssistantMessage(models.Model):
 
     class Meta:
         ordering = ["created_at"]
+
+
+class Goal(models.Model):
+    """Meta de faturamento de um mes.
+
+    Mede entradas, nao lucro: e o numero que o MEI acompanha no dia a dia
+    ("quanto entrou") e o que o escopo do TCC usa no exemplo da meta. Uma meta
+    por mes; `month` guarda sempre o dia 1.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    business = models.ForeignKey(
+        "businesses.Business",
+        on_delete=models.CASCADE,
+        related_name="goals",
+    )
+    month = models.DateField()
+    target_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-month"]
+        constraints = [
+            models.UniqueConstraint(fields=["business", "month"], name="meta_unica_por_mes"),
+        ]
+
+    def __str__(self):
+        return f"Meta {self.month:%m/%Y}: {self.target_amount}"
