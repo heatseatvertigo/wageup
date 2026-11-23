@@ -42,6 +42,6 @@ urlpatterns = [
     path('api/payments/', include('apps.payments.urls')),
     path('api/marketing/', include('apps.marketing.urls')),
     path('api/sales/', include('apps.sales.urls')),
-    re_path(r'^(?P<path>app\.js|styles\.css)$', serve, {'document_root': settings.ROOT_DIR / 'frontend'}),
+    re_path(r'^(?P<path>app\.js|a11y\.js|styles\.css)$', serve, {'document_root': settings.ROOT_DIR / 'frontend'}),
     path('', frontend_index, name='frontend-index'),
 ]

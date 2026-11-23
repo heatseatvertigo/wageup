@@ -203,8 +203,10 @@ document.querySelector("[data-logout]").addEventListener("click", async () => {
   await logout();
 });
 
-document.querySelector(".menu-button").addEventListener("click", () => {
-  sidebar.classList.toggle("open");
+document.querySelector(".menu-button").addEventListener("click", (event) => {
+  const open = sidebar.classList.toggle("open");
+  event.currentTarget.setAttribute("aria-expanded", String(open));
+  event.currentTarget.setAttribute("aria-label", open ? "Fechar menu" : "Abrir menu");
 });
 
 document.querySelectorAll("[data-demo-view]").forEach((button) => {
@@ -216,6 +218,11 @@ document.querySelectorAll("[data-view]").forEach((button) => {
     if (button.dataset.adminOnly !== undefined && !canAccessFinance()) return;
     setView(button.dataset.view);
     sidebar.classList.remove("open");
+    const menu = document.querySelector(".menu-button");
+    menu?.setAttribute("aria-expanded", "false");
+    menu?.setAttribute("aria-label", "Abrir menu");
+    // Quem usa leitor de tela não vê o conteúdo trocar: avisa qual tela abriu.
+    window.a11yAnnounce?.(`${title.textContent}. Tela aberta.`);
     // Clique de mouse (detail > 0) solta o foco: com o foco preso, a barra
     // lateral ficava expandida e recolhia no primeiro clique no conteúdo,
     // deslocando a tela embaixo do cursor e perdendo o clique. Pelo teclado
@@ -1159,7 +1166,11 @@ function setView(viewName) {
     view.classList.toggle("active", view.id === viewName);
   });
   document.querySelectorAll(".side-nav button").forEach((button) => {
-    button.classList.toggle("active", button.dataset.view === viewName);
+    const ativo = button.dataset.view === viewName;
+    button.classList.toggle("active", ativo);
+    // A classe é só visual: aria-current diz ao leitor de tela onde se está.
+    if (ativo) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
   });
 
   // O grupo Financeiro fica aberto e destacado enquanto uma de suas views

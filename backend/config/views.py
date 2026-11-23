@@ -5,7 +5,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 # Arquivos do frontend que recebem versao na URL.
-VERSIONED_ASSETS = ("styles.css", "app.js")
+VERSIONED_ASSETS = ("styles.css", "app.js", "a11y.js")
 
 
 @api_view(["GET"])

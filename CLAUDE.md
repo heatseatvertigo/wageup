@@ -246,6 +246,9 @@ GET             /api/health/                 # Health check (aberto, sem throttl
 26. **Vendas caindo** (`gather_signals` em `marketing/recommendations.py`): unidades dos últimos 7 dias contra os 7 anteriores, com queda de 30% ou mais e pelo menos 3 unidades na semana anterior, para uma venda a menos não virar alarme. Vira a situação "Vendas caindo", recomendação "Recupere as vendas" (antes da estreia de produto nunca divulgado), insight e linha no contexto do assistente. A ação é promoção, não post de lançamento: o produto já é conhecido.
 
 27. **Forma de pagamento no lançamento** (`Transaction.payment_method`, mesmos valores de `Sale.PaymentMethod`): a venda copia a dela, o PIX conciliado é sempre PIX, o lançamento manual escolhe, e o extrato fica "não informado". A migração preencheu o histórico só onde a origem diz a forma; inventar para o resto faria o painel "Como o dinheiro entrou" afirmar algo que ninguém registrou.
+
+28. **Acessibilidade em `frontend/a11y.js`, separada do `app.js`**: carregado no `<head>` sem `defer`, aplica as preferências salvas (`localStorage` `wageup:a11y`) como atributos no `<html>` (`data-font`, `data-contrast`, `data-spacing`, `data-reduce-motion`) antes da primeira pintura; o CSS redefine os tokens por esses atributos, então componente novo acompanha sem regra própria. O mesmo arquivo prende o Tab dentro de `.modal`, `.drawer` e `.pix-screen` abertos e devolve o foco a quem abriu — os modais do `app.js` não precisam fazer isso cada um. Libras é o VLibras do Governo Federal (script de `vlibras.gov.br`, cria o próprio botão); a leitura em voz alta usa a Web Speech API do navegador. Quem usa leitor de tela tem o próprio programa: a plataforma garante rótulos, `aria-current`, `aria-live` e foco corretos. Arquivo novo na raiz do frontend precisa entrar na rota de `config/urls.py` e em `VERSIONED_ASSETS` de `config/views.py`.
+
 ---
 
 ## Deploy no Render + Neon
@@ -284,6 +287,7 @@ Para domínio próprio: configurar `CUSTOM_DOMAIN=seudominio.com` nas variáveis
 - [backend/apps/accounts/throttles.py](backend/apps/accounts/throttles.py) — limites de requisição por rota
 - [backend/apps/businesses/management/commands/seed_demo.py](backend/apps/businesses/management/commands/seed_demo.py) — conta de demonstração com dados realistas
 - [frontend/app.js](frontend/app.js) — toda a lógica do SPA
+- [frontend/a11y.js](frontend/a11y.js) — painel de acessibilidade, foco nos diálogos e VLibras
 - [frontend/styles.css](frontend/styles.css) — CSS atual do SPA
 - [frontend/index.html](frontend/index.html) — HTML do SPA
 - [design-system.md](design-system.md) — **Design system completo** (cores, tipografia, componentes)
