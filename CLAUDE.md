@@ -158,6 +158,12 @@ GET    /api/auth/me/
 PATCH  /api/auth/onboarding/
 POST   /api/auth/password-reset/            # Pede o link de recuperacao por e-mail
 POST   /api/auth/password-reset/confirm/    # Troca a senha usando uid + token do link
+GET    /api/auth/profile/                   # Resumo do perfil: negócio, números do mês, produtos (meta e PIX só admin)
+PATCH/DELETE /api/auth/account/             # Nome e e-mail (e-mail pede senha) / apaga a conta (senha + "EXCLUIR")
+POST   /api/auth/password/                  # Troca a senha logado; devolve token novo e derruba os outros
+GET/PATCH /api/auth/business/               # Perfil do negócio e taxa/imposto padrão dos produtos
+GET    /api/auth/connections/               # O que está ligado (PIX, IA, imagens, extrato, Google), sem chaves
+GET    /api/auth/export/                    # Arquivo JSON com os dados da conta (LGPD)
 
 GET/POST        /api/products/               # Filtrado por business do usuário
 GET/POST/DELETE /api/products/<id>/image/    # Foto do produto, guardada no banco
@@ -251,6 +257,8 @@ GET             /api/health/                 # Health check (aberto, sem throttl
 
 29. **Site público com uma página por módulo** (`frontend/site.js`): home em `/` e páginas em `/vendas`, `/financeiro`, `/pix`, `/marketing`, `/assistente`, `/para-quem`, `/acessibilidade` e `/perguntas` — cada item do cabeçalho leva a uma página, não a uma âncora da home. Todas são o mesmo `index.html`, cada uma num `.lp-page`; o `site.js` mostra a do endereço e troca com `history.pushState` (links com `data-route`), sem recarregar. O Django serve o HTML nesses caminhos (`config/urls.py`) e redireciona a versão com barra no fim, porque os assets são relativos à raiz. Página nova: um `.lp-page` no HTML, a rota em `ROUTES` do `site.js` e o caminho no `re_path` de `config/urls.py`. O cabeçalho muda de cor pela seção que passa por baixo dele (`data-nav="dark"` nas faixas escuras). A home não usa foto de pessoa nem depoimento: o topo parte da dor do MEI e mostra a plataforma num computador e num celular, desenhados em HTML com os números da conta de demonstração — a plataforma ainda não foi avaliada com clientes reais, então nada ali pode parecer resultado de cliente. O cabeçalho junta ao logo o nome da página ou da seção ao rolar (`data-lockup`, "wageup▲pix") quando cabe antes do primeiro link, e a rolagem suave (Lenis) só liga no site público e sem "menos movimento"; a única imagem é a campanha gerada pelo marketing (`frontend/landing/`).
 
+30. **Perfil e configurações moram na conta** (`apps/accounts/conta.py`): o botão da conta, no pé da barra lateral, abre um cartão com o resumo do negócio e leva ao Perfil do negócio e às Configurações (Conta, Negócio, Dinheiro, Conexões, Privacidade e dados). Os números do perfil vêm das vendas, que admin e membro veem; meta e PIX pendente só vão para o admin. Trocar e-mail, trocar senha e apagar a conta pedem a senha atual e usam `PasswordCheckRateThrottle` (o `LoginRateThrottle` é de visitante e não conta quem já está logado). Trocar a senha troca o token, derrubando os outros aparelhos. O CNPJ digitado vai em `Business.cnpj`, validado também no formato alfanumérico de 2026; `Business.document` continua sendo o marcador do `seed_demo`. Taxa e imposto padrão (`Business.default_fee_percent`/`default_tax_percent`) só preenchem o produto novo, e "aplicar aos produtos já cadastrados" é opcional. Conexões mostram o estado de cada integração sem expor chave. Exportar dados devolve um JSON (o membro não recebe o financeiro) e excluir a conta apaga o negócio inteiro.
+
 ---
 
 ## Deploy no Render + Neon
@@ -274,6 +282,8 @@ Para domínio próprio: configurar `CUSTOM_DOMAIN=seudominio.com` nas variáveis
 - [backend/apps/accounts/emails.py](backend/apps/accounts/emails.py) — e-mail de recuperação de senha
 - [backend/apps/accounts/email_backends.py](backend/apps/accounts/email_backends.py) — backend de e-mail via API do Resend
 - [backend/apps/accounts/tests.py](backend/apps/accounts/tests.py) — testes da recuperação de senha
+- [backend/apps/accounts/conta.py](backend/apps/accounts/conta.py) — perfil e configurações: conta, senha, negócio, conexões, exportar e excluir
+- [backend/apps/accounts/test_conta.py](backend/apps/accounts/test_conta.py) — testes do perfil e das configurações
 - [backend/apps/payments/services.py](backend/apps/payments/services.py) — cliente Abacate Pay
 - [backend/apps/payments/tests.py](backend/apps/payments/tests.py) — testes do PIX: webhook, conciliação com o financeiro e isolamento
 - [backend/apps/sales/services.py](backend/apps/sales/services.py) — regras da venda: estoque, lucro real, lançamento no financeiro, PIX de produto
