@@ -21,29 +21,14 @@
   // "R$ 1.234,56", com o sinal de menos tipográfico antes do R$.
   const money = (v) => (v < 0 ? "−" : "") + "R$ " + fmt(Math.abs(v), 2);
 
-  // ─── Rolagem suave ───────────────────────────────────────────────────────
-  // Lenis dá inércia à roda do mouse; o toque e o teclado seguem nativos.
-  // Só no site público e sem "menos movimento": no app, nos painéis e para
-  // quem pediu menos movimento, a rolagem é a do navegador.
-  let lenis = null;
-  const tick = (t) => lenis && lenis.raf(t * 1000);
-  function ligarRolagem() {
-    if (lenis || !hasGsap || reduced() || typeof Lenis === "undefined" || shell.classList.contains("is-hidden")) return;
-    lenis = new Lenis({ duration: 1.05, smoothWheel: true });
-    lenis.on("scroll", ScrollTrigger.update);
-    gsap.ticker.add(tick);
-    gsap.ticker.lagSmoothing(0);
-  }
-  function desligarRolagem() {
-    if (!lenis) return;
-    gsap.ticker.remove(tick);
-    lenis.destroy();
-    lenis = null;
-  }
+  // ─── Rolagem ─────────────────────────────────────────────────────────────
+  // A do navegador. A rolagem suave com inércia (Lenis) segurava a página e a
+  // soltava aos poucos: no trackpad parecia travada, e cada giro da roda fazia
+  // tudo o que depende da rolagem rodar a cada quadro por mais um segundo.
   function rolarPara(alvo, { imediato = false } = {}) {
-    if (lenis) lenis.scrollTo(alvo, { immediate: imediato, offset: typeof alvo === "number" ? 0 : -88 });
-    else if (typeof alvo === "number") window.scrollTo({ top: alvo, behavior: imediato || reduced() ? "instant" : "smooth" });
-    else alvo.scrollIntoView({ behavior: imediato || reduced() ? "auto" : "smooth" });
+    const comportamento = imediato || reduced() ? "instant" : "smooth";
+    if (typeof alvo === "number") window.scrollTo({ top: alvo, behavior: comportamento });
+    else alvo.scrollIntoView({ behavior: comportamento });
   }
 
   // ─── Páginas ─────────────────────────────────────────────────────────────
@@ -97,7 +82,7 @@
     }
     closeMenus();
 
-    setTimeout(paintNav, 0);
+    setTimeout(remedir, 0);
     const target = hash && document.getElementById(hash.slice(1));
     if (target) {
       // Espera a página nova ter altura antes de rolar até a seção.
@@ -232,32 +217,58 @@
     nav.classList.toggle("is-lockup-tight", texto.scrollWidth > espaco);
   }
 
-  function paintNav() {
-    const linha = nav.getBoundingClientRect().bottom;
-    // Quanto da página já foi lido.
-    const total = document.documentElement.scrollHeight - window.innerHeight;
-    progresso.style.transform = `scaleX(${total > 0 ? Math.min(1, window.scrollY / total) : 0})`;
-    // Rótulo: a última marca que já passou por baixo do cabeçalho.
+  // As posições das seções mudam só quando a página troca ou a janela muda
+  // de tamanho. Medir tudo a cada evento de rolagem, intercalando leitura e
+  // escrita, forçava o navegador a refazer o layout várias vezes por quadro.
+  // Agora mede uma vez e, na rolagem, só compara números.
+  let mapa = null; // { marcas: [{top, rotulo}], escuras: [{top, bottom}], total }
+  function medirPagina() {
     const pagina = current && pages.get(current);
+    const y = window.scrollY;
+    const topoDoc = (el) => el.getBoundingClientRect().top + y;
+    mapa = {
+      marcas: pagina ? $$("[data-lockup]", pagina).map((el) => ({ top: topoDoc(el), rotulo: el.dataset.lockup })) : [],
+      escuras: $$("[data-nav='dark']", shell)
+        .filter((el) => !el.closest(".lp-page[hidden]"))
+        .map((el) => { const r = el.getBoundingClientRect(); return { top: r.top + y, bottom: r.bottom + y }; }),
+      total: document.documentElement.scrollHeight - window.innerHeight,
+      altura: nav.offsetHeight
+    };
+  }
+
+  function paintNav() {
+    if (shell.classList.contains("is-hidden")) return;
+    if (!mapa) medirPagina();
+    const y = window.scrollY;
+    const linha = y + mapa.altura;
+    progresso.style.transform = `scaleX(${mapa.total > 0 ? Math.min(1, y / mapa.total) : 0})`;
+    // Rótulo: a última marca que já passou por baixo do cabeçalho.
     let rotulo = "";
-    if (pagina) $$("[data-lockup]", pagina).forEach((el) => {
-      if (el.getBoundingClientRect().top <= linha + 4) rotulo = el.dataset.lockup;
-    });
+    for (const m of mapa.marcas) if (m.top <= linha + 4) rotulo = m.rotulo;
     trocarRotulo(rotulo);
-    medirRotulo();
 
     if (nav.classList.contains("is-open")) { nav.classList.remove("is-light"); return; }
-    const escuras = $$("[data-nav='dark']", shell).filter((el) => !el.closest(".lp-page[hidden]"));
-    const sobreEscura = escuras.some((el) => {
-      const r = el.getBoundingClientRect();
-      return r.top <= linha && r.bottom > linha;
-    });
+    const sobreEscura = mapa.escuras.some((r) => r.top <= linha && r.bottom > linha);
     nav.classList.toggle("is-light", !sobreEscura);
   }
-  // Direto no evento: são poucas medidas, e requestAnimationFrame para quando
-  // a aba fica em segundo plano.
-  window.addEventListener("scroll", paintNav, { passive: true });
-  window.addEventListener("resize", paintNav);
+
+  // Um cálculo por quadro, no máximo: o evento de rolagem chega várias vezes
+  // por quadro em alguns trackpads.
+  let quadro = 0;
+  function aoRolar() {
+    if (quadro) return;
+    quadro = requestAnimationFrame(() => { quadro = 0; paintNav(); });
+  }
+  function remedir() {
+    mapa = null;
+    paintNav();
+    medirRotulo();
+  }
+  window.addEventListener("scroll", aoRolar, { passive: true });
+  window.addEventListener("resize", remedir);
+  // Fontes e imagens que chegam depois mudam a altura das seções.
+  window.addEventListener("load", remedir);
+  document.fonts?.ready.then(remedir);
 
   // ─── Perguntas: só a pergunta aparece; a resposta abre em cascata ────────
   // Abre ao passar o mouse (com uma pausa curta, para não abrir tudo no
@@ -574,14 +585,9 @@
           .from($(".mp-hero__inner > :last-child", hero), { y: 32, opacity: 0 }, 0.15);
       }
 
-      // O "▲" do fundo desce devagar com a rolagem.
-      $$(".lp-top, .mp-hero", page).forEach((el) => {
-        gsap.to(el, {
-          "--sprout-y": "160px",
-          ease: "none",
-          scrollTrigger: { trigger: el, start: "top top", end: "bottom top", scrub: true }
-        });
-      });
+      // O "▲" do fundo fica parado. Ele descia com a rolagem por uma variável
+      // CSS, e variável é herdada: cada quadro recalculava o estilo do topo
+      // inteiro (266 vezes o custo de mover um elemento só).
 
       // O resto entra quando aparece, seção por seção, em cascata.
       $$(":scope > section", page).forEach((section) => {
@@ -626,21 +632,19 @@
     ScrollTrigger.refresh();
   }
 
-  // A landing some (vira app) e volta (logout): recalcula as posições e liga
-  // ou desliga a rolagem suave, que é só do site.
+  // Com o app aberto o site fica escondido: os gatilhos de rolagem do site
+  // param, para não rodarem a cada rolagem do app. Na volta, religam e medem
+  // de novo.
   new MutationObserver(() => {
-    if (shell.classList.contains("is-hidden")) { desligarRolagem(); return; }
-    ligarRolagem();
-    if (hasGsap) ScrollTrigger.refresh();
+    const escondido = shell.classList.contains("is-hidden");
+    if (hasGsap) ScrollTrigger.getAll().forEach((t) => (escondido ? t.disable(false) : t.enable()));
+    if (escondido) return;
+    // Depois da primeira pintura: medir tudo antes atrasava o site aparecer.
+    setTimeout(() => {
+      if (hasGsap) ScrollTrigger.refresh();
+      remedir();
+    }, 60);
   }).observe(shell, { attributes: true, attributeFilter: ["class"] });
-
-  // Pediu menos movimento no painel de acessibilidade: a rolagem volta a ser
-  // a do navegador na hora, sem recarregar.
-  new MutationObserver(() => {
-    if (reduced()) desligarRolagem(); else ligarRolagem();
-  }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-reduce-motion"] });
-
-  ligarRolagem();
 
   // Primeira página: a do endereço.
   show(routeOf(location.pathname) || "home", { hash: location.hash });

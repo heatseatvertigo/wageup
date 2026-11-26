@@ -4285,11 +4285,6 @@ button.account-chip:focus-visible { outline: none; box-shadow: var(--shadow-focu
 .lp-progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; pointer-events: none; }
 .lp-progress i { display: block; height: 100%; background: var(--color-brand-mid); transform-origin: left; transform: scaleX(0); }
 
-/* ─── Rolagem suave (Lenis): o scroll-behavior do html briga com ela ─── */
-html.lenis, html.lenis body { height: auto; }
-html.lenis { scroll-behavior: auto; }
-html.lenis.lenis-stopped { overflow: hidden; }
-.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
 
 .lp-float {
   position: absolute;
