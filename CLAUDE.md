@@ -16,7 +16,7 @@ O escopo completo está em `Escopo TCC.pdf`, dentro de `docs/` (pasta local, nã
 **Backend**: Django 6 + Django REST Framework, autenticação por Token.
 **Frontend**: SPA em vanilla JS (sem framework), servido pelo próprio Django via WhiteNoise.
 **Pagamentos**: Abacate Pay (PIX). Integração em `backend/apps/payments/services.py`.
-**IA**: DeepSeek (`deepseek-chat`) para o assistente financeiro e o chat de marketing, com a Anthropic (Claude Haiku, `claude-haiku-4-5-20251001`) como alternativa e resposta local quando não há nenhuma chave. Os insights do dashboard e as recomendações de marketing usam a Anthropic.
+**IA**: DeepSeek (`deepseek-chat`) para o assistente financeiro, o chat de marketing, os insights do dashboard e as recomendações de marketing, com a Anthropic (Claude Haiku, `claude-haiku-4-5-20251001`) como alternativa e regras locais quando não há nenhuma chave ou as duas falham. Insights e recomendações passam por `consultar_ia` em `finance/insights.py`.
 **Deploy**: Render (aplicação) + Neon (PostgreSQL). Produção em https://wageup.onrender.com. Ver [DEPLOY-RENDER.md](DEPLOY-RENDER.md).
 
 ### Apps Django
@@ -109,8 +109,8 @@ Arquivo `.env` na raiz do projeto (não commitado). Ver `.env.example` para refe
 | `ABACATE_PAY_API_KEY` | Chave da Abacate Pay para gerar PIX |
 | `ABACATE_PAY_WEBHOOK_SECRET` | Segredo do webhook da Abacate Pay |
 | `WAGEUP_ADMIN_EMAILS` | E-mails com role admin (ex: `admin@wageup.com`) |
-| `ANTHROPIC_API_KEY` | Chave da Anthropic — insights, recomendações e alternativa à DeepSeek nos chats |
-| `DEEPSEEK_API_KEY` | Chave da DeepSeek — assistente financeiro e chat de marketing |
+| `ANTHROPIC_API_KEY` | Chave da Anthropic — alternativa à DeepSeek em todos os pontos de IA |
+| `DEEPSEEK_API_KEY` | Chave da DeepSeek — assistente, chat de marketing, insights e recomendações |
 | `DEEPSEEK_BASE_URL` | Endpoint da DeepSeek (default `https://api.deepseek.com`) |
 | `DEEPSEEK_MODEL` | Modelo da DeepSeek (default `deepseek-chat`) |
 | `GOOGLE_CLIENT_ID` | Client ID do Google — habilita o login com Google |
@@ -246,6 +246,11 @@ GET             /api/health/                 # Health check (aberto, sem throttl
 26. **Vendas caindo** (`gather_signals` em `marketing/recommendations.py`): unidades dos últimos 7 dias contra os 7 anteriores, com queda de 30% ou mais e pelo menos 3 unidades na semana anterior, para uma venda a menos não virar alarme. Vira a situação "Vendas caindo", recomendação "Recupere as vendas" (antes da estreia de produto nunca divulgado), insight e linha no contexto do assistente. A ação é promoção, não post de lançamento: o produto já é conhecido.
 
 27. **Forma de pagamento no lançamento** (`Transaction.payment_method`, mesmos valores de `Sale.PaymentMethod`): a venda copia a dela, o PIX conciliado é sempre PIX, o lançamento manual escolhe, e o extrato fica "não informado". A migração preencheu o histórico só onde a origem diz a forma; inventar para o resto faria o painel "Como o dinheiro entrou" afirmar algo que ninguém registrou.
+
+28. **Acessibilidade em `frontend/a11y.js`, separada do `app.js`**: carregado no `<head>` sem `defer`, aplica as preferências salvas (`localStorage` `wageup:a11y`) como atributos no `<html>` (`data-font`, `data-contrast`, `data-spacing`, `data-reduce-motion`) antes da primeira pintura; o CSS redefine os tokens por esses atributos, então componente novo acompanha sem regra própria. O mesmo arquivo prende o Tab dentro de `.modal`, `.drawer` e `.pix-screen` abertos e devolve o foco a quem abriu — os modais do `app.js` não precisam fazer isso cada um. Libras é o VLibras do Governo Federal (script de `vlibras.gov.br`, cria o próprio botão); a leitura em voz alta usa a Web Speech API do navegador. Quem usa leitor de tela tem o próprio programa: a plataforma garante rótulos, `aria-current`, `aria-live` e foco corretos. Arquivo novo na raiz do frontend precisa entrar na rota de `config/urls.py` e em `VERSIONED_ASSETS` de `config/views.py`.
+
+29. **Site público com uma página por módulo** (`frontend/site.js`): home em `/` e páginas em `/vendas`, `/financeiro`, `/pix`, `/marketing`, `/assistente`, `/para-quem`, `/acessibilidade` e `/perguntas` — cada item do cabeçalho leva a uma página, não a uma âncora da home. Todas são o mesmo `index.html`, cada uma num `.lp-page`; o `site.js` mostra a do endereço e troca com `history.pushState` (links com `data-route`), sem recarregar. O Django serve o HTML nesses caminhos (`config/urls.py`) e redireciona a versão com barra no fim, porque os assets são relativos à raiz. Página nova: um `.lp-page` no HTML, a rota em `ROUTES` do `site.js` e o caminho no `re_path` de `config/urls.py`. O cabeçalho muda de cor pela seção que passa por baixo dele (`data-nav="dark"` nas faixas escuras). A home não usa foto de pessoa nem depoimento: o topo parte da dor do MEI e mostra a plataforma num computador e num celular, desenhados em HTML com os números da conta de demonstração — a plataforma ainda não foi avaliada com clientes reais, então nada ali pode parecer resultado de cliente. O cabeçalho junta ao logo o nome da página ou da seção ao rolar (`data-lockup`, "wageup▲pix") quando cabe antes do primeiro link, e a rolagem suave (Lenis) só liga no site público e sem "menos movimento"; a única imagem é a campanha gerada pelo marketing (`frontend/landing/`).
+
 ---
 
 ## Deploy no Render + Neon
@@ -284,6 +289,8 @@ Para domínio próprio: configurar `CUSTOM_DOMAIN=seudominio.com` nas variáveis
 - [backend/apps/accounts/throttles.py](backend/apps/accounts/throttles.py) — limites de requisição por rota
 - [backend/apps/businesses/management/commands/seed_demo.py](backend/apps/businesses/management/commands/seed_demo.py) — conta de demonstração com dados realistas
 - [frontend/app.js](frontend/app.js) — toda a lógica do SPA
+- [frontend/a11y.js](frontend/a11y.js) — painel de acessibilidade, foco nos diálogos e VLibras
+- [frontend/site.js](frontend/site.js) — site público: páginas por endereço, calculadora, demo de PIX e animações
 - [frontend/styles.css](frontend/styles.css) — CSS atual do SPA
 - [frontend/index.html](frontend/index.html) — HTML do SPA
 - [design-system.md](design-system.md) — **Design system completo** (cores, tipografia, componentes)

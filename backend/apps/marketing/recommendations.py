@@ -5,9 +5,10 @@ Item do escopo do TCC. A diferenca em relacao aos insights do dashboard
 diagnostico, aqui cada recomendacao ja vem com produto, canal e objetivo
 preenchidos, prontos para virar campanha num clique.
 
-Mesmo padrao dos outros pontos de IA do projeto: Claude Haiku quando ha
-ANTHROPIC_API_KEY, regras locais quando nao ha ou quando a chamada falha. A
-tela nunca fica vazia por causa de configuracao.
+Mesmo padrao dos outros pontos de IA do projeto: DeepSeek, depois Claude Haiku
+(Anthropic), depois regras locais quando nao ha chave ou a chamada falha
+(`consultar_ia`, em apps/finance/insights.py). A tela nunca fica vazia por
+causa de configuracao.
 
 As recomendacoes saem dos numeros do `Product` — `margin_value`,
 `margin_percent`, `is_low_stock` — e nao de preco menos custo: divulgar o
@@ -24,7 +25,7 @@ import anthropic as anthropic_sdk
 from django.conf import settings
 from django.utils import timezone
 
-from apps.finance.insights import brl
+from apps.finance.insights import brl, consultar_ia
 from apps.products.models import Product
 from apps.sales.models import Sale
 from apps.sales.services import intervalo_do_mes, resumo_vendas
@@ -150,13 +151,13 @@ def build_recommendations(business):
     if not sinais["products"]:
         return "local-demo", _sem_produtos()
 
-    provider, recomendacoes = "local-demo", None
-    if settings.ANTHROPIC_API_KEY:
-        try:
-            provider, recomendacoes = "anthropic", _call_claude(business, sinais)
-        except Exception:
-            logger.exception("Falha ao gerar recomendações de marketing. Usando as regras locais.")
-    if recomendacoes is None:
+    system_prompt, user_message = _prompt(business, sinais)
+    provider, recomendacoes = consultar_ia(
+        system_prompt, user_message, 900,
+        ler=lambda raw: _parse(raw, sinais),
+        claude=_call_claude,
+    )
+    if not recomendacoes:
         provider, recomendacoes = "local-demo", _fallback(sinais)
 
     # O botao de cada cartao depende da situacao do produto, nao do texto que
@@ -256,7 +257,7 @@ def situacao_dos_produtos(business):
     return linhas
 
 
-def _call_claude(business, sinais):
+def _prompt(business, sinais):
     system_prompt = (
         "Você é um consultor de marketing para microempreendedores brasileiros. "
         "Recomenda ações concretas, uma por produto, sempre justificadas pelos números "
@@ -309,14 +310,18 @@ def _call_claude(business, sinais):
         f"- goal: um de {', '.join(OBJETIVOS)}"
     )
 
+    return system_prompt, user_message
+
+
+def _call_claude(system_prompt, user_message, max_tokens):
     client = anthropic_sdk.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
-        max_tokens=900,
+        max_tokens=max_tokens,
         system=system_prompt,
         messages=[{"role": "user", "content": user_message}],
     )
-    return _parse(message.content[0].text, sinais)
+    return message.content[0].text
 
 
 def _parse(raw, sinais):

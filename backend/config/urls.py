@@ -16,6 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path, re_path
+from django.views.generic import RedirectView
 from django.views.static import serve
 from django.conf import settings
 
@@ -42,6 +43,10 @@ urlpatterns = [
     path('api/payments/', include('apps.payments.urls')),
     path('api/marketing/', include('apps.marketing.urls')),
     path('api/sales/', include('apps.sales.urls')),
-    re_path(r'^(?P<path>app\.js|styles\.css)$', serve, {'document_root': settings.ROOT_DIR / 'frontend'}),
+    re_path(r'^(?P<path>app\.js|a11y\.js|site\.js|styles\.css)$', serve, {'document_root': settings.ROOT_DIR / 'frontend'}),
     path('', frontend_index, name='frontend-index'),
+    # Paginas do site publico: o mesmo HTML, e o site.js abre a pagina pelo
+    # endereco. Com barra no fim, redireciona: os assets sao relativos a raiz.
+    re_path(r'^(?:vendas|financeiro|pix|marketing|assistente|para-quem|acessibilidade|perguntas)$', frontend_index, name='frontend-page'),
+    re_path(r'^(?P<page>vendas|financeiro|pix|marketing|assistente|para-quem|acessibilidade|perguntas)/$', RedirectView.as_view(url='/%(page)s', permanent=True)),
 ]

@@ -1,7 +1,8 @@
 """Geração de insights de negócio cruzando finanças, recebíveis e produtos.
 
-Segue o mesmo padrão do marketing (apps/marketing/views.py): usa o Claude Haiku
-quando ANTHROPIC_API_KEY está configurada e cai para regras locais caso contrário.
+Provedores na mesma ordem do assistente e do chat de marketing: DeepSeek, depois
+Claude Haiku (Anthropic), depois regras locais (`consultar_ia`). A tela nunca fica
+sem insights por falta de chave ou por falha do provedor.
 
 Os números são do mês corrente, como os cards ao lado. O total acumulado desde o
 primeiro lançamento contradizia o "Lucro do mês" na mesma tela.
@@ -11,6 +12,7 @@ Um insight que cita um produto traz `action`: o botão leva à ação no marketi
 texto da IA, como nas recomendações do marketing.
 """
 import json
+import logging
 import re
 from datetime import timedelta
 
@@ -22,6 +24,8 @@ from apps.finance.models import Transaction
 from apps.payments.models import Payment
 from apps.products.models import Product
 from apps.sales.services import intervalo_do_mes, resumo_vendas
+
+logger = logging.getLogger(__name__)
 
 # Usado so para o produto que ficou sem `min_stock` definido: sem um limite
 # proprio, "estoque baixo" precisa de algum ponto de corte.
@@ -131,16 +135,50 @@ def build_insights(business):
     metrics = gather_metrics(business)
     sinais = gather_signals(business)
 
-    provider, insights = "local-demo", None
-    if settings.ANTHROPIC_API_KEY:
-        try:
-            provider, insights = "anthropic", _call_claude(business, metrics, sinais)
-        except Exception:
-            # Se a IA falhar por qualquer motivo, não deixa a tela sem insights.
-            insights = None
-    if insights is None:
+    system_prompt, user_message = _prompt_insights(business, metrics, sinais)
+    provider, insights = consultar_ia(
+        system_prompt, user_message, 700,
+        ler=lambda raw: _parse_insights(raw, sinais),
+        claude=_call_claude,
+    )
+    if not insights:
+        # Sem chave ou com a IA fora do ar, a tela não fica sem insights.
         provider, insights = "local-demo", _fallback_insights(metrics, sinais)
     return provider, insights
+
+
+def consultar_ia(system_prompt, user_message, max_tokens, ler, claude):
+    """Pede a resposta à DeepSeek e, se falhar ou vier ilegível, à Anthropic.
+
+    `ler` transforma o texto do modelo no resultado (None se não der); `claude`
+    é a chamada à Anthropic de quem pede. Devolve (provider, resultado), ou
+    (None, None) quando não há chave ou todos falharam: quem chama usa as
+    regras locais. Usada também pelas recomendações do marketing.
+    """
+    provedores = []
+    if settings.DEEPSEEK_API_KEY:
+        provedores.append(("deepseek", _texto_deepseek))
+    if settings.ANTHROPIC_API_KEY:
+        provedores.append(("anthropic", claude))
+    for nome, chamar in provedores:
+        try:
+            resultado = ler(chamar(system_prompt, user_message, max_tokens))
+        except Exception:
+            logger.exception("Falha ao consultar %s. Tentando a próxima opção.", nome)
+            continue
+        if resultado:
+            return nome, resultado
+    return None, None
+
+
+def _texto_deepseek(system_prompt, user_message, max_tokens):
+    # Import tardio: o assistente importa este módulo.
+    from apps.finance.assistant import _call_deepseek
+
+    return _call_deepseek(
+        system_prompt, [{"role": "user", "content": user_message}],
+        max_tokens=max_tokens, temperature=0.3,
+    )
 
 
 def _acao(produto):
@@ -162,8 +200,7 @@ def _variacao(atual, anterior):
     return f"{abs(diferenca):.0f}% {'acima' if diferenca > 0 else 'abaixo'}"
 
 
-def _call_claude(business, m, sinais):
-    import anthropic as anthropic_sdk
+def _prompt_insights(business, m, sinais):
     from apps.marketing.recommendations import JANELA_QUEDA_DIAS
 
     system_prompt = (
@@ -221,15 +258,20 @@ def _call_claude(business, m, sinais):
         "product_name é o nome exato do produto que o insight cita, ou vazio."
     )
 
+    return system_prompt, user_message
+
+
+def _call_claude(system_prompt, user_message, max_tokens):
+    import anthropic as anthropic_sdk
+
     client = anthropic_sdk.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
-        max_tokens=700,
+        max_tokens=max_tokens,
         system=system_prompt,
         messages=[{"role": "user", "content": user_message}],
     )
-    raw = message.content[0].text
-    return _parse_insights(raw, sinais)
+    return message.content[0].text
 
 
 def _parse_insights(raw, sinais):

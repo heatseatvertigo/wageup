@@ -27,6 +27,7 @@ from .models import Sale
 SEGREDO = "segredo_teste"
 
 
+@override_settings(DEEPSEEK_API_KEY="")
 class _VendasBase(TestCase):
     def setUp(self):
         cache.clear()

@@ -142,7 +142,7 @@ const demoContent = {
 // ─── Event Listeners ─────────────────────────────────────────────────────────
 
 document.querySelectorAll("[data-open-app]").forEach((button) => {
-  button.addEventListener("click", () => openEntryFlow());
+  button.addEventListener("click", () => openEntryFlow(button.dataset.openApp === "register" ? "register" : "login"));
 });
 
 document.querySelectorAll("[data-close-app]").forEach((button) => {
@@ -161,40 +161,6 @@ document.querySelectorAll("[data-close-auth]").forEach((button) => {
   });
 });
 
-const moduleDetails = new Map();
-document.querySelectorAll(".module-detail").forEach((section) => {
-  const key = section.id.replace(/^page-/, "");
-  moduleDetails.set(key, section);
-});
-
-document.querySelectorAll("[data-open-module]").forEach((trigger) => {
-  trigger.addEventListener("click", (event) => {
-    event.preventDefault();
-    openModulePage(trigger.dataset.openModule);
-  });
-});
-
-document.querySelectorAll("[data-close-module]").forEach((button) => {
-  button.addEventListener("click", () => closeModulePage());
-});
-
-function openModulePage(key) {
-  const target = moduleDetails.get(key);
-  if (!target) return;
-
-  moduleDetails.forEach((section) => section.classList.add("is-hidden"));
-  siteShell.classList.add("is-hidden");
-  target.classList.remove("is-hidden");
-  sidebar.classList.remove("open");
-  window.scrollTo({ top: 0, behavior: "instant" });
-}
-
-function closeModulePage() {
-  moduleDetails.forEach((section) => section.classList.add("is-hidden"));
-  siteShell.classList.remove("is-hidden");
-  window.scrollTo({ top: 0, behavior: "instant" });
-}
-
 document.querySelectorAll("[data-auth-tab]").forEach((button) => {
   button.addEventListener("click", () => setAuthTab(button.dataset.authTab));
 });
@@ -203,8 +169,10 @@ document.querySelector("[data-logout]").addEventListener("click", async () => {
   await logout();
 });
 
-document.querySelector(".menu-button").addEventListener("click", () => {
-  sidebar.classList.toggle("open");
+document.querySelector(".menu-button").addEventListener("click", (event) => {
+  const open = sidebar.classList.toggle("open");
+  event.currentTarget.setAttribute("aria-expanded", String(open));
+  event.currentTarget.setAttribute("aria-label", open ? "Fechar menu" : "Abrir menu");
 });
 
 document.querySelectorAll("[data-demo-view]").forEach((button) => {
@@ -216,6 +184,11 @@ document.querySelectorAll("[data-view]").forEach((button) => {
     if (button.dataset.adminOnly !== undefined && !canAccessFinance()) return;
     setView(button.dataset.view);
     sidebar.classList.remove("open");
+    const menu = document.querySelector(".menu-button");
+    menu?.setAttribute("aria-expanded", "false");
+    menu?.setAttribute("aria-label", "Abrir menu");
+    // Quem usa leitor de tela não vê o conteúdo trocar: avisa qual tela abriu.
+    window.a11yAnnounce?.(`${title.textContent}. Tela aberta.`);
     // Clique de mouse (detail > 0) solta o foco: com o foco preso, a barra
     // lateral ficava expandida e recolhia no primeiro clique no conteúdo,
     // deslocando a tela embaixo do cursor e perdendo o clique. Pelo teclado
@@ -986,7 +959,7 @@ async function bootstrapSession() {
   }
 }
 
-function openEntryFlow() {
+function openEntryFlow(tab = "login") {
   if (authToken && currentUser) {
     openApp();
     return;
@@ -995,7 +968,7 @@ function openEntryFlow() {
   authShell.classList.remove("is-hidden");
   appShell.classList.add("is-hidden");
   onboardingShell.classList.add("is-hidden");
-  setAuthTab("login");
+  setAuthTab(tab);
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 
@@ -1042,6 +1015,8 @@ function setAuthTab(tabName) {
   // fluxo nenhum dos dois leva a lugar nenhum.
   const isRecovery = tabName === "forgot" || tabName === "reset";
   document.querySelector(".auth-card").classList.toggle("auth-card--recovery", isRecovery);
+  // O painel da marca troca o título e o indicador das abas desliza por aqui.
+  authShell.dataset.tab = tabName;
   document.querySelector("#authError").textContent = "";
   document.querySelector("#authSuccess").textContent = "";
 }
@@ -1159,7 +1134,11 @@ function setView(viewName) {
     view.classList.toggle("active", view.id === viewName);
   });
   document.querySelectorAll(".side-nav button").forEach((button) => {
-    button.classList.toggle("active", button.dataset.view === viewName);
+    const ativo = button.dataset.view === viewName;
+    button.classList.toggle("active", ativo);
+    // A classe é só visual: aria-current diz ao leitor de tela onde se está.
+    if (ativo) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
   });
 
   // O grupo Financeiro fica aberto e destacado enquanto uma de suas views
