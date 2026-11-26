@@ -1961,12 +1961,9 @@
     <!-- APP -->
     <section class="app-shell is-hidden" id="app" aria-label="Aplicativo Wage Up">
       <aside class="sidebar" id="appSidebar" aria-label="Navegação">
-        <div class="account-chip">
-          <span id="accountInitial">C</span>
-          <div>
-            <strong id="accountName">Conta</strong>
-            <small id="accountRole">MEI ativo</small>
-          </div>
+        <div class="sidebar__top">
+          <span class="lp-logo sidebar__brand"><span class="lp-logo__text">wage<span class="lp-logo__up">up</span></span><span class="lp-logo__tick" aria-hidden="true"></span></span>
+          <button class="sidebar__toggle" type="button" data-rail-toggle aria-pressed="false" aria-label="Recolher menu" title="Recolher menu"><span class="material-symbols-rounded" aria-hidden="true">left_panel_close</span></button>
         </div>
         <nav class="side-nav" aria-label="Módulos da plataforma">
           <button class="active" data-view="overview" title="Visão geral"><span class="material-symbols-rounded" aria-hidden="true">home</span>Visão geral</button>
@@ -1992,13 +1989,20 @@
           <button data-view="help" title="Ajuda"><span class="material-symbols-rounded" aria-hidden="true">help</span>Ajuda</button>
           <button data-logout title="Sair"><span class="material-symbols-rounded" aria-hidden="true">logout</span>Sair</button>
         </div>
+        <div class="account-chip">
+          <span id="accountInitial">C</span>
+          <div>
+            <strong id="accountName">Conta</strong>
+            <small id="accountRole">MEI ativo</small>
+          </div>
+        </div>
       </aside>
 
       <main class="dashboard" id="appMain" tabindex="-1">
         <header class="dashboard-header">
-          <button class="menu-button" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="appSidebar"><span aria-hidden="true">☰</span></button>
+          <button class="menu-button" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="appSidebar"><span class="material-symbols-rounded" aria-hidden="true">menu</span></button>
           <div>
-            <p class="eyebrow">Wage Up</p>
+            <p class="eyebrow" id="appBusiness">WageUp</p>
             <h2 id="view-title">Bem-vindo de volta.</h2>
           </div>
         </header>
