@@ -97,6 +97,8 @@ const viewTitles = {
   products: "Produtos",
   "app-marketing": "Marketing",
   sales: "Vendas",
+  profile: "Perfil do negócio",
+  settings: "Configurações",
   help: "Ajuda"
 };
 
@@ -672,8 +674,11 @@ function openProductModal(produto) {
   document.querySelector("#productPrice").value = produto ? formatMoney(produto.price) : "";
   document.querySelector("#productCost").value = produto ? formatMoney(produto.cost) : "";
   document.querySelector("#productOtherCosts").value = produto ? formatMoney(produto.other_costs || 0) : "";
-  document.querySelector("#productFee").value = produto?.fee_percent ? Number(produto.fee_percent) : "";
-  document.querySelector("#productTax").value = produto?.tax_percent ? Number(produto.tax_percent) : "";
+  // Produto novo já vem com a taxa e o imposto padrão das Configurações.
+  const taxa = produto ? produto.fee_percent : currentUser?.default_fee_percent;
+  const imposto = produto ? produto.tax_percent : currentUser?.default_tax_percent;
+  document.querySelector("#productFee").value = Number(taxa) ? Number(taxa) : "";
+  document.querySelector("#productTax").value = Number(imposto) ? Number(imposto) : "";
   document.querySelector("#productStock").value = produto?.stock ?? "";
   document.querySelector("#productMinStock").value = produto?.min_stock ?? "";
   document.querySelector("#productActive").checked = produto ? produto.is_active !== false : true;
@@ -1156,6 +1161,7 @@ function applyUserPermissions() {
   document.querySelector("#accountInitial").textContent = name.charAt(0).toUpperCase();
   document.querySelector("#accountName").textContent = name;
   document.querySelector("#accountRole").textContent = canAccessFinance() ? "Admin" : "Membro";
+  accountButton?.setAttribute("aria-label", `${name}, ${canAccessFinance() ? "Admin" : "Membro"}. Abrir conta`);
   document.querySelector("#appBusiness").textContent = currentUser?.business_name || "WageUp";
 
   document.querySelectorAll("[data-admin-only]").forEach((item) => {
@@ -1174,7 +1180,8 @@ function setView(viewName) {
   document.querySelectorAll(".view").forEach((view) => {
     view.classList.toggle("active", view.id === viewName);
   });
-  document.querySelectorAll(".side-nav button").forEach((button) => {
+  closeProfilePop();
+  document.querySelectorAll(".side-nav button, .side-footer button[data-view]").forEach((button) => {
     const ativo = button.dataset.view === viewName;
     button.classList.toggle("active", ativo);
     // A classe é só visual: aria-current diz ao leitor de tela onde se está.
@@ -1204,6 +1211,8 @@ function setView(viewName) {
   }
   if (viewName === "payments") loadPayments();
   if (viewName === "sales") loadSales();
+  if (viewName === "profile") loadProfile();
+  if (viewName === "settings") loadSettings();
   // A conversa vive no servidor: ao abrir a tela, restaura o histórico.
   if (viewName === "finance-assistant") financeChat.ensureStarted();
   if (viewName === "app-marketing") {
@@ -4288,6 +4297,484 @@ document.querySelector("#ovInsightsRefresh")?.addEventListener("click", () => lo
 
 document.querySelectorAll("[data-goto-view]").forEach((button) => {
   button.addEventListener("click", () => setView(button.dataset.gotoView));
+});
+
+// ─── Conta: cartão do perfil, Perfil do negócio e Configurações ───────────
+// O botão da conta, no pé da barra lateral, abre um cartão com o resumo do
+// negócio e os atalhos. Os números vêm de /auth/profile/, que lê as vendas
+// (admin e membro) e, só para o admin, a meta e o PIX.
+
+const profilePop = document.querySelector("#profilePop");
+const accountButton = document.querySelector("#accountButton");
+let profileCache = null;
+let profileCacheAt = 0;
+
+async function fetchProfile({ fresh = false } = {}) {
+  if (!fresh && profileCache && Date.now() - profileCacheAt < 60_000) return profileCache;
+  profileCache = await apiRequest("/auth/profile/");
+  profileCacheAt = Date.now();
+  return profileCache;
+}
+
+function forgetProfile() {
+  profileCache = null;
+}
+
+function initialOf(text) {
+  return (text || "?").trim().charAt(0).toUpperCase() || "?";
+}
+
+function placeProfilePop() {
+  const chip = accountButton.getBoundingClientRect();
+  if (window.innerWidth >= 769) {
+    // Ao lado da barra, com o pé alinhado ao botão da conta.
+    const barra = sidebar.getBoundingClientRect();
+    profilePop.style.left = `${barra.right + 12}px`;
+    profilePop.style.width = "";
+  } else {
+    // No celular, em cima do botão, na largura dele.
+    profilePop.style.left = `${chip.left}px`;
+    profilePop.style.width = `${chip.width}px`;
+  }
+  const base = window.innerWidth >= 769 ? chip.bottom : chip.top - 8;
+  profilePop.style.bottom = `${Math.max(12, window.innerHeight - base)}px`;
+}
+
+function fillProfilePop(data) {
+  const negocio = data?.business || {};
+  document.querySelector("#popBusiness").textContent = negocio.name || currentUser?.business_name || "Seu negócio";
+  document.querySelector("#popBusinessMeta").textContent =
+    [negocio.segment, negocio.city].filter(Boolean).join(" · ") || "Complete o perfil nas configurações";
+  if (!data) return;
+  document.querySelector("#popRevenue").textContent = formatMoney(Number(data.stats.revenue));
+  document.querySelector("#popProfit").textContent = formatMoney(Number(data.stats.profit));
+  document.querySelector("#popProducts").textContent = String(data.stats.products_active);
+}
+
+async function openProfilePop() {
+  const nome = currentUser?.name || currentUser?.email || "Conta";
+  document.querySelector("#popInitial").textContent = initialOf(nome);
+  document.querySelector("#popName").textContent = nome;
+  document.querySelector("#popEmail").textContent = currentUser?.email || "";
+  fillProfilePop(profileCache);
+  profilePop.hidden = false;
+  accountButton.setAttribute("aria-expanded", "true");
+  placeProfilePop();
+  profilePop.querySelector("button")?.focus();
+  try {
+    fillProfilePop(await fetchProfile());
+  } catch {
+    // Sem os números o cartão ainda leva ao perfil e às configurações.
+  }
+}
+
+function closeProfilePop({ devolverFoco = false } = {}) {
+  if (profilePop.hidden) return;
+  profilePop.hidden = true;
+  accountButton.setAttribute("aria-expanded", "false");
+  if (devolverFoco) accountButton.focus();
+}
+
+accountButton?.addEventListener("click", () => {
+  if (profilePop.hidden) openProfilePop();
+  else closeProfilePop();
+});
+
+document.addEventListener("mousedown", (event) => {
+  if (profilePop.hidden) return;
+  if (profilePop.contains(event.target) || accountButton.contains(event.target)) return;
+  closeProfilePop();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !profilePop.hidden) closeProfilePop({ devolverFoco: true });
+});
+
+// Foco saiu do cartão pelo Tab: fecha, como um menu.
+profilePop?.addEventListener("focusout", (event) => {
+  if (event.relatedTarget && !profilePop.contains(event.relatedTarget) && event.relatedTarget !== accountButton) {
+    closeProfilePop();
+  }
+});
+
+window.addEventListener("resize", () => { if (!profilePop.hidden) placeProfilePop(); });
+
+profilePop?.querySelectorAll("[data-pop-view]").forEach((button) => {
+  button.addEventListener("click", () => {
+    closeProfilePop();
+    sidebar.classList.remove("open");
+    setView(button.dataset.popView);
+  });
+});
+
+profilePop?.querySelector("[data-pop-logout]")?.addEventListener("click", async () => {
+  closeProfilePop();
+  await logout();
+});
+
+// ─── Perfil do negócio ────────────────────────────────────────────────────
+
+function formatMemberSince(iso) {
+  if (!iso) return "";
+  const [ano, mes] = iso.split("-").map(Number);
+  return `${CAL_MONTHS[mes - 1].toLowerCase()} de ${ano}`;
+}
+
+function renderProfile(data) {
+  const negocio = data.business || {};
+  document.querySelector("#pfInitial").textContent = initialOf(negocio.name);
+  document.querySelector("#pfBusiness").textContent = negocio.name || "Seu negócio";
+  document.querySelector("#pfKicker").textContent =
+    [negocio.segment, negocio.city].filter(Boolean).join(" · ") || "Perfil do negócio";
+  document.querySelector("#pfMeta").textContent =
+    `${data.user.name} · ${data.user.role_label} · na WageUp desde ${formatMemberSince(data.user.member_since)}`;
+
+  const fatos = [
+    ["CNPJ", negocio.cnpj],
+    ["WhatsApp", negocio.phone],
+    ["E-mail", data.user.email]
+  ];
+  document.querySelector("#pfFacts").innerHTML = fatos.map(([rotulo, valor]) => `
+    <div><dt>${rotulo}</dt><dd>${valor ? escapeHtml(valor) : '<button class="profile-hero__add" type="button" data-open-settings="business">Adicionar</button>'}</dd></div>
+  `).join("");
+
+  const s = data.stats;
+  const lucro = Number(s.profit);
+  document.querySelector("#pfStats").innerHTML = `
+    <article class="summary-card">
+      <span>Vendido no mês</span>
+      <strong class="value-currency">${formatMoney(Number(s.revenue))}</strong>
+      <small class="summary-card__delta">${s.sales_count} ${s.sales_count === 1 ? "venda" : "vendas"}, ${s.units} ${s.units === 1 ? "unidade" : "unidades"}</small>
+    </article>
+    <article class="summary-card">
+      <span>Lucro real das vendas</span>
+      <strong class="value-currency ${lucro < 0 ? "value-negative" : "value-positive"}">${formatMoney(lucro)}</strong>
+      <small class="summary-card__delta">Já descontados custo, taxa e imposto</small>
+    </article>
+    <article class="summary-card">
+      <span>Produtos ativos</span>
+      <strong class="value-currency">${s.products_active}</strong>
+      <small class="summary-card__delta">${s.products_total} no catálogo</small>
+    </article>
+    <article class="summary-card">
+      <span>Estoque baixo</span>
+      <strong class="value-currency">${s.low_stock}</strong>
+      <small class="summary-card__delta ${s.low_stock ? "summary-card__delta--negative" : ""}">
+        <span class="material-symbols-rounded" aria-hidden="true">${s.low_stock ? "warning" : "check_circle"}</span>
+        ${s.low_stock ? "No mínimo ou zerado" : "Tudo acima do mínimo"}
+      </small>
+    </article>`;
+
+  const lista = document.querySelector("#pfProducts");
+  if (!data.products.length) {
+    lista.innerHTML = `<li class="pf-products__empty">Nenhum produto ativo ainda. <button class="ghost-button" type="button" data-goto-view="products">Cadastrar produto</button></li>`;
+  } else {
+    lista.innerHTML = data.products.map((p) => {
+      const lucroMes = Number(p.profit_month);
+      const estoque = !p.controls_stock
+        ? '<span class="status-badge status-badge--neutral">Serviço</span>'
+        : p.stock <= p.min_stock
+          ? `<span class="status-badge status-badge--warning">${p.stock} no estoque</span>`
+          : `<span class="status-badge status-badge--positive">${p.stock} no estoque</span>`;
+      return `
+        <li class="pf-product">
+          <span class="pf-product__avatar" aria-hidden="true">${escapeHtml(initialOf(p.name))}</span>
+          <span class="pf-product__main">
+            <strong>${escapeHtml(p.name)}</strong>
+            <small>${escapeHtml(p.category || "Sem categoria")} · <span class="value-currency">${formatMoney(Number(p.price))}</span> · margem ${Number(p.margin_percent).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</small>
+          </span>
+          <span class="pf-product__month">
+            <small>${p.sold_month} ${p.sold_month === 1 ? "vendida" : "vendidas"} no mês</small>
+            <strong class="value-currency ${lucroMes < 0 ? "value-negative" : ""}">${lucroMes ? formatMoney(lucroMes) : "—"}</strong>
+          </span>
+          ${estoque}
+        </li>`;
+    }).join("");
+  }
+
+  const mes = document.querySelector("#pfMonth");
+  if (mes && canAccessFinance()) {
+    const meta = data.goal;
+    const metaHtml = meta
+      ? `<div class="pf-month__goal">
+           <span class="pf-month__label">Meta de faturamento</span>
+           <strong class="value-currency">${Math.round(meta.percent)}%</strong>
+           <span class="pf-month__bar" role="progressbar" aria-label="Meta do mês" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.min(100, Math.round(meta.percent))}"><i style="transform: scaleX(${Math.min(1, meta.percent / 100)})"></i></span>
+           <small><span class="value-currency">${formatMoney(Number(meta.achieved))}</span> de <span class="value-currency">${formatMoney(Number(meta.target))}</span></small>
+         </div>`
+      : `<div class="pf-month__goal"><span class="pf-month__label">Meta de faturamento</span><small>Nenhuma meta para este mês.</small><button class="ghost-button" type="button" data-goto-view="overview">Definir meta</button></div>`;
+    const pix = data.pix_pending;
+    mes.innerHTML = `${metaHtml}
+      <div class="pf-month__pix">
+        <span class="material-symbols-rounded" aria-hidden="true">qr_code_2</span>
+        <span><strong>${pix.count} ${pix.count === 1 ? "cobrança PIX pendente" : "cobranças PIX pendentes"}</strong>
+        <small><span class="value-currency">${formatMoney(Number(pix.amount))}</span> a receber</small></span>
+        <button class="ghost-button" type="button" data-goto-view="payments">Ver</button>
+      </div>`;
+  }
+}
+
+// Um ouvinte só para a tela inteira: o conteúdo é redesenhado a cada visita.
+document.querySelector("#profile")?.addEventListener("click", (event) => {
+  const editar = event.target.closest("[data-open-settings]");
+  if (editar) { openSettings(editar.dataset.openSettings); return; }
+  const ir = event.target.closest("#pfProducts [data-goto-view], #pfMonth [data-goto-view]");
+  if (ir) setView(ir.dataset.gotoView);
+});
+
+async function loadProfile() {
+  try {
+    renderProfile(await fetchProfile({ fresh: true }));
+  } catch (error) {
+    document.querySelector("#pfStats").innerHTML = `<p class="settings-form__status is-error">Não foi possível carregar o perfil: ${escapeHtml(error.message)}</p>`;
+  }
+}
+
+// ─── Configurações ────────────────────────────────────────────────────────
+
+const SETTINGS_TABS = ["account", "business", "money", "connections", "privacy"];
+let settingsTab = "account";
+
+function setSettingsTab(tab, { foco = false } = {}) {
+  if (!SETTINGS_TABS.includes(tab)) tab = "account";
+  settingsTab = tab;
+  document.querySelectorAll("[data-settings-tab]").forEach((button) => {
+    const ativo = button.dataset.settingsTab === tab;
+    button.setAttribute("aria-selected", String(ativo));
+    button.tabIndex = ativo ? 0 : -1;
+    if (ativo && foco) button.focus();
+  });
+  document.querySelectorAll("[data-settings-panel]").forEach((panel) => {
+    panel.hidden = panel.dataset.settingsPanel !== tab;
+  });
+  if (tab === "connections") loadConnections();
+}
+
+function openSettings(tab) {
+  setView("settings");
+  setSettingsTab(tab);
+}
+
+document.querySelectorAll("[data-settings-tab]").forEach((button, i, todos) => {
+  button.addEventListener("click", () => setSettingsTab(button.dataset.settingsTab));
+  button.addEventListener("keydown", (event) => {
+    const passo = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[event.key];
+    let alvo = passo === undefined ? null : (i + passo + todos.length) % todos.length;
+    if (event.key === "Home") alvo = 0;
+    if (event.key === "End") alvo = todos.length - 1;
+    if (alvo === null) return;
+    event.preventDefault();
+    setSettingsTab(todos[alvo].dataset.settingsTab, { foco: true });
+  });
+});
+
+function formStatus(form, texto, tipo = "ok") {
+  const el = form.querySelector(".settings-form__status");
+  if (!el) return;
+  el.textContent = texto;
+  el.classList.toggle("is-error", tipo === "error");
+  el.classList.toggle("is-ok", tipo === "ok");
+}
+
+async function submitSettings(form, tarefa) {
+  const botao = form.querySelector('[type="submit"]');
+  botao.disabled = true;
+  formStatus(form, "Salvando...", "busy");
+  try {
+    await tarefa();
+  } catch (error) {
+    formStatus(form, error.message, "error");
+  } finally {
+    botao.disabled = false;
+  }
+}
+
+function fillSettingsForms(negocio) {
+  const conta = document.querySelector("#accountForm");
+  conta.elements.name.value = currentUser?.name || "";
+  conta.elements.email.value = currentUser?.email || "";
+  conta.elements.current_password.value = "";
+  document.querySelector("#accountPasswordField").hidden = true;
+  if (!negocio) return;
+  const neg = document.querySelector("#businessForm");
+  ["name", "segment", "city", "cnpj", "phone"].forEach((campo) => { neg.elements[campo].value = negocio[campo] || ""; });
+  const dinheiro = document.querySelector("#moneyForm");
+  dinheiro.elements.default_fee_percent.value = Number(negocio.default_fee_percent) || "";
+  dinheiro.elements.default_tax_percent.value = Number(negocio.default_tax_percent) || "";
+  dinheiro.elements.apply_to_products.checked = false;
+}
+
+async function loadSettings() {
+  document.querySelectorAll("#settings .settings-form__status").forEach((el) => { el.textContent = ""; });
+  fillSettingsForms(null);
+  try {
+    fillSettingsForms(await apiRequest("/auth/business/"));
+  } catch (error) {
+    formStatus(document.querySelector("#businessForm"), error.message, "error");
+  }
+  setSettingsTab(settingsTab);
+}
+
+// Conta: trocar o e-mail pede a senha atual; o campo só aparece quando precisa.
+const accountForm = document.querySelector("#accountForm");
+accountForm?.elements.email.addEventListener("input", () => {
+  const mudou = accountForm.elements.email.value.trim().toLowerCase() !== (currentUser?.email || "").toLowerCase();
+  document.querySelector("#accountPasswordField").hidden = !mudou;
+});
+
+accountForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const dados = {
+    name: accountForm.elements.name.value.trim(),
+    email: accountForm.elements.email.value.trim()
+  };
+  if (!document.querySelector("#accountPasswordField").hidden) {
+    dados.current_password = accountForm.elements.current_password.value;
+  }
+  submitSettings(accountForm, async () => {
+    currentUser = await apiRequest("/auth/account/", { method: "PATCH", body: JSON.stringify(dados) });
+    applyUserPermissions();
+    forgetProfile();
+    fillSettingsForms(null);
+    formStatus(accountForm, "Conta salva.");
+  });
+});
+
+const passwordForm = document.querySelector("#passwordForm");
+passwordForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const f = passwordForm.elements;
+  if (f.new_password.value !== f.new_password_confirm.value) {
+    formStatus(passwordForm, "As duas senhas novas não são iguais.", "error");
+    return;
+  }
+  submitSettings(passwordForm, async () => {
+    const resposta = await apiRequest("/auth/password/", {
+      method: "POST",
+      body: JSON.stringify({ current_password: f.current_password.value, new_password: f.new_password.value })
+    });
+    // O token antigo deixou de valer: guarda o novo para continuar logado aqui.
+    authToken = resposta.token;
+    localStorage.setItem(authTokenKey, authToken);
+    passwordForm.reset();
+    formStatus(passwordForm, "Senha trocada. Os outros aparelhos precisam entrar de novo.");
+  });
+});
+
+const businessForm = document.querySelector("#businessForm");
+businessForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const f = businessForm.elements;
+  const dados = Object.fromEntries(["name", "segment", "city", "cnpj", "phone"].map((c) => [c, f[c].value.trim()]));
+  submitSettings(businessForm, async () => {
+    const negocio = await apiRequest("/auth/business/", { method: "PATCH", body: JSON.stringify(dados) });
+    fillSettingsForms(negocio);
+    if (currentUser) currentUser.business_name = negocio.name;
+    applyUserPermissions();
+    forgetProfile();
+    formStatus(businessForm, "Negócio salvo.");
+  });
+});
+
+const moneyForm = document.querySelector("#moneyForm");
+moneyForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const f = moneyForm.elements;
+  const dados = {
+    default_fee_percent: Number(f.default_fee_percent.value) || 0,
+    default_tax_percent: Number(f.default_tax_percent.value) || 0,
+    apply_to_products: f.apply_to_products.checked
+  };
+  submitSettings(moneyForm, async () => {
+    const negocio = await apiRequest("/auth/business/", { method: "PATCH", body: JSON.stringify(dados) });
+    if (currentUser) {
+      currentUser.default_fee_percent = negocio.default_fee_percent;
+      currentUser.default_tax_percent = negocio.default_tax_percent;
+    }
+    fillSettingsForms(negocio);
+    forgetProfile();
+    const n = negocio.products_updated;
+    formStatus(moneyForm, dados.apply_to_products
+      ? `Padrões salvos e aplicados a ${n} ${n === 1 ? "produto" : "produtos"}.`
+      : "Padrões salvos. Valem para os próximos produtos.");
+  });
+});
+
+const CONNECTION_STATUS = {
+  active: { label: "Ativo", tone: "positive" },
+  available: { label: "Disponível", tone: "neutral" },
+  off: { label: "Desligado", tone: "warning" },
+  soon: { label: "Em breve", tone: "neutral" }
+};
+const CONNECTION_ICONS = {
+  pix: "qr_code_2", statement: "upload_file", ai: "auto_awesome", images: "image",
+  google: "account_circle", bank: "account_balance"
+};
+
+async function loadConnections() {
+  const lista = document.querySelector("#connectionsList");
+  if (!lista) return;
+  lista.innerHTML = '<li class="connections__empty">Conferindo o que está ligado...</li>';
+  try {
+    const { items } = await apiRequest("/auth/connections/");
+    lista.innerHTML = items.map((item) => {
+      const st = CONNECTION_STATUS[item.status] || CONNECTION_STATUS.off;
+      return `
+        <li class="connection">
+          <span class="connection__icon" aria-hidden="true"><span class="material-symbols-rounded">${CONNECTION_ICONS[item.key] || "link"}</span></span>
+          <span class="connection__main">
+            <strong>${escapeHtml(item.name)} <small>${escapeHtml(item.provider)}</small></strong>
+            <span>${escapeHtml(item.detail)}</span>
+          </span>
+          <span class="status-badge status-badge--${st.tone}">${st.label}</span>
+        </li>`;
+    }).join("");
+  } catch (error) {
+    lista.innerHTML = `<li class="connections__empty">Não foi possível carregar: ${escapeHtml(error.message)}</li>`;
+  }
+}
+
+// Baixar meus dados: a rota exige o token, então o arquivo vem por fetch.
+document.querySelector("#exportButton")?.addEventListener("click", async (event) => {
+  const botao = event.currentTarget;
+  botao.disabled = true;
+  try {
+    const resposta = await fetch(`${apiBaseUrl}/auth/export/`, { headers: { Authorization: `Token ${authToken}` } });
+    if (!resposta.ok) throw new Error(`Erro ${resposta.status}`);
+    const nome = /filename="([^"]+)"/.exec(resposta.headers.get("Content-Disposition") || "")?.[1] || "wageup-meus-dados.json";
+    const url = URL.createObjectURL(await resposta.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = nome;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (error) {
+    window.alert(`Não foi possível baixar: ${error.message}`);
+  } finally {
+    botao.disabled = false;
+  }
+});
+
+const deleteAccountForm = document.querySelector("#deleteAccountForm");
+deleteAccountForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const f = deleteAccountForm.elements;
+  if (f.confirm.value.trim().toUpperCase() !== "EXCLUIR") {
+    formStatus(deleteAccountForm, "Digite EXCLUIR para confirmar.", "error");
+    return;
+  }
+  submitSettings(deleteAccountForm, async () => {
+    await apiRequest("/auth/account/", {
+      method: "DELETE",
+      body: JSON.stringify({ password: f.password.value, confirm: f.confirm.value })
+    });
+    deleteAccountForm.reset();
+    // A conta não existe mais: limpa o acesso local e volta ao site.
+    authToken = null;
+    await logout();
+  });
 });
 
 // ─── Utilities ────────────────────────────────────────────────────────────────

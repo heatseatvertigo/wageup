@@ -68,6 +68,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
     is_admin = serializers.SerializerMethodField()
     can_access_finance = serializers.BooleanField(read_only=True)
     can_manage_payments = serializers.BooleanField(read_only=True)
+    # Taxa e imposto que o produto novo ja recebe preenchidos (Configuracoes).
+    default_fee_percent = serializers.SerializerMethodField()
+    default_tax_percent = serializers.SerializerMethodField()
 
     class Meta:
         model = UserProfile
@@ -80,10 +83,26 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "is_admin",
             "can_access_finance",
             "can_manage_payments",
+            "default_fee_percent",
+            "default_tax_percent",
         ]
 
     def get_is_admin(self, obj):
         return obj.can_access_finance
+
+    def _negocio(self, obj):
+        cache = self.__dict__.setdefault("_negocios", {})
+        if obj.user_id not in cache:
+            cache[obj.user_id] = Business.objects.filter(owner=obj.user).first()
+        return cache[obj.user_id]
+
+    def get_default_fee_percent(self, obj):
+        negocio = self._negocio(obj)
+        return str(negocio.default_fee_percent) if negocio else "0.00"
+
+    def get_default_tax_percent(self, obj):
+        negocio = self._negocio(obj)
+        return str(negocio.default_tax_percent) if negocio else "0.00"
 
 
 class OnboardingSerializer(serializers.ModelSerializer):
@@ -96,6 +115,10 @@ class OnboardingSerializer(serializers.ModelSerializer):
         instance.business_name = validated_data.get("business_name", instance.business_name)
         instance.onboarding_completed = True
         instance.save(update_fields=["business_name", "onboarding_completed", "updated_at"])
+        # O perfil do negocio (Configuracoes) le o nome do Business: os dois
+        # precisam dizer a mesma coisa.
+        if instance.business_name:
+            Business.objects.filter(owner=instance.user).update(name=instance.business_name)
         return instance
 
 

@@ -20,3 +20,11 @@ class AIRateThrottle(UserRateThrottle):
     """Rotas que chamam modelo de linguagem. Cada chamada custa dinheiro."""
 
     scope = "ai"
+
+
+class PasswordCheckRateThrottle(UserRateThrottle):
+    """Rotas logadas que conferem a senha: trocar senha, trocar e-mail, apagar
+    a conta. Usa a mesma taxa do login, contada por usuario: o
+    LoginRateThrottle e de visitante e nao conta quem ja esta logado."""
+
+    scope = "login"
