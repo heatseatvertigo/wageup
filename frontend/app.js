@@ -142,7 +142,7 @@ const demoContent = {
 // ─── Event Listeners ─────────────────────────────────────────────────────────
 
 document.querySelectorAll("[data-open-app]").forEach((button) => {
-  button.addEventListener("click", () => openEntryFlow());
+  button.addEventListener("click", () => openEntryFlow(button.dataset.openApp === "register" ? "register" : "login"));
 });
 
 document.querySelectorAll("[data-close-app]").forEach((button) => {
@@ -160,40 +160,6 @@ document.querySelectorAll("[data-close-auth]").forEach((button) => {
     siteShell.classList.remove("is-hidden");
   });
 });
-
-const moduleDetails = new Map();
-document.querySelectorAll(".module-detail").forEach((section) => {
-  const key = section.id.replace(/^page-/, "");
-  moduleDetails.set(key, section);
-});
-
-document.querySelectorAll("[data-open-module]").forEach((trigger) => {
-  trigger.addEventListener("click", (event) => {
-    event.preventDefault();
-    openModulePage(trigger.dataset.openModule);
-  });
-});
-
-document.querySelectorAll("[data-close-module]").forEach((button) => {
-  button.addEventListener("click", () => closeModulePage());
-});
-
-function openModulePage(key) {
-  const target = moduleDetails.get(key);
-  if (!target) return;
-
-  moduleDetails.forEach((section) => section.classList.add("is-hidden"));
-  siteShell.classList.add("is-hidden");
-  target.classList.remove("is-hidden");
-  sidebar.classList.remove("open");
-  window.scrollTo({ top: 0, behavior: "instant" });
-}
-
-function closeModulePage() {
-  moduleDetails.forEach((section) => section.classList.add("is-hidden"));
-  siteShell.classList.remove("is-hidden");
-  window.scrollTo({ top: 0, behavior: "instant" });
-}
 
 document.querySelectorAll("[data-auth-tab]").forEach((button) => {
   button.addEventListener("click", () => setAuthTab(button.dataset.authTab));
@@ -993,7 +959,7 @@ async function bootstrapSession() {
   }
 }
 
-function openEntryFlow() {
+function openEntryFlow(tab = "login") {
   if (authToken && currentUser) {
     openApp();
     return;
@@ -1002,7 +968,7 @@ function openEntryFlow() {
   authShell.classList.remove("is-hidden");
   appShell.classList.add("is-hidden");
   onboardingShell.classList.add("is-hidden");
-  setAuthTab("login");
+  setAuthTab(tab);
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 
@@ -1049,6 +1015,8 @@ function setAuthTab(tabName) {
   // fluxo nenhum dos dois leva a lugar nenhum.
   const isRecovery = tabName === "forgot" || tabName === "reset";
   document.querySelector(".auth-card").classList.toggle("auth-card--recovery", isRecovery);
+  // O painel da marca troca o título e o indicador das abas desliza por aqui.
+  authShell.dataset.tab = tabName;
   document.querySelector("#authError").textContent = "";
   document.querySelector("#authSuccess").textContent = "";
 }

@@ -324,6 +324,7 @@ class ConversasTests(_ChatBase):
         self.assertEqual(APIClient().get("/api/marketing/conversations/").status_code, 401)
 
 
+@override_settings(DEEPSEEK_API_KEY="")
 class RecomendacoesTests(TestCase):
     """As recomendacoes saem dos numeros do catalogo, com ou sem IA."""
 

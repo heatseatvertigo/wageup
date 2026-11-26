@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Wage Up | Plataforma para microempreendedores</title>
+    <title>WageUp | Gestão com IA para microempreendedores</title>
     <meta name="description" content="Wage Up é a plataforma para MEIs venderem mais, organizarem o catálogo, controlarem o dinheiro e criarem marketing com IA — tudo em um só lugar." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -13,623 +13,1846 @@
     <script src="a11y.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body>
     <a href="#inicio" class="skip-link">Pular para o conteúdo principal</a>
 
-    <!-- LANDING PAGE -->
+    <!-- SITE: home e uma página por módulo. O site.js troca a página pelo
+         endereço (/, /vendas, /financeiro, /pix, /marketing, /assistente). -->
     <div class="site-shell">
-      <header class="lp-nav" aria-label="Navegação principal">
-        <a class="lp-logo" href="#inicio" aria-label="WageUp início">
-          <span class="lp-logo__text">wage<span class="lp-logo__up">up</span></span><span class="lp-logo__tick" aria-hidden="true"></span>
-        </a>
-        <nav class="lp-nav__links" aria-label="Seções">
-          <a href="#recursos">Recursos</a>
-          <a href="#como-funciona">Como funciona</a>
-        </nav>
-        <div class="lp-nav__actions">
-          <button class="lp-btn lp-btn--ghost" data-open-app>Entrar</button>
-          <button class="lp-btn lp-btn--primary" data-open-app>Começar agora</button>
+      <header class="lp-nav" id="lpNav">
+        <div class="lp-nav__inner">
+          <a class="lp-logo lp-nav__logo" href="/" data-route aria-label="WageUp, página inicial">
+            <span class="lp-logo__text">wage<span class="lp-logo__up">up</span></span><span class="lp-logo__tick" aria-hidden="true"></span>
+            <span class="lp-lockup" aria-hidden="true"><span class="lp-lockup__text"></span></span>
+          </a>
+
+          <nav class="lp-nav__links" id="lpNavLinks" aria-label="Site" data-lenis-prevent>
+            <div class="lp-menu">
+              <button class="lp-menu__trigger" type="button" aria-expanded="false" aria-controls="lpMenuPanel">
+                Plataforma <span class="material-symbols-rounded" aria-hidden="true">expand_more</span>
+              </button>
+              <div class="lp-menu__panel" id="lpMenuPanel">
+                <a class="lp-menu__item" href="/vendas" data-route>
+                  <span class="material-symbols-rounded lp-menu__icon" aria-hidden="true">point_of_sale</span>
+                  <span class="lp-menu__text"><strong>Vendas e produtos</strong><span>Margem real, estoque e lucro de cada venda</span></span>
+                </a>
+                <a class="lp-menu__item" href="/financeiro" data-route>
+                  <span class="material-symbols-rounded lp-menu__icon" aria-hidden="true">monitoring</span>
+                  <span class="lp-menu__text"><strong>Financeiro</strong><span>Meta do mês, extrato e insights</span></span>
+                </a>
+                <a class="lp-menu__item" href="/pix" data-route>
+                  <span class="material-symbols-rounded lp-menu__icon" aria-hidden="true">qr_code_2</span>
+                  <span class="lp-menu__text"><strong>PIX</strong><span>Cobrança com QR Code que cai sozinha no caixa</span></span>
+                </a>
+                <a class="lp-menu__item" href="/marketing" data-route>
+                  <span class="material-symbols-rounded lp-menu__icon" aria-hidden="true">campaign</span>
+                  <span class="lp-menu__text"><strong>Marketing com IA</strong><span>Campanha com texto e imagem em um toque</span></span>
+                </a>
+                <a class="lp-menu__item" href="/assistente" data-route>
+                  <span class="material-symbols-rounded lp-menu__icon" aria-hidden="true">forum</span>
+                  <span class="lp-menu__text"><strong>Assistente financeiro</strong><span>Pergunte sobre o seu negócio em português</span></span>
+                </a>
+              </div>
+            </div>
+            <a class="lp-nav__link" href="/para-quem" data-route>Para quem é</a>
+            <a class="lp-nav__link" href="/acessibilidade" data-route>Acessibilidade</a>
+            <a class="lp-nav__link" href="/perguntas" data-route>Perguntas</a>
+          </nav>
+
+          <div class="lp-nav__actions">
+            <button class="lp-btn lp-btn--ghost" type="button" data-open-app="login">Entrar</button>
+            <button class="lp-btn lp-btn--primary lp-nav__cta" type="button" data-open-app="register">Criar conta grátis</button>
+            <button class="lp-nav__toggle" type="button" aria-expanded="false" aria-controls="lpNavLinks" aria-label="Abrir menu">
+              <span class="material-symbols-rounded" aria-hidden="true">menu</span>
+            </button>
+          </div>
         </div>
+        <span class="lp-progress" aria-hidden="true"><i></i></span>
       </header>
 
       <main id="inicio" tabindex="-1">
-        <!-- HERO -->
-        <section class="lp-hero">
-          <div class="lp-hero__copy">
-            <p class="lp-eyebrow">Gestão financeira para o seu negócio</p>
-            <h1 class="lp-hero__title">A primeira plataforma financeira para MEs do Brasil</h1>
-            <p class="lp-hero__sub">Cobre por PIX, controle o caixa e receba insights com IA. Tudo em um só lugar.</p>
-            <div class="lp-hero__actions">
-              <button class="lp-btn lp-btn--primary lp-btn--lg" data-open-app>Começar agora</button>
-              <a class="lp-btn lp-btn--quiet" href="#recursos">Ver recursos →</a>
-            </div>
-          </div>
 
-          <aside class="lp-panel" aria-label="Demonstração de cobrança PIX">
-            <div class="lp-panel__head">
-              <span><i class="lp-dot" aria-hidden="true"></i>A receber</span>
-              <span>Este mês</span>
-            </div>
-            <div class="lp-panel__big"><span class="rs">R$ </span><span id="lpPanelValue">12.480,00</span></div>
-            <div class="lp-panel__trend">↑ 18% vs. mês passado</div>
-            <div class="lp-panel__rows">
-              <div class="lp-row"><span>Recebido</span><span class="v" id="lpRecebido">R$ 8.200,00</span></div>
-              <div class="lp-row"><span>Pendente</span><span class="v" id="lpPendente">R$ 4.280,00</span></div>
-              <div class="lp-row"><span>Cobranças ativas</span><span class="v" id="lpAtivas">3</span></div>
-            </div>
+        <!-- ═══════════════════════ HOME ═══════════════════════ -->
+        <div class="lp-page" data-page="home" data-title="WageUp | Gestão com IA para microempreendedores">
 
-            <div class="lp-pix-demo">
-              <div class="lp-pix-demo__qr" id="lpQrWrap" hidden>
-                <svg id="lpQr" viewBox="0 0 25 25" role="img" aria-label="QR Code PIX (ilustrativo)"></svg>
-                <span class="lp-pix-demo__check" id="lpPixCheck" hidden>✓</span>
+          <!-- Topo: a dor do MEI e a plataforma na tela do computador e do celular.
+               Os números são os da conta de demonstração. -->
+          <section class="lp-top lp-top--devices" data-nav="dark" aria-labelledby="lpTopTitle">
+            <div class="lp-top__inner">
+              <div class="lp-top__copy">
+                <p class="lp-eyebrow"><span class="lp-eyebrow__dot" aria-hidden="true"></span>Gestão financeira com IA para MEI</p>
+                <h1 class="lp-top__title lp-top__title--case" id="lpTopTitle">O MEI vende todo dia e não sabe quanto sobra. <span class="lp-top__accent">A WageUp mostra.</span></h1>
+                <p class="lp-top__lead">Pedido no WhatsApp, PIX no celular, gasto anotado no caderno. No fim do mês o dinheiro entrou, mas ninguém sabe quanto foi lucro. A WageUp junta tudo, desconta custo, taxa e imposto de cada venda e aponta o que fazer em seguida.</p>
+                <div class="lp-top__actions">
+                  <button class="lp-btn lp-btn--primary lp-btn--lg" type="button" data-open-app="register">
+                    Criar conta grátis <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span>
+                  </button>
+                  <a class="lp-btn lp-btn--outline lp-btn--lg" href="/vendas" data-route>Ver como funciona</a>
+                </div>
+                <dl class="lp-top__proof">
+                  <div><dt><span class="lp-money">61%</span></dt><dd>pagaram despesas da empresa com a conta pessoal <small>Conexão TO, 2026</small></dd></div>
+                  <div><dt><span class="lp-money">35%</span></dt><dd>controlam o dinheiro no caderno ou não controlam <small>Sebrae PR, 2025</small></dd></div>
+                </dl>
               </div>
-              <p class="lp-pix-demo__status" id="lpPixStatus" hidden>
-                <span class="lp-pix-demo__pulse" aria-hidden="true"></span>
-                <span id="lpPixStatusText">Aguardando pagamento…</span>
-              </p>
-              <button class="lp-btn lp-btn--ghost" type="button" id="lpSimulate">Simular cobrança PIX</button>
-            </div>
-          </aside>
-        </section>
 
-        <!-- NÚMEROS -->
-        <section class="lp-stats" aria-label="Números da plataforma">
-          <div class="lp-stat">
-            <span class="lp-stat__value" data-count="12480" data-prefix="R$ " data-decimals="2">R$ 0,00</span>
-            <span class="lp-stat__label">recebidos por PIX este mês</span>
-          </div>
-          <div class="lp-stat">
-            <span class="lp-stat__value" data-count="18" data-prefix="+" data-suffix="%">+0%</span>
-            <span class="lp-stat__label">de crescimento vs. mês passado</span>
-          </div>
-          <div class="lp-stat">
-            <span class="lp-stat__value" data-count="3" data-prefix="">0</span>
-            <span class="lp-stat__label">cobranças ativas agora</span>
-          </div>
-          <div class="lp-stat">
-            <span class="lp-stat__value" data-count="58" data-suffix="%">0%</span>
-            <span class="lp-stat__label">de margem média no catálogo</span>
-          </div>
-        </section>
+              <div class="lp-devices" role="img" aria-label="A visão geral da WageUp no computador, com faturamento, despesas, lucro e meta do mês, e uma cobrança PIX paga no celular. Números da conta de demonstração.">
+                <div class="lp-laptop">
+                  <div class="lp-laptop__screen">
+                    <div class="lp-screen">
+                      <div class="lp-screen__side">
+                        <span class="lp-screen__brand">wage<b>up</b></span>
+                        <span class="lp-screen__nav is-active"><span class="material-symbols-rounded">home</span>Visão geral</span>
+                        <span class="lp-screen__nav"><span class="material-symbols-rounded">point_of_sale</span>Vendas</span>
+                        <span class="lp-screen__nav"><span class="material-symbols-rounded">inventory_2</span>Produtos</span>
+                        <span class="lp-screen__nav"><span class="material-symbols-rounded">payments</span>Financeiro</span>
+                        <span class="lp-screen__nav"><span class="material-symbols-rounded">auto_awesome</span>Marketing</span>
+                      </div>
+                      <div class="lp-screen__main">
+                        <div class="lp-screen__top"><strong>Visão geral</strong><span>Doces da Ana · novembro</span></div>
+                        <div class="lp-screen__kpis">
+                          <div class="lp-screen__kpi"><span>Faturamento</span><strong class="lp-money">R$ 2.667,00</strong></div>
+                          <div class="lp-screen__kpi"><span>Despesas</span><strong class="lp-money">R$ 1.773,00</strong></div>
+                          <div class="lp-screen__kpi"><span>Lucro</span><strong class="lp-money lp-money--positive">R$ 894,00</strong></div>
+                          <div class="lp-screen__kpi"><span>Margem</span><strong class="lp-money">34%</strong></div>
+                        </div>
+                        <div class="lp-screen__row">
+                          <div class="lp-screen__card">
+                            <span class="lp-screen__label">Meta do mês</span>
+                            <strong class="lp-money">70%</strong>
+                            <span class="lp-screen__track"><i style="--share: 0.7"></i></span>
+                            <span class="lp-screen__hint"><span class="lp-money">R$ 2.667</span> de <span class="lp-money">R$ 3.800</span></span>
+                          </div>
+                          <div class="lp-screen__card">
+                            <span class="lp-screen__label">Como o dinheiro entrou</span>
+                            <span class="lp-screen__bar"><span>PIX</span><span class="lp-screen__track"><i style="--share: 0.64"></i></span><span class="lp-money">64%</span></span>
+                            <span class="lp-screen__bar"><span>Dinheiro</span><span class="lp-screen__track"><i style="--share: 0.25"></i></span><span class="lp-money">25%</span></span>
+                            <span class="lp-screen__bar"><span>Cartão</span><span class="lp-screen__track"><i style="--share: 0.12"></i></span><span class="lp-money">12%</span></span>
+                          </div>
+                        </div>
+                        <div class="lp-screen__insight">
+                          <span class="material-symbols-rounded">auto_awesome</span>
+                          <span><strong>Bolo de pote despencou</strong>Caiu de 18 para 1 unidade em uma semana.</span>
+                          <span class="lp-screen__btn">Criar promoção</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="lp-laptop__base"></div>
+                </div>
 
-        <!-- RECURSOS -->
-        <section class="lp-section" id="recursos">
-          <div class="lp-section__head">
-            <p class="lp-eyebrow">Recursos</p>
-            <h2>Quatro ferramentas, um só painel.</h2>
-            <p class="lp-section__sub">Do primeiro produto cadastrado ao dinheiro no caixa — sem trocar de aplicativo.</p>
-          </div>
-          <div class="lp-features">
-            <article class="lp-feature">
-              <span class="lp-feature__icon material-symbols-rounded" aria-hidden="true">qr_code_2</span>
-              <h3>Cobrança PIX</h3>
-              <p>Gere QR Code e código copia-e-cola em segundos. Acompanhe quanto entrou e quanto falta receber.</p>
-            </article>
-            <article class="lp-feature">
-              <span class="lp-feature__icon material-symbols-rounded" aria-hidden="true">payments</span>
-              <h3>Financeiro</h3>
-              <p>Registre entradas e saídas e veja lucro, despesas e a evolução do mês em tempo real.</p>
-            </article>
-            <article class="lp-feature">
-              <span class="lp-feature__icon material-symbols-rounded" aria-hidden="true">inventory_2</span>
-              <h3>Produtos</h3>
-              <p>Cadastre o catálogo com custo, preço e estoque. A margem de cada item é calculada para você.</p>
-            </article>
-            <article class="lp-feature">
-              <span class="lp-feature__icon material-symbols-rounded" aria-hidden="true">auto_awesome</span>
-              <h3>Marketing com IA</h3>
-              <p>A IA usa seus produtos para sugerir posts, legendas e campanhas prontas para vender.</p>
-            </article>
-          </div>
-        </section>
-
-        <!-- COMO FUNCIONA -->
-        <section class="lp-section lp-section--muted" id="como-funciona">
-          <div class="lp-section__head">
-            <p class="lp-eyebrow">Como funciona</p>
-            <h2>Do cadastro ao caixa, em três passos.</h2>
-          </div>
-          <ol class="lp-steps">
-            <li class="lp-step">
-              <span class="lp-step__n">1</span>
-              <div>
-                <strong>Cadastre seus produtos</strong>
-                <p>Nome, custo, preço e estoque. A margem aparece na hora, sem planilha.</p>
-              </div>
-            </li>
-            <li class="lp-step">
-              <span class="lp-step__n">2</span>
-              <div>
-                <strong>Cobre por PIX</strong>
-                <p>Gere a cobrança e envie o QR Code. O recebimento entra direto no seu financeiro.</p>
-              </div>
-            </li>
-            <li class="lp-step">
-              <span class="lp-step__n">3</span>
-              <div>
-                <strong>Acompanhe e cresça</strong>
-                <p>Veja recebíveis, insights com IA e o que divulgar em seguida — tudo num painel só.</p>
-              </div>
-            </li>
-          </ol>
-        </section>
-
-        <!-- CALCULADORA DE MARGEM -->
-        <section class="lp-section" id="margem">
-          <div class="lp-section__head">
-            <p class="lp-eyebrow">Na prática</p>
-            <h2>Descubra sua margem em segundos.</h2>
-            <p class="lp-section__sub">Digite custo e preço — a WageUp calcula o que sobra para você, do jeito que o painel faz.</p>
-          </div>
-          <div class="lp-calc">
-            <div class="lp-calc__form">
-              <div class="lp-calc__field">
-                <label for="lpCost">Custo do produto</label>
-                <div class="lp-calc__input"><span>R$</span><input id="lpCost" name="cost" inputmode="decimal" placeholder="0,00" autocomplete="off" /></div>
-              </div>
-              <div class="lp-calc__field">
-                <label for="lpPrice">Preço de venda</label>
-                <div class="lp-calc__input"><span>R$</span><input id="lpPrice" name="price" inputmode="decimal" placeholder="0,00" autocomplete="off" /></div>
-              </div>
-              <div class="lp-calc__field">
-                <label for="lpFee">Taxa de cartão/PIX (%)</label>
-                <div class="lp-calc__input"><span>%</span><input id="lpFee" name="fee" inputmode="decimal" placeholder="0" autocomplete="off" /></div>
+                <div class="lp-devices__phone">
+                  <div class="lp-phone">
+                    <div class="lp-phone__screen">
+                      <span class="lp-phone__notch"></span>
+                      <span class="lp-phone__title">Cobrança PIX</span>
+                      <strong class="lp-money lp-phone__value">R$ 45,00</strong>
+                      <span class="lp-phone__desc">Bolo de pote × 3</span>
+                      <span class="lp-phone__qr"><svg viewBox="0 0 25 25" data-qr></svg></span>
+                      <span class="lp-phone__status" data-phone-status><span class="material-symbols-rounded">check_circle</span><span data-phone-text>Pago</span></span>
+                      <span class="lp-phone__line"><span>No financeiro</span><span class="lp-money lp-money--positive">+ R$ 45,00</span></span>
+                      <span class="lp-phone__line"><span>Estoque</span><span class="lp-money">9 → 6</span></span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-            <div class="lp-calc__result" aria-live="polite">
-              <span class="lp-calc__result-label">O que sobra para você</span>
-              <div class="lp-calc__result-value" id="lpMarginValue">R$ 0,00</div>
-              <div class="lp-calc__result-rows">
-                <div class="lp-calc__result-row"><span>Margem</span><b id="lpMarginPct">0%</b></div>
-                <div class="lp-calc__result-row"><span>Markup sobre o custo</span><b id="lpMarkupPct">0%</b></div>
+          </section>
+
+          <!-- Quem é o público -->
+          <section class="lp-chapter lp-who" id="para-quem" data-lockup="para quem é" aria-labelledby="lpWhoTitle">
+            <div class="lp-head">
+              <p class="lp-kicker">Para quem é</p>
+              <h2 class="lp-h2" id="lpWhoTitle">Para quem vende de verdade e quer saber quanto sobra.</h2>
+              <p class="lp-body">Confeitaria, marmita, salão, revenda, aulas. Negócios pequenos que recebem por PIX, dinheiro e cartão e não têm tempo para planilha.</p>
+              <a class="lp-link" href="/para-quem" data-route>Ver como cada negócio usa</a>
+            </div>
+            <ul class="lp-who__grid">
+              <li class="lp-who__card">
+                <div class="lp-who__scene" aria-hidden="true">
+                  <span class="material-symbols-rounded lp-who__icon">cake</span>
+                  <span class="lp-who__chip"><span>Fatia de bolo de cenoura</span><span class="lp-money lp-money--negative">− R$ 0,90</span></span>
+                </div>
+                <div class="lp-who__text">
+                  <strong>Confeitaria e doces</strong>
+                  <span>Descubra qual doce dá prejuízo depois da embalagem e da taxa da maquininha.</span>
+                </div>
+              </li>
+              <li class="lp-who__card">
+                <div class="lp-who__scene" aria-hidden="true">
+                  <span class="material-symbols-rounded lp-who__icon">content_cut</span>
+                  <span class="lp-who__chip"><span>PIX recebido · Corte</span><span class="lp-money lp-money--positive">+ R$ 80,00</span></span>
+                </div>
+                <div class="lp-who__text">
+                  <strong>Beleza e serviços</strong>
+                  <span>Cobre pelo PIX na hora e veja o dinheiro entrar no caixa sem anotar nada.</span>
+                </div>
+              </li>
+              <li class="lp-who__card">
+                <div class="lp-who__scene" aria-hidden="true">
+                  <span class="material-symbols-rounded lp-who__icon">lunch_dining</span>
+                  <span class="lp-who__chip"><span>Marmita do dia</span><span class="lp-who__warn">Restam 4</span></span>
+                </div>
+                <div class="lp-who__text">
+                  <strong>Marmitas e comida</strong>
+                  <span>Controle o estoque do dia e avise no WhatsApp o que ainda tem para vender.</span>
+                </div>
+              </li>
+              <li class="lp-who__card">
+                <div class="lp-who__scene" aria-hidden="true">
+                  <span class="material-symbols-rounded lp-who__icon">storefront</span>
+                  <span class="lp-who__chip"><span>Kit presente</span><span class="lp-money lp-money--positive">Margem 38%</span></span>
+                </div>
+                <div class="lp-who__text">
+                  <strong>Revenda e lojinhas</strong>
+                  <span>Saiba o preço certo de cada item para a margem que você quer.</span>
+                </div>
+              </li>
+            </ul>
+          </section>
+
+          <!-- Os módulos -->
+          <section class="lp-chapter lp-mods" id="plataforma" data-lockup="plataforma" aria-labelledby="lpModsTitle">
+            <div class="lp-head">
+              <p class="lp-kicker">A plataforma</p>
+              <h2 class="lp-h2" id="lpModsTitle">Cinco frentes que conversam entre si.</h2>
+              <p class="lp-body">A venda vira entrada no caixa, o caixa vira insight, o insight vira campanha. Ninguém digita o mesmo número duas vezes.</p>
+            </div>
+
+            <div class="lp-mods__grid">
+              <a class="lp-mod lp-mod--wide" href="/vendas" data-route>
+                <span class="lp-mod__top">
+                  <span class="material-symbols-rounded lp-mod__icon" aria-hidden="true">point_of_sale</span>
+                  <span class="lp-mod__tag">Vendas e produtos</span>
+                </span>
+                <strong class="lp-mod__title">Quanto sobra de cada venda, de verdade.</strong>
+                <span class="lp-mod__text">Cadastre preço, custo, embalagem, taxa e imposto. A venda baixa o estoque, lança no caixa e grava o lucro do dia.</span>
+                <span class="lp-mod__peek" aria-hidden="true">
+                  <span class="lp-peek-row"><span>Brigadeiro gourmet</span><span class="lp-money lp-money--positive">+ R$ 2,14</span></span>
+                  <span class="lp-peek-row"><span>Bolo de pote</span><span class="lp-money lp-money--positive">+ R$ 7,65</span></span>
+                  <span class="lp-peek-row"><span>Fatia de bolo de cenoura</span><span class="lp-money lp-money--negative">− R$ 0,90</span></span>
+                </span>
+                <span class="lp-mod__more">Conhecer <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></span>
+              </a>
+
+              <a class="lp-mod lp-mod--dark" href="/pix" data-route>
+                <span class="lp-mod__top">
+                  <span class="material-symbols-rounded lp-mod__icon" aria-hidden="true">qr_code_2</span>
+                  <span class="lp-mod__tag">PIX</span>
+                </span>
+                <strong class="lp-mod__title">Recebeu, está no caixa.</strong>
+                <span class="lp-mod__text">QR Code e copia e cola pela Abacate Pay. O pagamento confirma sozinho e vira entrada.</span>
+                <span class="lp-mod__more">Conhecer <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></span>
+              </a>
+
+              <a class="lp-mod" href="/financeiro" data-route>
+                <span class="lp-mod__top">
+                  <span class="material-symbols-rounded lp-mod__icon" aria-hidden="true">monitoring</span>
+                  <span class="lp-mod__tag">Financeiro</span>
+                </span>
+                <strong class="lp-mod__title">O mês inteiro numa tela.</strong>
+                <span class="lp-mod__text">Meta de faturamento, extrato do banco sem duplicar e insights que levam à ação.</span>
+                <span class="lp-mod__more">Conhecer <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></span>
+              </a>
+
+              <a class="lp-mod lp-mod--photo" href="/marketing" data-route>
+                <img class="lp-mod__img" src="/static/landing/campanha-bolo-de-pote.jpg" width="640" height="640" loading="lazy" alt="" />
+                <span class="lp-mod__top">
+                  <span class="material-symbols-rounded lp-mod__icon" aria-hidden="true">campaign</span>
+                  <span class="lp-mod__tag">Marketing com IA</span>
+                </span>
+                <strong class="lp-mod__title">Divulgue o que dá lucro.</strong>
+                <span class="lp-mod__text">Campanha com texto e imagem gerados por IA, a partir da margem real do produto.</span>
+                <span class="lp-mod__more">Conhecer <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></span>
+              </a>
+
+              <a class="lp-mod" href="/assistente" data-route>
+                <span class="lp-mod__top">
+                  <span class="material-symbols-rounded lp-mod__icon" aria-hidden="true">forum</span>
+                  <span class="lp-mod__tag">Assistente</span>
+                </span>
+                <strong class="lp-mod__title">Pergunte do seu jeito.</strong>
+                <span class="lp-mod__text">"Quanto falta para a meta?" A resposta vem com os números do seu negócio.</span>
+                <span class="lp-mod__more">Conhecer <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></span>
+              </a>
+            </div>
+          </section>
+
+          <!-- Do número à ação: o caminho, preenchido pela rolagem -->
+          <section class="lp-path" data-nav="dark" data-lockup="na prática" aria-labelledby="lpPathTitle">
+            <div class="lp-path__inner">
+              <div class="lp-head lp-head--inverse">
+                <p class="lp-kicker">Do número à ação</p>
+                <h2 class="lp-h2" id="lpPathTitle">Uma semana na Doces da Ana.</h2>
+                <p class="lp-body">O sistema faz a conta. A IA explica e sugere. A decisão é sempre de quem vende.</p>
+              </div>
+              <div class="lp-path__track" aria-hidden="true"><i></i></div>
+              <ol class="lp-path__steps">
+                <li class="lp-step">
+                  <span class="lp-step__num">01</span>
+                  <strong class="lp-step__title">Receba</strong>
+                  <span class="lp-step__text">Três bolos de pote pagos no PIX. A venda entra no caixa e o estoque baixa.</span>
+                  <span class="lp-step__ui"><span>Bolo de pote × 3</span><span class="lp-money">+ R$ 45,00</span></span>
+                </li>
+                <li class="lp-step">
+                  <span class="lp-step__num">02</span>
+                  <strong class="lp-step__title">Entenda</strong>
+                  <span class="lp-step__text">O painel percebe a queda: o bolo de pote vendeu 18 na semana passada e 1 nesta.</span>
+                  <span class="lp-step__ui lp-step__ui--warning"><span>Vendas caindo</span><span class="lp-money">18 → 1</span></span>
+                </li>
+                <li class="lp-step">
+                  <span class="lp-step__num">03</span>
+                  <strong class="lp-step__title">Decida</strong>
+                  <span class="lp-step__text">Cada pote deixa R$ 7,65. Dá para fazer promoção sem vender no prejuízo.</span>
+                  <span class="lp-step__ui"><span>Margem real</span><span class="lp-money">R$ 7,65</span></span>
+                </li>
+                <li class="lp-step">
+                  <span class="lp-step__num">04</span>
+                  <strong class="lp-step__title">Cresça</strong>
+                  <span class="lp-step__text">Um toque gera a campanha com texto e imagem, pronta para o Instagram.</span>
+                  <span class="lp-step__ui lp-step__ui--ok"><span>Campanha pronta</span><span class="material-symbols-rounded" aria-hidden="true">check</span></span>
+                </li>
+              </ol>
+            </div>
+          </section>
+
+          <!-- A conta de uma venda: mesma fórmula do cadastro de produto -->
+          <section class="lp-chapter lp-calc" id="conta" data-lockup="a conta" aria-labelledby="lpCalcTitle">
+            <div class="lp-calc__copy">
+              <p class="lp-kicker">Faça a conta agora</p>
+              <h2 class="lp-h2" id="lpCalcTitle">Preço menos custo não é lucro.</h2>
+              <p class="lp-body">Embalagem, frete, taxa do cartão ou do PIX e imposto também saem de cada venda. Escolha um produto da Doces da Ana ou digite o seu.</p>
+              <a class="lp-link" href="/vendas" data-route>Ver como funciona nas vendas</a>
+            </div>
+
+            <form class="lp-receipt" id="lpReceipt" aria-labelledby="lpReceiptTitle" novalidate data-ui>
+              <div class="lp-receipt__head">
+                <p class="lp-receipt__title" id="lpReceiptTitle">A conta de uma venda</p>
+                <div class="lp-receipt__picks" role="group" aria-label="Escolha um exemplo">
+                  <button class="lp-pick is-active" type="button" aria-pressed="true" data-pick="fatia">Fatia de bolo de cenoura</button>
+                  <button class="lp-pick" type="button" aria-pressed="false" data-pick="brigadeiro">Brigadeiro gourmet</button>
+                  <button class="lp-pick" type="button" aria-pressed="false" data-pick="pote">Bolo de pote</button>
+                  <button class="lp-pick" type="button" aria-pressed="false" data-pick="seu">O seu produto</button>
+                </div>
+              </div>
+
+              <div class="lp-receipt__lines">
+                <div class="lp-line">
+                  <label class="lp-line__label" for="lpPrice">Preço de venda</label>
+                  <span class="lp-field"><span class="lp-field__unit" aria-hidden="true">R$</span><input class="lp-field__input" id="lpPrice" name="price" inputmode="decimal" autocomplete="off" value="7,00" /></span>
+                </div>
+                <div class="lp-line">
+                  <label class="lp-line__label" for="lpCost">Custo do produto</label>
+                  <span class="lp-field"><span class="lp-field__unit" aria-hidden="true">R$</span><input class="lp-field__input" id="lpCost" name="cost" inputmode="decimal" autocomplete="off" value="6,00" /></span>
+                </div>
+                <div class="lp-line">
+                  <label class="lp-line__label" for="lpOther">Embalagem e frete</label>
+                  <span class="lp-field"><span class="lp-field__unit" aria-hidden="true">R$</span><input class="lp-field__input" id="lpOther" name="other" inputmode="decimal" autocomplete="off" value="1,20" /></span>
+                </div>
+                <div class="lp-line lp-line--pct">
+                  <label class="lp-line__label" for="lpFee">Taxa do cartão ou PIX</label>
+                  <span class="lp-field lp-field--pct"><input class="lp-field__input" id="lpFee" name="fee" inputmode="decimal" autocomplete="off" value="4" /><span class="lp-field__unit" aria-hidden="true">%</span></span>
+                  <span class="lp-line__amount" id="lpFeeAmount">R$ 0,28</span>
+                </div>
+                <div class="lp-line lp-line--pct">
+                  <label class="lp-line__label" for="lpTax">Imposto</label>
+                  <span class="lp-field lp-field--pct"><input class="lp-field__input" id="lpTax" name="tax" inputmode="decimal" autocomplete="off" value="6" /><span class="lp-field__unit" aria-hidden="true">%</span></span>
+                  <span class="lp-line__amount" id="lpTaxAmount">R$ 0,42</span>
+                </div>
+              </div>
+
+              <div class="lp-receipt__total is-negative" id="lpTotal" aria-live="polite">
+                <span class="lp-receipt__total-label">Sobra para você</span>
+                <strong class="lp-receipt__value" id="lpMarginValue">−R$ 0,90</strong>
+                <p class="lp-receipt__verdict" id="lpVerdict"><b>Prejuízo.</b> Cada fatia vendida tira R$ 0,90 do caixa.</p>
+              </div>
+            </form>
+          </section>
+
+          <!-- Por que existe: o problema em números -->
+          <section class="lp-band lp-stats" data-lockup="por que existe" aria-labelledby="lpStatsTitle">
+            <div class="lp-chapter">
+              <div class="lp-head">
+                <p class="lp-kicker">Por que a WageUp existe</p>
+                <h2 class="lp-h2" id="lpStatsTitle">O MEI move o Brasil, mas raramente sabe quanto lucra.</h2>
+              </div>
+              <dl class="lp-stats__grid">
+                <div class="lp-stat">
+                  <dt class="lp-stat__label">MEIs ativos no país</dt>
+                  <dd class="lp-stat__value"><span data-count="15" data-suffix=" mi">15 mi</span></dd>
+                  <dd class="lp-stat__source">Contábeis, 2025</dd>
+                </div>
+                <div class="lp-stat">
+                  <dt class="lp-stat__label">usaram a conta pessoal para pagar despesas da empresa</dt>
+                  <dd class="lp-stat__value"><span data-count="61" data-suffix="%">61%</span></dd>
+                  <dd class="lp-stat__source">Conexão TO, 2026</dd>
+                </div>
+                <div class="lp-stat">
+                  <dt class="lp-stat__label">controlam o dinheiro no caderno ou não controlam</dt>
+                  <dd class="lp-stat__value"><span data-count="35" data-suffix="%">35%</span></dd>
+                  <dd class="lp-stat__source">Sebrae PR, 2025</dd>
+                </div>
+                <div class="lp-stat">
+                  <dt class="lp-stat__label">dos MEIs fecham em até cinco anos</dt>
+                  <dd class="lp-stat__value"><span data-count="29" data-suffix="%">29%</span></dd>
+                  <dd class="lp-stat__source">Sebrae</dd>
+                </div>
+              </dl>
+            </div>
+          </section>
+
+          <!-- Mais: as páginas de acessibilidade e de perguntas -->
+          <section class="lp-chapter lp-more" data-lockup="saiba mais" aria-label="Saiba mais">
+            <a class="lp-more__card" href="/acessibilidade" data-route>
+              <span class="material-symbols-rounded lp-more__icon" aria-hidden="true">accessibility_new</span>
+              <span class="lp-more__label">Acessibilidade</span>
+              <strong class="lp-more__title">Feita para todo mundo usar.</strong>
+              <span class="lp-more__text">Libras, letra maior, alto contraste, leitura em voz alta e tudo pelo teclado.</span>
+              <span class="lp-mod__more">Ver recursos <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></span>
+            </a>
+            <a class="lp-more__card lp-more__card--dark" href="/perguntas" data-route>
+              <span class="material-symbols-rounded lp-more__icon" aria-hidden="true">help</span>
+              <span class="lp-more__label">Perguntas</span>
+              <strong class="lp-more__title">Dúvidas de quem vende.</strong>
+              <span class="lp-more__text">Quanto custa, como o PIX entra no caixa, o que a IA faz e como seus dados ficam guardados.</span>
+              <span class="lp-mod__more">Ver perguntas <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></span>
+            </a>
+          </section>
+        </div>
+
+        <!-- ═══════════════════════ PARA QUEM É ═══════════════════════ -->
+        <div class="lp-page" data-page="para-quem" data-title="Para quem é | WageUp" hidden>
+          <section class="mp-hero" data-nav="dark" aria-labelledby="mpWhoTitle">
+            <div class="mp-hero__inner">
+              <div class="mp-hero__copy">
+                <p class="lp-eyebrow"><span class="material-symbols-rounded" aria-hidden="true">storefront</span>Para quem é</p>
+                <h1 data-lockup="para quem é" class="mp-hero__title" id="mpWhoTitle">Feita para quem vende de verdade.</h1>
+                <p class="mp-hero__lead">MEIs e pequenos negócios que recebem por PIX, dinheiro e cartão, vendem pelo WhatsApp e pelo Instagram e não têm tempo para planilha.</p>
+                <div class="lp-top__actions">
+                  <button class="lp-btn lp-btn--primary lp-btn--lg" type="button" data-open-app="register">Criar conta grátis <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></button>
+                </div>
+              </div>
+              <ul class="mp-who-chips" data-ui aria-label="Exemplos de negócios">
+                <li><span class="material-symbols-rounded" aria-hidden="true">cake</span>Confeitaria</li>
+                <li><span class="material-symbols-rounded" aria-hidden="true">lunch_dining</span>Marmitas</li>
+                <li><span class="material-symbols-rounded" aria-hidden="true">content_cut</span>Salão de beleza</li>
+                <li><span class="material-symbols-rounded" aria-hidden="true">storefront</span>Revenda</li>
+                <li><span class="material-symbols-rounded" aria-hidden="true">school</span>Aulas particulares</li>
+                <li><span class="material-symbols-rounded" aria-hidden="true">build</span>Manutenção</li>
+                <li><span class="material-symbols-rounded" aria-hidden="true">checkroom</span>Moda e brechó</li>
+                <li><span class="material-symbols-rounded" aria-hidden="true">pets</span>Pet shop em casa</li>
+              </ul>
+            </div>
+          </section>
+
+          <section class="lp-chapter mp-segs" aria-labelledby="mpSegsTitle">
+            <h2 class="lp-h2" id="mpSegsTitle">O que muda no dia a dia de cada negócio</h2>
+            <div class="mp-segs__list">
+              <article class="mp-seg">
+                <div class="mp-seg__head"><span class="material-symbols-rounded lp-who__icon" aria-hidden="true">cake</span><h3>Confeitaria e doces</h3></div>
+                <p class="mp-seg__pain"><strong>O problema:</strong> o doce que mais vende pode ser o que dá prejuízo, depois da embalagem e da taxa da maquininha.</p>
+                <ul class="mp-seg__list">
+                  <li>Margem real de cada doce enquanto você cadastra</li>
+                  <li>Lucro por produto no fim do mês</li>
+                  <li>Promoção sugerida quando as vendas caem</li>
+                </ul>
+                <div class="mp-seg__ui" data-ui><span>Fatia de bolo de cenoura</span><span class="mp-badge mp-badge--negative">Prejuízo</span><span class="lp-money lp-money--negative">− R$ 0,90</span></div>
+              </article>
+              <article class="mp-seg">
+                <div class="mp-seg__head"><span class="material-symbols-rounded lp-who__icon" aria-hidden="true">lunch_dining</span><h3>Marmitas e comida</h3></div>
+                <p class="mp-seg__pain"><strong>O problema:</strong> sobrou comida ou faltou marmita, e o dinheiro do dia se misturou com o da casa.</p>
+                <ul class="mp-seg__list">
+                  <li>Estoque do dia que baixa a cada venda</li>
+                  <li>Aviso pronto para o WhatsApp quando está acabando</li>
+                  <li>Quanto entrou por PIX, dinheiro e cartão</li>
+                </ul>
+                <div class="mp-seg__ui" data-ui><span>Marmita do dia</span><span class="lp-who__warn">Restam 4</span><span class="lp-action__do">Avisar no WhatsApp</span></div>
+              </article>
+              <article class="mp-seg">
+                <div class="mp-seg__head"><span class="material-symbols-rounded lp-who__icon" aria-hidden="true">content_cut</span><h3>Beleza e serviços</h3></div>
+                <p class="mp-seg__pain"><strong>O problema:</strong> o cliente paga no PIX, ninguém anota, e no fim do mês não dá para saber quanto entrou.</p>
+                <ul class="mp-seg__list">
+                  <li>Cobrança PIX na hora, com QR Code</li>
+                  <li>Pagamento confirmado que entra sozinho no caixa</li>
+                  <li>Serviço sem estoque, com lucro por atendimento</li>
+                </ul>
+                <div class="mp-seg__ui" data-ui><span>PIX recebido · Corte</span><span class="material-symbols-rounded mp-seg__ok" aria-hidden="true">check_circle</span><span class="lp-money lp-money--positive">+ R$ 80,00</span></div>
+              </article>
+              <article class="mp-seg">
+                <div class="mp-seg__head"><span class="material-symbols-rounded lp-who__icon" aria-hidden="true">storefront</span><h3>Revenda e lojinhas</h3></div>
+                <p class="mp-seg__pain"><strong>O problema:</strong> o preço sai no chute, e a margem some entre o frete, a taxa e o imposto.</p>
+                <ul class="mp-seg__list">
+                  <li>Preço sugerido para a margem que você quer</li>
+                  <li>Extrato do banco importado sem contar duas vezes</li>
+                  <li>Campanha com texto e imagem para divulgar</li>
+                </ul>
+                <div class="mp-seg__ui" data-ui><span>Kit presente</span><span class="mp-seg__hint">preço para 40%</span><span class="lp-money">R$ 64,90</span></div>
+              </article>
+            </div>
+          </section>
+
+          <section class="lp-band lp-stats" aria-labelledby="mpWhoStats">
+            <div class="lp-chapter">
+              <div class="lp-head">
+                <p class="lp-kicker">Por que a WageUp existe</p>
+                <h2 class="lp-h2" id="mpWhoStats">O MEI move o Brasil, mas raramente sabe quanto lucra.</h2>
+              </div>
+              <dl class="lp-stats__grid">
+                <div class="lp-stat"><dt class="lp-stat__label">MEIs ativos no país</dt><dd class="lp-stat__value"><span data-count="15" data-suffix=" mi">15 mi</span></dd><dd class="lp-stat__source">Contábeis, 2025</dd></div>
+                <div class="lp-stat"><dt class="lp-stat__label">usaram a conta pessoal para pagar despesas da empresa</dt><dd class="lp-stat__value"><span data-count="61" data-suffix="%">61%</span></dd><dd class="lp-stat__source">Conexão TO, 2026</dd></div>
+                <div class="lp-stat"><dt class="lp-stat__label">controlam o dinheiro no caderno ou não controlam</dt><dd class="lp-stat__value"><span data-count="35" data-suffix="%">35%</span></dd><dd class="lp-stat__source">Sebrae PR, 2025</dd></div>
+                <div class="lp-stat"><dt class="lp-stat__label">dos MEIs fecham em até cinco anos</dt><dd class="lp-stat__value"><span data-count="29" data-suffix="%">29%</span></dd><dd class="lp-stat__source">Sebrae</dd></div>
+              </dl>
+            </div>
+          </section>
+
+          <section class="lp-chapter mp-next">
+            <a class="mp-next__card" href="/vendas" data-route>
+              <span class="mp-next__label">Comece por aqui</span>
+              <strong class="mp-next__title">Vendas e produtos: quanto sobra de cada venda</strong>
+              <span class="material-symbols-rounded mp-next__arrow" aria-hidden="true">arrow_forward</span>
+            </a>
+          </section>
+        </div>
+
+        <!-- ═══════════════════════ ACESSIBILIDADE ═══════════════════════ -->
+        <div class="lp-page" data-page="acessibilidade" data-title="Acessibilidade | WageUp" hidden>
+          <section class="mp-hero" data-nav="dark" aria-labelledby="mpAccTitle">
+            <div class="mp-hero__inner">
+              <div class="mp-hero__copy">
+                <p class="lp-eyebrow"><span class="material-symbols-rounded" aria-hidden="true">accessibility_new</span>Acessibilidade</p>
+                <h1 data-lockup="acessibilidade" class="mp-hero__title" id="mpAccTitle">Feita para todo mundo usar.</h1>
+                <p class="mp-hero__lead">Dois em cada três MEIs têm até o ensino médio, e muitos usam só o celular. Linguagem simples e acessibilidade fazem parte do produto, não são um extra.</p>
+                <div class="lp-top__actions">
+                  <button class="lp-btn lp-btn--primary lp-btn--lg" type="button" data-open-a11y>Abrir o painel de acessibilidade <span class="material-symbols-rounded" aria-hidden="true">tune</span></button>
+                </div>
+              </div>
+              <div class="mp-acc-demo" data-ui aria-hidden="true">
+                <div class="mp-acc-demo__head"><span class="material-symbols-rounded">accessibility_new</span><strong>Acessibilidade</strong></div>
+                <div class="mp-acc-demo__row"><span>Tamanho da letra</span><span class="mp-acc-demo__seg"><i>A</i><i class="is-on">A+</i><i>A++</i></span></div>
+                <div class="mp-acc-demo__row"><span>Alto contraste</span><span class="mp-acc-demo__switch is-on"></span></div>
+                <div class="mp-acc-demo__row"><span>Texto mais espaçado</span><span class="mp-acc-demo__switch"></span></div>
+                <div class="mp-acc-demo__row"><span>Menos movimento</span><span class="mp-acc-demo__switch"></span></div>
+                <div class="mp-acc-demo__row"><span>Leitura em voz alta</span><span class="mp-acc-demo__switch is-on"></span></div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <!-- FAQ -->
-        <section class="lp-section lp-section--muted" id="faq">
-          <div class="lp-section__head">
-            <p class="lp-eyebrow">Perguntas frequentes</p>
-            <h2>Boa pergunta.</h2>
-          </div>
-          <div class="lp-faq">
-            <div class="lp-faq__item">
-              <button class="lp-faq__q" type="button" aria-expanded="false">
-                <span>Preciso entender de contabilidade para usar?</span>
-                <span class="lp-faq__icon" aria-hidden="true">+</span>
-              </button>
-              <div class="lp-faq__a"><div class="lp-faq__a-inner"><p>Não. A WageUp foi feita para o dia a dia do MEI: você registra entradas e saídas com palavras simples, e o painel traduz isso em lucro, despesas e margem — sem jargão.</p></div></div>
-            </div>
-            <div class="lp-faq__item">
-              <button class="lp-faq__q" type="button" aria-expanded="false">
-                <span>Quanto custa criar uma cobrança PIX?</span>
-                <span class="lp-faq__icon" aria-hidden="true">+</span>
-              </button>
-              <div class="lp-faq__a"><div class="lp-faq__a-inner"><p>Você paga só a taxa da Abacate Pay por cobrança. A plataforma em si não cobra mensalidade no plano gratuito.</p></div></div>
-            </div>
-            <div class="lp-faq__item">
-              <button class="lp-faq__q" type="button" aria-expanded="false">
-                <span>Meus dados e os do meu negócio estão seguros?</span>
-                <span class="lp-faq__icon" aria-hidden="true">+</span>
-              </button>
-              <div class="lp-faq__a"><div class="lp-faq__a-inner"><p>Sim. Cada conta é isolada, o extrato importado é lido e descartado sem ficar guardado, e o acesso ao seu banco nunca passa pela WageUp.</p></div></div>
-            </div>
-            <div class="lp-faq__item">
-              <button class="lp-faq__q" type="button" aria-expanded="false">
-                <span>A IA de marketing usa os meus produtos de verdade?</span>
-                <span class="lp-faq__icon" aria-hidden="true">+</span>
-              </button>
-              <div class="lp-faq__a"><div class="lp-faq__a-inner"><p>Sim. Ela lê o catálogo que você cadastrou — nome, preço e margem — para sugerir campanhas que falam do seu produto, não de algo genérico.</p></div></div>
-            </div>
-            <div class="lp-faq__item">
-              <button class="lp-faq__q" type="button" aria-expanded="false">
-                <span>Posso usar no celular?</span>
-                <span class="lp-faq__icon" aria-hidden="true">+</span>
-              </button>
-              <div class="lp-faq__a"><div class="lp-faq__a-inner"><p>Sim. A plataforma é responsiva e funciona no navegador do celular, tablet e computador, sem instalar nada.</p></div></div>
-            </div>
-          </div>
-        </section>
+          <section class="lp-chapter lp-access" aria-labelledby="mpAccList">
+            <div class="lp-head"><h2 class="lp-h2" id="mpAccList">O que dá para ajustar</h2></div>
+            <ul class="lp-access__list">
+              <li class="lp-access__item">
+                <span class="material-symbols-rounded lp-access__icon" aria-hidden="true">sign_language</span>
+                <strong class="lp-access__name">Libras</strong>
+                <span class="lp-access__text">O VLibras, do Governo Federal, traduz o texto da tela para Libras com um avatar. O botão azul fica na lateral de todas as telas.</span>
+              </li>
+              <li class="lp-access__item">
+                <span class="material-symbols-rounded lp-access__icon" aria-hidden="true">text_increase</span>
+                <strong class="lp-access__name">Letra maior</strong>
+                <span class="lp-access__text">Três tamanhos de letra. Toda a tela cresce junto, sem cortar texto nem quebrar o layout.</span>
+              </li>
+              <li class="lp-access__item">
+                <span class="material-symbols-rounded lp-access__icon" aria-hidden="true">contrast</span>
+                <strong class="lp-access__name">Alto contraste</strong>
+                <span class="lp-access__text">Texto, ícones e bordas mais fortes, com contraste de 5,8 para 1 ou mais, e links sublinhados.</span>
+              </li>
+              <li class="lp-access__item">
+                <span class="material-symbols-rounded lp-access__icon" aria-hidden="true">format_line_spacing</span>
+                <strong class="lp-access__name">Texto mais espaçado</strong>
+                <span class="lp-access__text">Mais espaço entre letras, palavras e linhas, como recomenda a diretriz de acessibilidade WCAG.</span>
+              </li>
+              <li class="lp-access__item">
+                <span class="material-symbols-rounded lp-access__icon" aria-hidden="true">motion_photos_off</span>
+                <strong class="lp-access__name">Menos movimento</strong>
+                <span class="lp-access__text">Desliga as animações. Se o seu aparelho já pede menos movimento, a WageUp segue sozinha.</span>
+              </li>
+              <li class="lp-access__item">
+                <span class="material-symbols-rounded lp-access__icon" aria-hidden="true">record_voice_over</span>
+                <strong class="lp-access__name">Leitura em voz alta</strong>
+                <span class="lp-access__text">Toque num trecho ou selecione um texto e o navegador lê para você, inclusive o nome dos botões.</span>
+              </li>
+            </ul>
+          </section>
 
-        <!-- CTA FINAL -->
-        <section class="lp-cta">
-          <h2>Comece a organizar seu negócio hoje.</h2>
-          <p>Crie sua conta gratuita em poucos minutos.</p>
-          <button class="lp-btn lp-btn--primary lp-btn--lg" data-open-app>Começar agora</button>
-        </section>
+          <section class="lp-chapter mp-steps" aria-labelledby="mpAccHow">
+            <h2 class="lp-h2" id="mpAccHow">Como usar</h2>
+            <ol class="mp-steps__list">
+              <li class="mp-step"><span class="mp-step__num">1</span><strong>Abra o painel</strong><span>Toque no botão escuro na lateral direita da tela, ou use Alt + A no teclado.</span></li>
+              <li class="mp-step"><span class="mp-step__num">2</span><strong>Escolha o que precisa</strong><span>Letra, contraste, espaçamento, movimento e leitura em voz alta. A tela muda na hora.</span></li>
+              <li class="mp-step"><span class="mp-step__num">3</span><strong>Fica salvo no aparelho</strong><span>Na próxima vez que abrir a WageUp, as suas escolhas já estão lá.</span></li>
+            </ol>
+          </section>
+
+          <section class="lp-chapter mp-features" aria-labelledby="mpAccBase">
+            <h2 class="lp-h2" id="mpAccBase">E o que vale para todo mundo, sem ajustar nada</h2>
+            <ul class="mp-features__grid">
+              <li class="mp-feature"><span class="material-symbols-rounded" aria-hidden="true">keyboard</span><strong>Tudo pelo teclado</strong><span>Tab percorre a tela, e as janelas prendem o foco até serem fechadas.</span></li>
+              <li class="mp-feature"><span class="material-symbols-rounded" aria-hidden="true">hearing</span><strong>Leitor de tela</strong><span>Botões com nome, telas que avisam quando abrem e mensagens lidas em voz alta.</span></li>
+              <li class="mp-feature"><span class="material-symbols-rounded" aria-hidden="true">palette</span><strong>Cor nunca sozinha</strong><span>Prejuízo aparece escrito, não só em vermelho.</span></li>
+              <li class="mp-feature"><span class="material-symbols-rounded" aria-hidden="true">translate</span><strong>Português do dia a dia</strong><span>Sem "fluxo de caixa" nem "ticket médio": a WageUp fala como quem vende.</span></li>
+            </ul>
+          </section>
+
+          <section class="lp-chapter mp-next">
+            <a class="mp-next__card" href="/perguntas" data-route>
+              <span class="mp-next__label">Ainda com dúvida?</span>
+              <strong class="mp-next__title">Veja as perguntas de quem vende</strong>
+              <span class="material-symbols-rounded mp-next__arrow" aria-hidden="true">arrow_forward</span>
+            </a>
+          </section>
+        </div>
+
+        <!-- ═══════════════════════ PERGUNTAS ═══════════════════════ -->
+        <div class="lp-page" data-page="perguntas" data-title="Perguntas | WageUp" hidden>
+          <section class="mp-hero" data-nav="dark" aria-labelledby="mpFaqTitle">
+            <div class="mp-hero__inner mp-hero__inner--single">
+              <div class="mp-hero__copy">
+                <p class="lp-eyebrow"><span class="material-symbols-rounded" aria-hidden="true">help</span>Perguntas</p>
+                <h1 data-lockup="perguntas" class="mp-hero__title" id="mpFaqTitle">Dúvidas de quem vende.</h1>
+                <p class="mp-hero__lead">Passe o mouse ou toque numa pergunta para ver a resposta.</p>
+              </div>
+            </div>
+          </section>
+
+            <section class="lp-chapter lp-faq" aria-labelledby="faqGc">
+              <div class="lp-head">
+                <h2 class="lp-h2" id="faqGc">Começando</h2>
+              </div>
+              <div class="lp-faq__list" data-faq>
+                <div class="lp-faq__item">
+                  <h3 class="lp-faq__q">
+                    <button class="lp-faq__btn" type="button" id="faqQc1" aria-expanded="false" aria-controls="faqAc1">
+                      <span>Preciso entender de contabilidade?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                    </button>
+                  </h3>
+                  <div class="lp-faq__a" id="faqAc1" role="region" aria-labelledby="faqQc1" hidden>
+                    <p>Não. Você registra vendas, entradas e saídas com palavras do dia a dia, e o painel transforma isso em lucro, despesas e margem.</p>
+                  </div>
+                </div>
+                <div class="lp-faq__item">
+                  <h3 class="lp-faq__q">
+                    <button class="lp-faq__btn" type="button" id="faqQc2" aria-expanded="false" aria-controls="faqAc2">
+                      <span>Quanto custa?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                    </button>
+                  </h3>
+                  <div class="lp-faq__a" id="faqAc2" role="region" aria-labelledby="faqQc2" hidden>
+                    <p>A plataforma não cobra mensalidade. Na cobrança PIX, você paga só a taxa da Abacate Pay.</p>
+                  </div>
+                </div>
+                <div class="lp-faq__item">
+                  <h3 class="lp-faq__q">
+                    <button class="lp-faq__btn" type="button" id="faqQc3" aria-expanded="false" aria-controls="faqAc3">
+                      <span>Preciso cadastrar todos os produtos de uma vez?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                    </button>
+                  </h3>
+                  <div class="lp-faq__a" id="faqAc3" role="region" aria-labelledby="faqQc3" hidden>
+                    <p>Não. Comece por um. A margem aparece enquanto você digita o preço e os custos, e o resto do catálogo pode vir aos poucos.</p>
+                  </div>
+                </div>
+                <div class="lp-faq__item">
+                  <h3 class="lp-faq__q">
+                    <button class="lp-faq__btn" type="button" id="faqQc4" aria-expanded="false" aria-controls="faqAc4">
+                      <span>Serve para quem vende serviço?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                    </button>
+                  </h3>
+                  <div class="lp-faq__a" id="faqAc4" role="region" aria-labelledby="faqQc4" hidden>
+                    <p>Sim. Corte, aula ou conserto entram como serviço: sem controle de estoque, mas com o lucro de cada atendimento.</p>
+                  </div>
+                </div>
+                <div class="lp-faq__item">
+                  <h3 class="lp-faq__q">
+                    <button class="lp-faq__btn" type="button" id="faqQc5" aria-expanded="false" aria-controls="faqAc5">
+                      <span>Funciona no celular?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                    </button>
+                  </h3>
+                  <div class="lp-faq__a" id="faqAc5" role="region" aria-labelledby="faqQc5" hidden>
+                    <p>Sim. A plataforma roda no navegador do celular, do tablet e do computador, sem instalar nada.</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <section class="lp-chapter lp-faq" aria-labelledby="faqGd">
+              <div class="lp-head">
+                <h2 class="lp-h2" id="faqGd">Dinheiro, vendas e PIX</h2>
+              </div>
+              <div class="lp-faq__list" data-faq>
+                <div class="lp-faq__item">
+                  <h3 class="lp-faq__q">
+                    <button class="lp-faq__btn" type="button" id="faqQd1" aria-expanded="false" aria-controls="faqAd1">
+                      <span>Por que a margem não é preço menos custo?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                    </button>
+                  </h3>
+                  <div class="lp-faq__a" id="faqAd1" role="region" aria-labelledby="faqQd1" hidden>
+                    <p>Porque embalagem, frete, taxa do cartão ou do PIX e imposto também saem de cada venda. A WageUp desconta tudo isso antes de dizer quanto sobra, no catálogo, nas vendas e nas sugestões de marketing.</p>
+                  </div>
+                </div>
+                <div class="lp-faq__item">
+                  <h3 class="lp-faq__q">
+                    <button class="lp-faq__btn" type="button" id="faqQd2" aria-expanded="false" aria-controls="faqAd2">
+                      <span>Como o PIX entra no caixa?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                    </button>
+                  </h3>
+                  <div class="lp-faq__a" id="faqAd2" role="region" aria-labelledby="faqQd2" hidden>
+                    <p>Você gera o QR Code e o copia e cola. Quando o cliente paga, a confirmação chega sozinha e o valor vira entrada no financeiro. Se a cobrança for de um produto, vira venda e baixa o estoque.</p>
+                  </div>
+                </div>
+                <div class="lp-faq__item">
+                  <h3 class="lp-faq__q">
+                    <button class="lp-faq__btn" type="button" id="faqQd3" aria-expanded="false" aria-controls="faqAd3">
+                      <span>E se eu errar uma venda?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                    </button>
+                  </h3>
+                  <div class="lp-faq__a" id="faqAd3" role="region" aria-labelledby="faqQd3" hidden>
+                    <p>Cancele a venda. O estoque volta e a entrada sai do caixa, sem precisar corrigir nada à mão.</p>
+                  </div>
+                </div>
+                <div class="lp-faq__item">
+                  <h3 class="lp-faq__q">
+                    <button class="lp-faq__btn" type="button" id="faqQd4" aria-expanded="false" aria-controls="faqAd4">
+                      <span>Posso importar o extrato do banco?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                    </button>
+                  </h3>
+                  <div class="lp-faq__a" id="faqAd4" role="region" aria-labelledby="faqQd4" hidden>
+                    <p>Sim, em arquivo OFX. Você confere antes de gravar, e o que já foi lançado na plataforma vem desmarcado para não contar duas vezes.</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <section class="lp-chapter lp-faq" aria-labelledby="faqGi">
+              <div class="lp-head">
+                <h2 class="lp-h2" id="faqGi">Inteligência artificial</h2>
+              </div>
+              <div class="lp-faq__list" data-faq>
+                <div class="lp-faq__item">
+                  <h3 class="lp-faq__q">
+                    <button class="lp-faq__btn" type="button" id="faqQi1" aria-expanded="false" aria-controls="faqAi1">
+                      <span>A IA usa os meus produtos de verdade?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                    </button>
+                  </h3>
+                  <div class="lp-faq__a" id="faqAi1" role="region" aria-labelledby="faqQi1" hidden>
+                    <p>Sim. Ela lê o catálogo que você cadastrou, com preço e margem real, e nunca sugere um desconto maior do que a margem aguenta.</p>
+                  </div>
+                </div>
+                <div class="lp-faq__item">
+                  <h3 class="lp-faq__q">
+                    <button class="lp-faq__btn" type="button" id="faqQi2" aria-expanded="false" aria-controls="faqAi2">
+                      <span>A IA pode errar as contas?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                    </button>
+                  </h3>
+                  <div class="lp-faq__a" id="faqAi2" role="region" aria-labelledby="faqQi2" hidden>
+                    <p>As contas são feitas pela WageUp antes de chegar à IA. Ela recebe os números prontos, só explica o resultado e sugere o próximo passo.</p>
+                  </div>
+                </div>
+                <div class="lp-faq__item">
+                  <h3 class="lp-faq__q">
+                    <button class="lp-faq__btn" type="button" id="faqQi3" aria-expanded="false" aria-controls="faqAi3">
+                      <span>Como a imagem da campanha é criada?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                    </button>
+                  </h3>
+                  <div class="lp-faq__a" id="faqAi3" role="region" aria-labelledby="faqQi3" hidden>
+                    <p>Uma IA de imagem desenha a partir da ideia que o próprio texto da campanha descreve, para a imagem combinar com a legenda.</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <section class="lp-chapter lp-faq" aria-labelledby="faqGs">
+              <div class="lp-head">
+                <h2 class="lp-h2" id="faqGs">Segurança e dados</h2>
+              </div>
+              <div class="lp-faq__list" data-faq>
+                <div class="lp-faq__item">
+                  <h3 class="lp-faq__q">
+                    <button class="lp-faq__btn" type="button" id="faqQs1" aria-expanded="false" aria-controls="faqAs1">
+                      <span>Meus dados estão seguros?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                    </button>
+                  </h3>
+                  <div class="lp-faq__a" id="faqAs1" role="region" aria-labelledby="faqQs1" hidden>
+                    <p>Cada conta vê só o próprio negócio. A senha é guardada criptografada e há limite de tentativas no login.</p>
+                  </div>
+                </div>
+                <div class="lp-faq__item">
+                  <h3 class="lp-faq__q">
+                    <button class="lp-faq__btn" type="button" id="faqQs2" aria-expanded="false" aria-controls="faqAs2">
+                      <span>A IA vê os dados dos meus clientes?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                    </button>
+                  </h3>
+                  <div class="lp-faq__a" id="faqAs2" role="region" aria-labelledby="faqQs2" hidden>
+                    <p>Só o nome do cliente de uma cobrança PIX, para o assistente dizer de quem falta receber. CPF, e-mail e celular nunca saem da WageUp.</p>
+                  </div>
+                </div>
+                <div class="lp-faq__item">
+                  <h3 class="lp-faq__q">
+                    <button class="lp-faq__btn" type="button" id="faqQs3" aria-expanded="false" aria-controls="faqAs3">
+                      <span>A plataforma guarda o meu extrato?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                    </button>
+                  </h3>
+                  <div class="lp-faq__a" id="faqAs3" role="region" aria-labelledby="faqQs3" hidden>
+                    <p>Não. O arquivo é lido e descartado. Ficam só os lançamentos que você confirmou, e a senha do seu banco nunca passa pela WageUp.</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+          <section class="lp-chapter mp-next">
+            <a class="mp-next__card" href="/#conta" data-route>
+              <span class="mp-next__label">Quer ver na prática?</span>
+              <strong class="mp-next__title">Faça a conta de uma venda agora</strong>
+              <span class="material-symbols-rounded mp-next__arrow" aria-hidden="true">arrow_forward</span>
+            </a>
+          </section>
+        </div>
+
+        <!-- ═══════════════════════ VENDAS E PRODUTOS ═══════════════════════ -->
+        <div class="lp-page" data-page="vendas" data-title="Vendas e produtos | WageUp" hidden>
+          <section class="mp-hero" data-nav="dark" aria-labelledby="mpVendasTitle">
+            <div class="mp-hero__inner">
+              <div class="mp-hero__copy">
+                <p class="lp-eyebrow"><span class="material-symbols-rounded" aria-hidden="true">point_of_sale</span>Vendas e produtos</p>
+                <h1 data-lockup="vendas" class="mp-hero__title" id="mpVendasTitle">Saiba quanto sobra de cada produto.</h1>
+                <p class="mp-hero__lead">Cadastre o produto uma vez, com todos os custos. Cada venda baixa o estoque, entra no caixa e grava o lucro real daquele dia.</p>
+                <div class="lp-top__actions">
+                  <button class="lp-btn lp-btn--primary lp-btn--lg" type="button" data-open-app="register">Criar conta grátis <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></button>
+                </div>
+              </div>
+              <figure class="mp-hero__shot">
+                <div class="lp-flow" data-ui>
+                  <div class="lp-flow__sale">
+                    <span class="lp-flow__when">Hoje, 14:32, pago no PIX</span>
+                    <strong class="lp-flow__item">Bolo de pote × 3</strong>
+                    <span class="lp-money lp-flow__total">R$ 45,00</span>
+                  </div>
+                  <ul class="lp-flow__effects">
+                    <li class="lp-flow__effect"><span class="lp-flow__where">Estoque</span><strong class="lp-flow__what">25 → 22 unidades</strong></li>
+                    <li class="lp-flow__effect"><span class="lp-flow__where">Caixa</span><strong class="lp-flow__what lp-money lp-money--positive">+ R$ 45,00</strong></li>
+                    <li class="lp-flow__effect"><span class="lp-flow__where">Lucro da venda</span><strong class="lp-flow__what lp-money lp-money--positive">R$ 22,95</strong></li>
+                  </ul>
+                </div>
+                <figcaption class="mp-hero__caption">Uma venda na conta de demonstração. O lucro já desconta embalagem, taxa e imposto.</figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <section class="lp-chapter mp-steps" aria-labelledby="mpVendasSteps">
+            <h2 class="lp-h2" id="mpVendasSteps">Como funciona</h2>
+            <ol class="mp-steps__list">
+              <li class="mp-step"><span class="mp-step__num">1</span><strong>Cadastre o produto</strong><span>Preço, custo, embalagem e frete, taxa do cartão ou PIX, imposto, estoque e foto. A margem aparece enquanto você digita.</span></li>
+              <li class="mp-step"><span class="mp-step__num">2</span><strong>Registre a venda</strong><span>Produto, quantidade e forma de pagamento. Sem estoque, a venda não passa.</span></li>
+              <li class="mp-step"><span class="mp-step__num">3</span><strong>Veja o lucro por produto</strong><span>Quanto cada produto vendeu e lucrou no mês, já com todos os custos descontados.</span></li>
+            </ol>
+          </section>
+
+          <section class="lp-chapter mp-split" aria-labelledby="mpVendasProfit">
+            <div class="mp-split__copy">
+              <h2 class="lp-h2" id="mpVendasProfit">O que mais vende nem sempre é o que mais rende.</h2>
+              <p class="lp-body">O lucro de cada venda fica gravado com o preço e o custo daquele dia. Se o preço mudar amanhã, o lucro de hoje continua certo.</p>
+              <p class="lp-body">Produto que dá prejuízo aparece escrito, nunca só em vermelho.</p>
+            </div>
+            <div class="mp-table" data-ui aria-label="Lucro por produto em novembro na conta de demonstração">
+              <div class="mp-table__head"><span>Produto</span><span>Vendidos</span><span>Lucro no mês</span></div>
+              <div class="mp-table__row"><span>Brigadeiro gourmet</span><span class="lp-money">277</span><span class="lp-money lp-money--positive">R$ 592,78</span></div>
+              <div class="mp-table__row"><span>Bolo de pote</span><span class="lp-money">44</span><span class="lp-money lp-money--positive">R$ 336,60</span></div>
+              <div class="mp-table__row"><span>Torta de limão</span><span class="lp-money">5</span><span class="lp-money lp-money--positive">R$ 158,50</span></div>
+              <div class="mp-table__row"><span>Fatia de bolo de cenoura <em class="mp-badge mp-badge--negative">Prejuízo</em></span><span class="lp-money">27</span><span class="lp-money lp-money--negative">− R$ 24,30</span></div>
+            </div>
+          </section>
+
+          <section class="lp-chapter mp-features" aria-labelledby="mpVendasRules">
+            <h2 class="lp-h2" id="mpVendasRules">Regras que protegem o seu caixa</h2>
+            <ul class="mp-features__grid">
+              <li class="mp-feature"><span class="material-symbols-rounded" aria-hidden="true">inventory_2</span><strong>Estoque nunca negativo</strong><span>Duas vendas ao mesmo tempo não vendem a mesma unidade.</span></li>
+              <li class="mp-feature"><span class="material-symbols-rounded" aria-hidden="true">undo</span><strong>Cancelar desfaz tudo</strong><span>O estoque volta e a entrada sai do caixa.</span></li>
+              <li class="mp-feature"><span class="material-symbols-rounded" aria-hidden="true">calculate</span><strong>Preço sugerido</strong><span>Diga a margem que quer e a WageUp calcula o preço.</span></li>
+              <li class="mp-feature"><span class="material-symbols-rounded" aria-hidden="true">content_cut</span><strong>Serviço também</strong><span>Corte, aula ou conserto: sem estoque, com lucro.</span></li>
+            </ul>
+          </section>
+
+          <section class="lp-chapter mp-split mp-split--top" aria-labelledby="dvConta">
+            <div class="lp-head">
+              <p class="lp-kicker">A conta, linha por linha</p>
+              <h2 class="lp-h2" id="dvConta">Quanto sobra de um bolo de pote de R$ 15,00?</h2>
+              <p class="lp-body">A conta que quase todo mundo faz é preço menos custo: R$ 15 − R$ 5 = R$ 10. Só que embalagem, taxa da maquininha ou do PIX e imposto também saem de cada venda. A WageUp desconta tudo isso antes de dizer quanto sobra.</p>
+            </div>
+            <div class="mp-receipt" data-ui aria-label="Conta do bolo de pote">
+              <p class="mp-receipt__title">Bolo de pote</p>
+              <div class="mp-receipt__line"><span>Preço de venda</span><span class="lp-money">R$ 15,00</span></div>
+              <div class="mp-receipt__line"><span>Custo do produto</span><span class="lp-money">− R$ 5,00</span></div>
+              <div class="mp-receipt__line"><span>Embalagem e frete</span><span class="lp-money">− R$ 1,00</span></div>
+              <div class="mp-receipt__line"><span>Taxa do PIX ou cartão <small>3% do preço</small></span><span class="lp-money">− R$ 0,45</span></div>
+              <div class="mp-receipt__line"><span>Imposto <small>6% do preço</small></span><span class="lp-money">− R$ 0,90</span></div>
+              <div class="mp-receipt__total"><span>Sobra para você</span><span class="lp-money lp-money--positive">R$ 7,65</span></div>
+              <p class="mp-receipt__note">Margem de 51%: de cada R$ 15,00, sobram R$ 7,65.</p>
+            </div>
+          </section>
+          <section class="lp-chapter mp-defs-wrap" aria-labelledby="dvTermos">
+            <div class="lp-head">
+              <p class="lp-kicker">Três números, três perguntas</p>
+              <h2 class="lp-h2" id="dvTermos">O que cada número responde</h2>
+            </div>
+            <dl class="mp-defs">
+              <div class="mp-def">
+                <dt>Margem</dt>
+                <dd class="mp-def__how">Quanto do preço sobra depois de todos os custos. É o número que diz se vale a pena vender.</dd>
+                <dd class="mp-def__ex">Bolo de pote: R$ 7,65 ÷ R$ 15,00 = 51%</dd>
+              </div>
+              <div class="mp-def">
+                <dt>Markup</dt>
+                <dd class="mp-def__how">Quanto você colocou em cima do custo. Ajuda a formar preço, mas não mostra o lucro.</dd>
+                <dd class="mp-def__ex">(R$ 15,00 − R$ 6,00) ÷ R$ 6,00 = 150%</dd>
+              </div>
+              <div class="mp-def">
+                <dt>Preço sugerido</dt>
+                <dd class="mp-def__how">Diga a margem que você quer e a WageUp calcula o preço que entrega essa margem, já com taxa e imposto.</dd>
+                <dd class="mp-def__ex">Para sobrar 50%: R$ 6,00 ÷ (1 − 9% − 50%) = R$ 14,63</dd>
+              </div>
+            </dl>
+          </section>
+          <section class="lp-chapter mp-split mp-split--top" aria-labelledby="dvVenda">
+            <div class="lp-head">
+              <p class="lp-kicker">Por dentro de uma venda</p>
+              <h2 class="lp-h2" id="dvVenda">O que acontece quando você toca em Registrar venda</h2>
+              <p class="lp-body">Uma venda mexe em três lugares ao mesmo tempo: estoque, caixa e lucro. A WageUp faz os três de uma vez, para eles nunca discordarem.</p>
+            </div>
+            <ol class="mp-flow">
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">1</span>
+                <div class="mp-flow__body">
+                  <strong>Confere o estoque</strong>
+                  <p>Se faltar produto, a venda não passa. Duas vendas no mesmo segundo não conseguem vender a mesma unidade.</p>
+                  <span class="mp-flow__ui">Bolo de pote: 25 em estoque, pedido de 3</span>
+                </div>
+              </li>
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">2</span>
+                <div class="mp-flow__body">
+                  <strong>Guarda a conta do dia</strong>
+                  <p>Preço, custo, taxa e imposto são copiados do produto naquele momento. Se o preço mudar amanhã, o lucro de hoje continua certo.</p>
+                </div>
+              </li>
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">3</span>
+                <div class="mp-flow__body">
+                  <strong>Baixa o estoque</strong>
+                  <p>25 vira 22. Produto cadastrado como serviço, como corte ou aula, não mexe em estoque.</p>
+                  <span class="mp-flow__ui">25 → 22 unidades</span>
+                </div>
+              </li>
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">4</span>
+                <div class="mp-flow__body">
+                  <strong>Lança no caixa</strong>
+                  <p>A entrada vai para o financeiro com a forma de pagamento: PIX, dinheiro ou cartão.</p>
+                  <span class="mp-flow__ui">+ R$ 45,00 · PIX</span>
+                </div>
+              </li>
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">5</span>
+                <div class="mp-flow__body">
+                  <strong>Grava o lucro</strong>
+                  <p>O lucro real da venda entra no lucro por produto do mês.</p>
+                  <span class="mp-flow__ui">Lucro desta venda: R$ 22,95</span>
+                </div>
+              </li>
+            </ol>
+          </section>
+          <section class="lp-chapter mp-split" aria-labelledby="dvEstoque">
+            <div class="lp-head">
+              <p class="lp-kicker">Estoque</p>
+              <h2 class="lp-h2" id="dvEstoque">Avisa antes de acabar</h2>
+              <p class="lp-body">Cada produto tem um estoque mínimo, que você escolhe. Quando ele chega nesse número, o produto aparece como Estoque baixo no painel e no Marketing, com um aviso pronto para mandar no WhatsApp. No zero, vira Sem estoque, e a WageUp para de sugerir divulgação até você repor.</p>
+            </div>
+            <div class="mp-stock" data-ui aria-label="Situação do estoque na conta de demonstração">
+              <div class="mp-stock__row"><span>Brigadeiro gourmet</span><span class="mp-stock__bar"><i style="--share: 0.9"></i></span><span>180 un.</span></div>
+              <div class="mp-stock__row"><span>Bolo de pote</span><span class="mp-stock__bar"><i style="--share: 0.5"></i></span><span>25 un.</span></div>
+              <div class="mp-stock__row is-low"><span>Torta de limão <em class="mp-badge mp-badge--warning">Estoque baixo</em></span><span class="mp-stock__bar"><i style="--share: 0.08"></i></span><span>2 un.</span></div>
+            </div>
+          </section>
+          <section class="lp-chapter lp-faq lp-faq--module" aria-labelledby="faqTv">
+            <div class="lp-head">
+              <p class="lp-kicker">Dúvidas</p>
+              <h2 class="lp-h2" id="faqTv">Sobre vendas e produtos</h2>
+            </div>
+            <div class="lp-faq__list" data-faq>
+              <div class="lp-faq__item">
+                <h3 class="lp-faq__q">
+                  <button class="lp-faq__btn" type="button" id="faqQv1" aria-expanded="false" aria-controls="faqAv1">
+                    <span>Se eu mudar o preço, o lucro das vendas antigas muda?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                  </button>
+                </h3>
+                <div class="lp-faq__a" id="faqAv1" role="region" aria-labelledby="faqQv1" hidden>
+                  <p>Não. Cada venda guarda o preço, o custo, a taxa e o imposto do dia em que foi feita. Mudar o produto hoje só vale para as próximas vendas.</p>
+                </div>
+              </div>
+              <div class="lp-faq__item">
+                <h3 class="lp-faq__q">
+                  <button class="lp-faq__btn" type="button" id="faqQv2" aria-expanded="false" aria-controls="faqAv2">
+                    <span>Errei uma venda. Como desfaço?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                  </button>
+                </h3>
+                <div class="lp-faq__a" id="faqAv2" role="region" aria-labelledby="faqQv2" hidden>
+                  <p>Cancele a venda. O estoque volta e a entrada sai do caixa. A entrada de uma venda não é apagada à mão no financeiro, para o caixa e as vendas nunca contarem histórias diferentes.</p>
+                </div>
+              </div>
+              <div class="lp-faq__item">
+                <h3 class="lp-faq__q">
+                  <button class="lp-faq__btn" type="button" id="faqQv3" aria-expanded="false" aria-controls="faqAv3">
+                    <span>Venda paga no PIX precisa ser registrada de novo?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                  </button>
+                </h3>
+                <div class="lp-faq__a" id="faqAv3" role="region" aria-labelledby="faqQv3" hidden>
+                  <p>Não. Quando a cobrança PIX é de um produto, ela vira venda sozinha assim que o cliente paga, e o estoque baixa.</p>
+                </div>
+              </div>
+              <div class="lp-faq__item">
+                <h3 class="lp-faq__q">
+                  <button class="lp-faq__btn" type="button" id="faqQv4" aria-expanded="false" aria-controls="faqAv4">
+                    <span>Posso colocar foto nos produtos?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                  </button>
+                </h3>
+                <div class="lp-faq__a" id="faqAv4" role="region" aria-labelledby="faqQv4" hidden>
+                  <p>Pode. O navegador reduz a foto antes de enviar, então mesmo a foto do celular sobe rápido e fica guardada na sua conta.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section class="lp-chapter mp-next">
+            <a class="mp-next__card" href="/pix" data-route>
+              <span class="mp-next__label">Próximo módulo</span>
+              <strong class="mp-next__title">PIX: recebeu, está no caixa</strong>
+              <span class="material-symbols-rounded mp-next__arrow" aria-hidden="true">arrow_forward</span>
+            </a>
+          </section>
+        </div>
+
+        <!-- ═══════════════════════ PIX ═══════════════════════ -->
+        <div class="lp-page" data-page="pix" data-title="PIX | WageUp" hidden>
+          <section class="mp-hero" data-nav="dark" aria-labelledby="mpPixTitle">
+            <div class="mp-hero__inner">
+              <div class="mp-hero__copy">
+                <p class="lp-eyebrow"><span class="material-symbols-rounded" aria-hidden="true">qr_code_2</span>PIX</p>
+                <h1 data-lockup="pix" class="mp-hero__title" id="mpPixTitle">Recebeu no PIX, está no caixa.</h1>
+                <p class="mp-hero__lead">Gere o QR Code e o copia e cola em segundos. Quando o cliente paga, a cobrança vira entrada no financeiro. Se for de um produto, vira venda e baixa o estoque.</p>
+                <p class="mp-hero__hint">Toque em "Gerar cobrança PIX" para ver acontecer.</p>
+              </div>
+
+              <div class="lp-charge" data-ui aria-label="Demonstração de cobrança PIX">
+                <div class="lp-charge__summary">
+                  <span class="lp-charge__label">Cobrado este mês</span>
+                  <strong class="lp-charge__big lp-money" id="lpPixTotal">R$ 2.500,00</strong>
+                  <dl class="lp-charge__rows">
+                    <div class="lp-charge__row"><dt>Recebido</dt><dd class="lp-money" id="lpRecebido">R$ 2.140,00</dd></div>
+                    <div class="lp-charge__row"><dt>Pendente</dt><dd class="lp-money" id="lpPendente">R$ 360,00</dd></div>
+                    <div class="lp-charge__row"><dt>Cobranças abertas</dt><dd id="lpAtivas">2</dd></div>
+                  </dl>
+                </div>
+                <div class="lp-charge__new">
+                  <div class="lp-charge__order">
+                    <span class="lp-charge__customer">Carlos Lima</span>
+                    <strong class="lp-charge__product">Bolo de aniversário, encomenda</strong>
+                    <span class="lp-money lp-charge__value">R$ 180,00</span>
+                  </div>
+                  <div class="lp-charge__qr" id="lpQrWrap" hidden>
+                    <svg id="lpQr" viewBox="0 0 25 25" role="img" aria-label="QR Code ilustrativo, não pode ser pago"></svg>
+                    <span class="lp-charge__check" id="lpPixCheck" hidden aria-hidden="true"><span class="material-symbols-rounded">check</span></span>
+                  </div>
+                  <p class="lp-charge__status" id="lpPixStatus" role="status" hidden>
+                    <span class="lp-charge__pulse" aria-hidden="true"></span>
+                    <span id="lpPixStatusText">Aguardando pagamento</span>
+                  </p>
+                  <button class="lp-btn lp-btn--dark" type="button" id="lpSimulate">Gerar cobrança PIX</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="lp-chapter mp-steps" aria-labelledby="mpPixSteps">
+            <h2 class="lp-h2" id="mpPixSteps">Como funciona</h2>
+            <ol class="mp-steps__list">
+              <li class="mp-step"><span class="mp-step__num">1</span><strong>Gere a cobrança</strong><span>Valor, descrição e, se quiser, o produto. O QR Code e o copia e cola valem por uma hora.</span></li>
+              <li class="mp-step"><span class="mp-step__num">2</span><strong>O cliente paga</strong><span>No app do banco dele, como qualquer PIX. A tela acompanha o pagamento em tempo real.</span></li>
+              <li class="mp-step"><span class="mp-step__num">3</span><strong>Entra no caixa sozinho</strong><span>A entrada aparece no financeiro com forma de pagamento PIX. Ninguém digita nada.</span></li>
+            </ol>
+          </section>
+
+          <section class="lp-chapter mp-features" aria-labelledby="mpPixRules">
+            <h2 class="lp-h2" id="mpPixRules">Seguro de ponta a ponta</h2>
+            <ul class="mp-features__grid">
+              <li class="mp-feature"><span class="material-symbols-rounded" aria-hidden="true">sync</span><strong>Dois caminhos de confirmação</strong><span>O aviso da Abacate Pay e uma consulta a cada 3 segundos. Um deles sempre chega.</span></li>
+              <li class="mp-feature"><span class="material-symbols-rounded" aria-hidden="true">content_copy</span><strong>Nunca conta duas vezes</strong><span>Aviso repetido não vira dois lançamentos, e o extrato reconhece o PIX que já entrou.</span></li>
+              <li class="mp-feature"><span class="material-symbols-rounded" aria-hidden="true">lock</span><strong>Aviso autenticado</strong><span>Só a Abacate Pay, com o segredo combinado, consegue marcar uma cobrança como paga.</span></li>
+              <li class="mp-feature"><span class="material-symbols-rounded" aria-hidden="true">inventory_2</span><strong>Venda de produto</strong><span>PIX de um produto vira venda quando é pago e baixa o estoque.</span></li>
+            </ul>
+          </section>
+
+          <section class="lp-chapter mp-split mp-split--top" aria-labelledby="dpDentro">
+            <div class="lp-head">
+              <p class="lp-kicker">Por dentro de uma cobrança</p>
+              <h2 class="lp-h2" id="dpDentro">Do QR Code ao caixa, sem digitar nada</h2>
+              <p class="lp-body">O PIX é a forma de pagamento que mais cresce entre pequenos negócios. A WageUp gera a cobrança, acompanha o pagamento e lança no caixa sozinha.</p>
+            </div>
+            <ol class="mp-flow">
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">1</span>
+                <div class="mp-flow__body">
+                  <strong>Você cria a cobrança</strong>
+                  <p>Valor, descrição e, se quiser, o produto e o nome do cliente. Se for de um produto, a WageUp confere o estoque antes.</p>
+                  <span class="mp-flow__ui">Bolo de aniversário · R$ 180,00</span>
+                </div>
+              </li>
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">2</span>
+                <div class="mp-flow__body">
+                  <strong>A Abacate Pay gera o PIX</strong>
+                  <p>QR Code e copia e cola, válidos por uma hora. Cliente longe? Mande o copia e cola pelo WhatsApp.</p>
+                </div>
+              </li>
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">3</span>
+                <div class="mp-flow__body">
+                  <strong>A tela acompanha</strong>
+                  <p>A WageUp consulta o pagamento a cada 3 segundos e também recebe o aviso da Abacate Pay quando ele cai.</p>
+                  <span class="mp-flow__ui">Aguardando pagamento…</span>
+                </div>
+              </li>
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">4</span>
+                <div class="mp-flow__body">
+                  <strong>Entra no caixa</strong>
+                  <p>A cobrança fica Paga e vira uma entrada no financeiro, com forma de pagamento PIX.</p>
+                  <span class="mp-flow__ui">+ R$ 180,00 · PIX</span>
+                </div>
+              </li>
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">5</span>
+                <div class="mp-flow__body">
+                  <strong>Vira venda</strong>
+                  <p>Se a cobrança era de um produto, a venda é registrada e o estoque baixa. Como o dinheiro já entrou, aqui o estoque não trava: baixa até zero.</p>
+                  <span class="mp-flow__ui">Venda registrada</span>
+                </div>
+              </li>
+            </ol>
+          </section>
+          <section class="lp-chapter mp-defs-wrap" aria-labelledby="dpEstados">
+            <div class="lp-head">
+              <p class="lp-kicker">Cada cobrança tem uma situação</p>
+              <h2 class="lp-h2" id="dpEstados">O que cada situação quer dizer</h2>
+            </div>
+            <dl class="mp-defs">
+              <div class="mp-def">
+                <dt>Pendente</dt>
+                <dd class="mp-def__how">O PIX foi gerado e o cliente ainda não pagou. Entra no total a receber.</dd>
+                <dd class="mp-def__ex">Aparece em Pendente no resumo do mês</dd>
+              </div>
+              <div class="mp-def">
+                <dt>Paga</dt>
+                <dd class="mp-def__how">O dinheiro caiu. A entrada já está no caixa e, se era produto, a venda também.</dd>
+                <dd class="mp-def__ex">Entra em Recebido</dd>
+              </div>
+              <div class="mp-def">
+                <dt>Expirada</dt>
+                <dd class="mp-def__how">Passou uma hora sem pagamento. É só gerar outra cobrança.</dd>
+                <dd class="mp-def__ex">Sai do total a receber</dd>
+              </div>
+              <div class="mp-def">
+                <dt>Reembolsada</dt>
+                <dd class="mp-def__how">O dinheiro voltou para o cliente. A entrada sai do caixa e o estoque que tinha saído volta.</dd>
+                <dd class="mp-def__ex">O caixa fica certo sozinho</dd>
+              </div>
+            </dl>
+          </section>
+          <section class="lp-chapter mp-split" aria-labelledby="dpResumo">
+            <div class="lp-head">
+              <p class="lp-kicker">Recebíveis</p>
+              <h2 class="lp-h2" id="dpResumo">Quanto entrou e quanto ainda falta receber</h2>
+              <p class="lp-body">O resumo do PIX mostra o que foi recebido no mês, o que está pendente e quantas cobranças estão abertas. É o número que responde a pergunta "quem ainda não me pagou?".</p>
+            </div>
+            <div class="mp-metrics" data-ui aria-label="Resumo do PIX na conta de demonstração">
+              <div class="mp-metric"><span class="mp-metric__label">Recebido no mês</span><strong class="lp-money lp-money--positive mp-metric__value">R$ 120,00</strong></div>
+              <div class="mp-metric"><span class="mp-metric__label">Pendente</span><strong class="lp-money mp-metric__value">R$ 180,00</strong></div>
+              <div class="mp-metric"><span class="mp-metric__label">Pagas</span><strong class="lp-money mp-metric__value">1</strong></div>
+              <div class="mp-metric"><span class="mp-metric__label">Abertas</span><strong class="lp-money mp-metric__value">1</strong></div>
+            </div>
+          </section>
+          <section class="lp-chapter lp-faq lp-faq--module" aria-labelledby="faqTp">
+            <div class="lp-head">
+              <p class="lp-kicker">Dúvidas</p>
+              <h2 class="lp-h2" id="faqTp">Sobre o PIX</h2>
+            </div>
+            <div class="lp-faq__list" data-faq>
+              <div class="lp-faq__item">
+                <h3 class="lp-faq__q">
+                  <button class="lp-faq__btn" type="button" id="faqQp1" aria-expanded="false" aria-controls="faqAp1">
+                    <span>O cliente precisa ter algum aplicativo?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                  </button>
+                </h3>
+                <div class="lp-faq__a" id="faqAp1" role="region" aria-labelledby="faqQp1" hidden>
+                  <p>Não. Qualquer aplicativo de banco com PIX paga o QR Code ou o copia e cola.</p>
+                </div>
+              </div>
+              <div class="lp-faq__item">
+                <h3 class="lp-faq__q">
+                  <button class="lp-faq__btn" type="button" id="faqQp2" aria-expanded="false" aria-controls="faqAp2">
+                    <span>Quanto custa cada cobrança?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                  </button>
+                </h3>
+                <div class="lp-faq__a" id="faqAp2" role="region" aria-labelledby="faqQp2" hidden>
+                  <p>A WageUp não cobra nada por cobrança. A Abacate Pay, que processa o PIX, cobra uma taxa por cobrança paga.</p>
+                </div>
+              </div>
+              <div class="lp-faq__item">
+                <h3 class="lp-faq__q">
+                  <button class="lp-faq__btn" type="button" id="faqQp3" aria-expanded="false" aria-controls="faqAp3">
+                    <span>Para onde vai o dinheiro?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                  </button>
+                </h3>
+                <div class="lp-faq__a" id="faqAp3" role="region" aria-labelledby="faqQp3" hidden>
+                  <p>Para a conta da Abacate Pay ligada à plataforma. Nesta versão, feita como Trabalho de Conclusão de Curso, todas as cobranças vão para a conta de teste do projeto. Uma versão comercial ligaria a conta de cada empreendedor.</p>
+                </div>
+              </div>
+              <div class="lp-faq__item">
+                <h3 class="lp-faq__q">
+                  <button class="lp-faq__btn" type="button" id="faqQp4" aria-expanded="false" aria-controls="faqAp4">
+                    <span>E se o aviso de pagamento se perder?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                  </button>
+                </h3>
+                <div class="lp-faq__a" id="faqAp4" role="region" aria-labelledby="faqQp4" hidden>
+                  <p>A tela continua consultando a Abacate Pay a cada 3 segundos, então o pagamento aparece mesmo assim. E um aviso repetido nunca vira dois lançamentos.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section class="lp-chapter mp-next">
+            <a class="mp-next__card" href="/financeiro" data-route>
+              <span class="mp-next__label">Próximo módulo</span>
+              <strong class="mp-next__title">Financeiro: o mês inteiro numa tela</strong>
+              <span class="material-symbols-rounded mp-next__arrow" aria-hidden="true">arrow_forward</span>
+            </a>
+          </section>
+        </div>
+
+        <!-- ═══════════════════════ FINANCEIRO ═══════════════════════ -->
+        <div class="lp-page" data-page="financeiro" data-title="Financeiro | WageUp" hidden>
+          <section class="mp-hero" data-nav="dark" aria-labelledby="mpFinTitle">
+            <div class="mp-hero__inner">
+              <div class="mp-hero__copy">
+                <p class="lp-eyebrow"><span class="material-symbols-rounded" aria-hidden="true">monitoring</span>Financeiro</p>
+                <h1 data-lockup="financeiro" class="mp-hero__title" id="mpFinTitle">O mês inteiro numa tela.</h1>
+                <p class="mp-hero__lead">Faturamento, despesas, lucro e margem do mês, comparados com o mesmo período do mês passado. Com meta, extrato do banco e insights que dizem o que fazer.</p>
+                <div class="lp-top__actions">
+                  <button class="lp-btn lp-btn--primary lp-btn--lg" type="button" data-open-app="register">Criar conta grátis <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></button>
+                </div>
+              </div>
+              <div class="mp-metrics" data-ui aria-label="Indicadores de novembro na conta de demonstração">
+                <div class="mp-metric"><span class="mp-metric__label">Faturamento</span><strong class="lp-money mp-metric__value">R$ 2.667,00</strong></div>
+                <div class="mp-metric"><span class="mp-metric__label">Despesas</span><strong class="lp-money mp-metric__value">R$ 1.773,00</strong></div>
+                <div class="mp-metric"><span class="mp-metric__label">Lucro</span><strong class="lp-money lp-money--positive mp-metric__value">R$ 894,00</strong></div>
+                <div class="mp-metric"><span class="mp-metric__label">Margem</span><strong class="lp-money mp-metric__value">34%</strong></div>
+                <div class="lp-goal mp-metrics__goal">
+                  <div class="lp-goal__top"><span class="lp-goal__label">Meta do mês</span><span class="lp-money lp-goal__target">R$ 3.800,00</span></div>
+                  <div class="lp-goal__bar" role="progressbar" aria-label="Meta do mês" aria-valuemin="0" aria-valuemax="100" aria-valuenow="70" style="--share: 0.7"><i></i></div>
+                  <div class="lp-goal__bottom"><span><span class="lp-money">R$ 2.667,00</span> entraram</span><span><span class="lp-money">R$ 188,83</span> por dia até o fim do mês</span></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="lp-chapter mp-split" aria-labelledby="mpFinWhere">
+            <div class="mp-split__copy">
+              <h2 class="lp-h2" id="mpFinWhere">Veja por onde o dinheiro entrou.</h2>
+              <p class="lp-body">Venda, PIX e lançamento manual guardam a forma de pagamento. O painel mostra quanto do mês veio de cada uma.</p>
+            </div>
+            <div class="mp-bars" data-ui aria-label="Entradas de novembro por forma de pagamento">
+              <div class="mp-bar"><span class="mp-bar__name">PIX</span><span class="mp-bar__track"><i style="--share: 0.64"></i></span><span class="lp-money">R$ 1.695,00</span></div>
+              <div class="mp-bar"><span class="mp-bar__name">Dinheiro</span><span class="mp-bar__track"><i style="--share: 0.25"></i></span><span class="lp-money">R$ 655,00</span></div>
+              <div class="mp-bar"><span class="mp-bar__name">Cartão</span><span class="mp-bar__track"><i style="--share: 0.12"></i></span><span class="lp-money">R$ 317,00</span></div>
+            </div>
+          </section>
+
+          <section class="lp-chapter mp-split mp-split--reverse" aria-labelledby="mpFinImport">
+            <div class="mp-split__copy">
+              <h2 class="lp-h2" id="mpFinImport">Importe o extrato sem contar duas vezes.</h2>
+              <p class="lp-body">Envie o arquivo OFX do banco e confira antes de gravar. O que já foi lançado na plataforma vem desmarcado, e transferência entre contas suas você tira com um clique.</p>
+              <p class="lp-body">O arquivo é lido e descartado. Ficam só os lançamentos que você confirmou.</p>
+            </div>
+            <ul class="lp-import" data-ui aria-label="Prévia de importação de extrato">
+              <li class="lp-import__row"><span class="lp-import__box is-checked" aria-hidden="true"><span class="material-symbols-rounded">check</span></span><span class="lp-import__desc">PIX recebido, Mariana Costa</span><span class="lp-money lp-money--positive">+ R$ 120,00</span></li>
+              <li class="lp-import__row"><span class="lp-import__box is-checked" aria-hidden="true"><span class="material-symbols-rounded">check</span></span><span class="lp-import__desc">Compra de ingredientes</span><span class="lp-money lp-money--negative">− R$ 86,40</span></li>
+              <li class="lp-import__row is-skipped"><span class="lp-import__box" aria-hidden="true"></span><span class="lp-import__desc">PIX recebido, Carlos Lima <span class="lp-import__tag">Já lançado: Venda</span></span><span class="lp-money">+ R$ 180,00</span></li>
+            </ul>
+          </section>
+
+          <section class="lp-chapter mp-split" aria-labelledby="mpFinInsights">
+            <div class="mp-split__copy">
+              <h2 class="lp-h2" id="mpFinInsights">Insights que levam à ação.</h2>
+              <p class="lp-body">A IA lê os números do mês e aponta o que pede atenção. Quando cita um produto, o insight traz o botão que resolve.</p>
+            </div>
+            <ul class="mp-insights" data-ui aria-label="Insights do painel na conta de demonstração">
+              <li class="mp-insight"><strong>Faltam R$ 1.133 em 6 dias</strong><span>Foque nas encomendas de bolo de aniversário, que deixam R$ 78,80 cada.</span><span class="lp-action__do">Criar post de lançamento</span></li>
+              <li class="mp-insight"><strong>Bolo de pote despencou</strong><span>Caiu de 18 para 1 unidade em uma semana. Uma promoção rápida ajuda.</span><span class="lp-action__do">Criar promoção</span></li>
+              <li class="mp-insight"><strong>Reponha a torta de limão</strong><span>Restam 2 no estoque. Avise quem já compra antes que acabe.</span><span class="lp-action__do">Avisar no WhatsApp</span></li>
+            </ul>
+          </section>
+
+          <section class="lp-chapter mp-defs-wrap" aria-labelledby="dfNumeros">
+            <div class="lp-head">
+              <p class="lp-kicker">De onde vem cada número</p>
+              <h2 class="lp-h2" id="dfNumeros">Os quatro números do topo do painel</h2>
+              <p class="lp-body">Todos são do mês corrente e comparados com o mesmo período do mês passado: dia 1 a 25 contra dia 1 a 25. Comparar com o mês inteiro faria todo começo de mês parecer uma queda.</p>
+            </div>
+            <dl class="mp-defs">
+              <div class="mp-def">
+                <dt>Faturamento</dt>
+                <dd class="mp-def__how">Tudo o que entrou no mês: vendas, PIX pagos, lançamentos à mão e extrato importado.</dd>
+                <dd class="mp-def__ex">R$ 2.667,00 em novembro</dd>
+              </div>
+              <div class="mp-def">
+                <dt>Despesas</dt>
+                <dd class="mp-def__how">Tudo o que saiu: ingredientes, embalagens, contas, lançados à mão ou pelo extrato.</dd>
+                <dd class="mp-def__ex">R$ 1.773,00</dd>
+              </div>
+              <div class="mp-def">
+                <dt>Lucro</dt>
+                <dd class="mp-def__how">Faturamento menos despesas.</dd>
+                <dd class="mp-def__ex">R$ 2.667,00 − R$ 1.773,00 = R$ 894,00</dd>
+              </div>
+              <div class="mp-def">
+                <dt>Margem do mês</dt>
+                <dd class="mp-def__how">Quanto do faturamento virou lucro.</dd>
+                <dd class="mp-def__ex">De cada R$ 100 que entram, sobram R$ 33,52</dd>
+              </div>
+            </dl>
+          </section>
+          <section class="lp-chapter mp-split" aria-labelledby="dfMeta">
+            <div class="lp-head">
+              <p class="lp-kicker">Meta do mês</p>
+              <h2 class="lp-h2" id="dfMeta">Quanto falta, em reais por dia</h2>
+              <p class="lp-body">Você define quanto quer faturar no mês. A WageUp mostra quanto já entrou, quanto falta e divide o que falta pelos dias que restam. A meta é de faturamento, e não de lucro, porque é o número que o MEI acompanha no dia a dia. A mesma conta aparece no painel, nos insights e no assistente, então os três nunca discordam.</p>
+            </div>
+            <div class="mp-receipt" data-ui aria-label="Conta da meta de novembro">
+              <p class="mp-receipt__title">Meta de novembro</p>
+              <div class="mp-receipt__line"><span>Meta</span><span class="lp-money">R$ 3.800,00</span></div>
+              <div class="mp-receipt__line"><span>Já entrou <small>70%</small></span><span class="lp-money">R$ 2.667,00</span></div>
+              <div class="mp-receipt__line"><span>Falta</span><span class="lp-money">R$ 1.133,00</span></div>
+              <div class="mp-receipt__line"><span>Dias que restam</span><span class="lp-money">6</span></div>
+              <div class="mp-receipt__total"><span>Por dia, até o fim do mês</span><span class="lp-money lp-money--positive">R$ 188,83</span></div>
+            </div>
+          </section>
+          <section class="lp-chapter mp-split mp-split--top" aria-labelledby="dfExtrato">
+            <div class="lp-head">
+              <p class="lp-kicker">Extrato do banco</p>
+              <h2 class="lp-h2" id="dfExtrato">Importe sem medo de contar duas vezes</h2>
+              <p class="lp-body">Muita gente já tem o movimento do mês no banco. Em vez de digitar tudo, envie o arquivo do extrato e confira antes de gravar.</p>
+            </div>
+            <ol class="mp-flow">
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">1</span>
+                <div class="mp-flow__body">
+                  <strong>Envie o arquivo OFX</strong>
+                  <p>É o formato que quase todo banco exporta. Até 5 MB. O arquivo é lido na memória e descartado: a WageUp não guarda o seu extrato.</p>
+                </div>
+              </li>
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">2</span>
+                <div class="mp-flow__body">
+                  <strong>Confira a lista</strong>
+                  <p>Desmarque o que não é do negócio, como transferência entre contas suas. O que parece já lançado na plataforma (mesmo tipo, mesmo valor, data a até um dia) vem desmarcado com o aviso Já lançado.</p>
+                  <span class="mp-flow__ui">PIX recebido, Carlos Lima · Já lançado: Venda</span>
+                </div>
+              </li>
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">3</span>
+                <div class="mp-flow__body">
+                  <strong>Confirme</strong>
+                  <p>Só o que ficou marcado é gravado. Importar o mesmo extrato de novo não duplica nada: cada linha tem um identificador do banco.</p>
+                  <span class="mp-flow__ui">2 lançamentos importados</span>
+                </div>
+              </li>
+            </ol>
+          </section>
+          <section class="lp-chapter mp-split" aria-labelledby="dfInsights">
+            <div class="lp-head">
+              <p class="lp-kicker">Insights</p>
+              <h2 class="lp-h2" id="dfInsights">O que os insights observam</h2>
+              <p class="lp-body">Os insights não são palpite: partem de sinais calculados pela WageUp. A IA escreve a frase; se ela estiver fora do ar, as mesmas regras escrevem os insights sem ela.</p>
+            </div>
+            <ul class="mp-checklist" data-ui>
+              <li><span class="material-symbols-rounded" aria-hidden="true">flag</span><span><strong>Meta</strong> quanto falta e quanto é preciso vender por dia</span></li>
+              <li><span class="material-symbols-rounded" aria-hidden="true">trending_down</span><span><strong>Vendas caindo</strong> 30% menos nos últimos 7 dias, com pelo menos 3 unidades na semana anterior</span></li>
+              <li><span class="material-symbols-rounded" aria-hidden="true">error</span><span><strong>Prejuízo</strong> produto que perde dinheiro a cada venda</span></li>
+              <li><span class="material-symbols-rounded" aria-hidden="true">inventory_2</span><span><strong>Estoque baixo</strong> produto que chegou ao estoque mínimo</span></li>
+              <li><span class="material-symbols-rounded" aria-hidden="true">star</span><span><strong>Melhor margem</strong> o que mais deixa dinheiro por unidade</span></li>
+              <li><span class="material-symbols-rounded" aria-hidden="true">schedule</span><span><strong>PIX pendente</strong> quanto ainda falta receber</span></li>
+            </ul>
+          </section>
+          <section class="lp-chapter lp-faq lp-faq--module" aria-labelledby="faqTf">
+            <div class="lp-head">
+              <p class="lp-kicker">Dúvidas</p>
+              <h2 class="lp-h2" id="faqTf">Sobre o financeiro</h2>
+            </div>
+            <div class="lp-faq__list" data-faq>
+              <div class="lp-faq__item">
+                <h3 class="lp-faq__q">
+                  <button class="lp-faq__btn" type="button" id="faqQf1" aria-expanded="false" aria-controls="faqAf1">
+                    <span>Por que o lucro do painel é diferente do saldo do banco?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                  </button>
+                </h3>
+                <div class="lp-faq__a" id="faqAf1" role="region" aria-labelledby="faqQf1" hidden>
+                  <p>O painel conta o que foi lançado na WageUp naquele mês. O saldo do banco tem também o que veio de meses anteriores e o que não foi lançado. Importar o extrato aproxima os dois.</p>
+                </div>
+              </div>
+              <div class="lp-faq__item">
+                <h3 class="lp-faq__q">
+                  <button class="lp-faq__btn" type="button" id="faqQf2" aria-expanded="false" aria-controls="faqAf2">
+                    <span>Posso lançar uma despesa à mão?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                  </button>
+                </h3>
+                <div class="lp-faq__a" id="faqAf2" role="region" aria-labelledby="faqQf2" hidden>
+                  <p>Pode. Lançamento manual de entrada ou saída, com valor, data, descrição e forma de pagamento.</p>
+                </div>
+              </div>
+              <div class="lp-faq__item">
+                <h3 class="lp-faq__q">
+                  <button class="lp-faq__btn" type="button" id="faqQf3" aria-expanded="false" aria-controls="faqAf3">
+                    <span>A venda no cartão é reconhecida no extrato?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                  </button>
+                </h3>
+                <div class="lp-faq__a" id="faqAf3" role="region" aria-labelledby="faqQf3" hidden>
+                  <p>Ainda não. Ela cai no banco dias depois e já com a taxa descontada, então o valor não bate com a venda. Nesse caso, desmarque a linha na conferência.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section class="lp-chapter mp-next">
+            <a class="mp-next__card" href="/marketing" data-route>
+              <span class="mp-next__label">Próximo módulo</span>
+              <strong class="mp-next__title">Marketing com IA: divulgue o que dá lucro</strong>
+              <span class="material-symbols-rounded mp-next__arrow" aria-hidden="true">arrow_forward</span>
+            </a>
+          </section>
+        </div>
+
+        <!-- ═══════════════════════ MARKETING ═══════════════════════ -->
+        <div class="lp-page" data-page="marketing" data-title="Marketing com IA | WageUp" hidden>
+          <section class="mp-hero" data-nav="dark" aria-labelledby="mpMktTitle">
+            <div class="mp-hero__inner">
+              <div class="mp-hero__copy">
+                <p class="lp-eyebrow"><span class="material-symbols-rounded" aria-hidden="true">campaign</span>Marketing com IA</p>
+                <h1 data-lockup="marketing" class="mp-hero__title" id="mpMktTitle">Divulgue o que dá lucro.</h1>
+                <p class="mp-hero__lead">A WageUp cruza vendas, margem e estoque e diz o que fazer com cada produto. Um toque gera a campanha com texto e imagem, ou o aviso pronto para o WhatsApp.</p>
+                <div class="lp-top__actions">
+                  <button class="lp-btn lp-btn--primary lp-btn--lg" type="button" data-open-app="register">Criar conta grátis <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></button>
+                </div>
+              </div>
+              <ul class="lp-actions" data-ui aria-label="Tela de ações do marketing na conta de demonstração">
+                <li class="lp-action"><strong class="lp-action__name">Fatia de bolo de cenoura</strong><span class="lp-action__why lp-action__why--negative">Dá prejuízo a cada venda</span><span class="lp-action__do">Ajustar o preço</span></li>
+                <li class="lp-action"><strong class="lp-action__name">Torta de limão</strong><span class="lp-action__why lp-action__why--warning">Restam 2 no estoque</span><span class="lp-action__do">Avisar no WhatsApp</span></li>
+                <li class="lp-action"><strong class="lp-action__name">Bolo de pote</strong><span class="lp-action__why lp-action__why--warning">Vendas caindo nesta semana</span><span class="lp-action__do">Recuperar as vendas</span></li>
+                <li class="lp-action"><strong class="lp-action__name">Brigadeiro gourmet</strong><span class="lp-action__why lp-action__why--positive">Margem de 53,5%</span><span class="lp-action__do">Criar campanha</span></li>
+              </ul>
+            </div>
+          </section>
+
+          <section class="lp-chapter mp-steps" aria-labelledby="mpMktSteps">
+            <h2 class="lp-h2" id="mpMktSteps">A ação sai dos números, não de um palpite</h2>
+            <ol class="mp-steps__list mp-steps__list--four">
+              <li class="mp-step"><span class="mp-step__num lp-money--negative">!</span><strong>Prejuízo</strong><span>Divulgar é vender no vermelho. O botão leva ao ajuste de preço.</span></li>
+              <li class="mp-step"><span class="mp-step__num">0</span><strong>Sem estoque</strong><span>Não adianta divulgar o que acabou. Primeiro, repor.</span></li>
+              <li class="mp-step"><span class="mp-step__num">2</span><strong>Estoque baixo</strong><span>Aviso pronto para o WhatsApp: "Últimas unidades".</span></li>
+              <li class="mp-step"><span class="mp-step__num">↑</span><strong>O resto</strong><span>Campanha, promoção ou post de lançamento, conforme as vendas.</span></li>
+            </ol>
+          </section>
+
+          <section class="lp-chapter" aria-labelledby="mpMktCampaign">
+            <div class="mp-split__copy mp-split__copy--wide">
+              <h2 class="lp-h2" id="mpMktCampaign">Texto e imagem, prontos para postar.</h2>
+              <p class="lp-body">A IA escreve com os números do catálogo e nunca sugere um desconto maior que a margem. A imagem é criada por IA a partir da ideia do próprio texto.</p>
+            </div>
+            <figure class="lp-campaign">
+              <div class="lp-campaign__card" data-ui>
+                <img class="lp-campaign__image" src="/static/landing/campanha-bolo-de-pote.jpg" width="640" height="640" loading="lazy" alt="Pote de vidro com camadas de bolo de chocolate e creme sobre uma mesa de madeira, com uma colher dentro." />
+                <div class="lp-campaign__text">
+                  <span class="lp-campaign__tag">Promoção · Instagram</span>
+                  <p class="lp-campaign__head">Bolo de pote: do jeito que dá água na boca</p>
+                  <p class="lp-campaign__body">Aquele doce que resolve a tarde inteira. Bolo de pote de 250 ml, feito no dia, por <span class="lp-money">R$ 15,00</span>.</p>
+                  <p class="lp-campaign__cta">Chama no WhatsApp e garante o seu.</p>
+                  <p class="lp-campaign__tip">A IA sabe que sobram <span class="lp-money lp-money--positive">R$ 7,65</span> por pote e nunca sugere um desconto maior que isso.</p>
+                </div>
+              </div>
+              <figcaption class="lp-note">Campanha gerada pelo botão "Recuperar as vendas" na conta de demonstração. Dá para ajustar no chat antes de postar.</figcaption>
+            </figure>
+          </section>
+
+          <section class="lp-chapter mp-features" aria-labelledby="mpMktMore">
+            <h2 class="lp-h2" id="mpMktMore">E quando quiser outra coisa, é só pedir</h2>
+            <ul class="mp-features__grid">
+              <li class="mp-feature"><span class="material-symbols-rounded" aria-hidden="true">chat</span><strong>Chat de marketing</strong><span>"Faz uma versão para o Dia das Mães." A conversa continua de onde parou.</span></li>
+              <li class="mp-feature"><span class="material-symbols-rounded" aria-hidden="true">send_to_mobile</span><strong>Aviso no WhatsApp</strong><span>O texto abre direto no seu WhatsApp para enviar aos clientes.</span></li>
+              <li class="mp-feature"><span class="material-symbols-rounded" aria-hidden="true">photo_library</span><strong>Galeria de campanhas</strong><span>Tudo o que já foi gerado, com texto e imagem para baixar.</span></li>
+              <li class="mp-feature"><span class="material-symbols-rounded" aria-hidden="true">tag</span><strong>Hashtags e legendas</strong><span>Pergunte solto, sem gerar campanha nova.</span></li>
+            </ul>
+          </section>
+
+          <section class="lp-chapter mp-rules-wrap" aria-labelledby="dmRegras">
+            <div class="lp-head">
+              <p class="lp-kicker">Como a WageUp escolhe</p>
+              <h2 class="lp-h2" id="dmRegras">Cada produto ganha uma situação, e cada situação, uma ação</h2>
+              <p class="lp-body">A situação sai dos números do produto, na ordem abaixo: a primeira que valer é a que aparece. Por isso a IA nunca manda divulgar um produto que dá prejuízo ou que já acabou.</p>
+            </div>
+            <div class="mp-rules" data-ui role="table" aria-label="Situações e ações">
+              <div class="mp-rules__row mp-rules__row--head" role="row"><span role="columnheader">Situação</span><span role="columnheader">Quando</span><span role="columnheader">Ação sugerida</span></div>
+              <div class="mp-rules__row">
+                <span class="mp-badge mp-badge--negative">Prejuízo</span>
+                <span class="mp-rules__when">a margem real é negativa</span>
+                <span class="mp-rules__do">Ajustar o preço</span>
+              </div>
+              <div class="mp-rules__row">
+                <span class="mp-badge mp-badge--warning">Sem estoque</span>
+                <span class="mp-rules__when">o estoque chegou a zero</span>
+                <span class="mp-rules__do">Repor antes de divulgar</span>
+              </div>
+              <div class="mp-rules__row">
+                <span class="mp-badge mp-badge--warning">Estoque baixo</span>
+                <span class="mp-rules__when">chegou ao estoque mínimo</span>
+                <span class="mp-rules__do">Avisar no WhatsApp</span>
+              </div>
+              <div class="mp-rules__row">
+                <span class="mp-badge mp-badge--warning">Vendas caindo</span>
+                <span class="mp-rules__when">30% menos nos últimos 7 dias</span>
+                <span class="mp-rules__do">Promoção</span>
+              </div>
+              <div class="mp-rules__row">
+                <span class="mp-badge mp-badge--warning">Parado</span>
+                <span class="mp-rules__when">sem venda há 30 dias</span>
+                <span class="mp-rules__do">Promoção</span>
+              </div>
+              <div class="mp-rules__row">
+                <span class="mp-badge mp-badge--positive">Nunca divulgado</span>
+                <span class="mp-rules__when">ainda não teve campanha</span>
+                <span class="mp-rules__do">Post de lançamento</span>
+              </div>
+              <div class="mp-rules__row">
+                <span class="mp-badge mp-badge--positive">Em alta</span>
+                <span class="mp-rules__when">o que mais vende no mês</span>
+                <span class="mp-rules__do">Campanha</span>
+              </div>
+            </div>
+          </section>
+          <section class="lp-chapter mp-split mp-split--top" aria-labelledby="dmBotao">
+            <div class="lp-head">
+              <p class="lp-kicker">Por dentro de uma campanha</p>
+              <h2 class="lp-h2" id="dmBotao">Do botão à campanha pronta</h2>
+              <p class="lp-body">Por trás de um toque, duas IAs trabalham: uma escreve, outra desenha. As duas partem dos números do seu catálogo.</p>
+            </div>
+            <ol class="mp-flow">
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">1</span>
+                <div class="mp-flow__body">
+                  <strong>Você toca no botão</strong>
+                  <p>Por exemplo, Recuperar as vendas do bolo de pote.</p>
+                </div>
+              </li>
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">2</span>
+                <div class="mp-flow__body">
+                  <strong>A WageUp monta o pedido</strong>
+                  <p>Nome, preço e margem vêm do banco de dados, não do que está na tela. Assim ninguém consegue pedir um desconto que a margem não aguenta.</p>
+                  <span class="mp-flow__ui">Bolo de pote · R$ 15,00 · sobra R$ 7,65</span>
+                </div>
+              </li>
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">3</span>
+                <div class="mp-flow__body">
+                  <strong>A IA de texto escreve</strong>
+                  <p>Chamada principal, ideia de imagem, legenda e chamada para ação, na linguagem do Instagram ou do WhatsApp.</p>
+                </div>
+              </li>
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">4</span>
+                <div class="mp-flow__body">
+                  <strong>A IA de imagem desenha</strong>
+                  <p>A ideia de imagem é traduzida para inglês e ganha um estilo de anúncio, porque o modelo de imagem lê ao pé da letra. Sem isso, cachorro-quente virava a foto de um cachorro.</p>
+                </div>
+              </li>
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">5</span>
+                <div class="mp-flow__body">
+                  <strong>Você ajusta e posta</strong>
+                  <p>A campanha fica na galeria. Quer outra versão? Peça no chat, que continua de onde parou.</p>
+                  <span class="mp-flow__ui">Copiar texto · Baixar imagem</span>
+                </div>
+              </li>
+            </ol>
+          </section>
+          <section class="lp-chapter lp-faq lp-faq--module" aria-labelledby="faqTm">
+            <div class="lp-head">
+              <p class="lp-kicker">Dúvidas</p>
+              <h2 class="lp-h2" id="faqTm">Sobre o marketing</h2>
+            </div>
+            <div class="lp-faq__list" data-faq>
+              <div class="lp-faq__item">
+                <h3 class="lp-faq__q">
+                  <button class="lp-faq__btn" type="button" id="faqQm1" aria-expanded="false" aria-controls="faqAm1">
+                    <span>A WageUp posta por mim?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                  </button>
+                </h3>
+                <div class="lp-faq__a" id="faqAm1" role="region" aria-labelledby="faqQm1" hidden>
+                  <p>Não. Você copia o texto e baixa a imagem para postar onde quiser. O aviso de WhatsApp abre o seu WhatsApp com a mensagem pronta para você enviar.</p>
+                </div>
+              </div>
+              <div class="lp-faq__item">
+                <h3 class="lp-faq__q">
+                  <button class="lp-faq__btn" type="button" id="faqQm2" aria-expanded="false" aria-controls="faqAm2">
+                    <span>Posso pedir uma campanha de um produto fora do catálogo?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                  </button>
+                </h3>
+                <div class="lp-faq__a" id="faqAm2" role="region" aria-labelledby="faqQm2" hidden>
+                  <p>Pode, pelo chat. Mas as ações automáticas e os números de margem só existem para os produtos cadastrados.</p>
+                </div>
+              </div>
+              <div class="lp-faq__item">
+                <h3 class="lp-faq__q">
+                  <button class="lp-faq__btn" type="button" id="faqQm3" aria-expanded="false" aria-controls="faqAm3">
+                    <span>E se a IA estiver fora do ar?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                  </button>
+                </h3>
+                <div class="lp-faq__a" id="faqAm3" role="region" aria-labelledby="faqQm3" hidden>
+                  <p>O chat responde com uma campanha simples montada a partir do seu pedido. A imagem pode não sair nesse caso.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section class="lp-chapter mp-next">
+            <a class="mp-next__card" href="/assistente" data-route>
+              <span class="mp-next__label">Próximo módulo</span>
+              <strong class="mp-next__title">Assistente: pergunte do seu jeito</strong>
+              <span class="material-symbols-rounded mp-next__arrow" aria-hidden="true">arrow_forward</span>
+            </a>
+          </section>
+        </div>
+
+        <!-- ═══════════════════════ ASSISTENTE ═══════════════════════ -->
+        <div class="lp-page" data-page="assistente" data-title="Assistente financeiro | WageUp" hidden>
+          <section class="mp-hero" data-nav="dark" aria-labelledby="mpAskTitle">
+            <div class="mp-hero__inner">
+              <div class="mp-hero__copy">
+                <p class="lp-eyebrow"><span class="material-symbols-rounded" aria-hidden="true">forum</span>Assistente financeiro</p>
+                <h1 data-lockup="assistente" class="mp-hero__title" id="mpAskTitle">Pergunte do seu jeito.</h1>
+                <p class="mp-hero__lead">O assistente responde com os números do seu negócio, em português do dia a dia: quanto falta para a meta, qual produto rende mais, quanto tem para receber no PIX.</p>
+                <div class="lp-top__actions">
+                  <button class="lp-btn lp-btn--primary lp-btn--lg" type="button" data-open-app="register">Criar conta grátis <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></button>
+                </div>
+              </div>
+              <div class="lp-chat" data-ui aria-label="Exemplo de conversa com o assistente financeiro">
+                <p class="lp-chat__q">Quanto falta para minha meta?</p>
+                <div class="lp-chat__a">
+                  <p>Faltam <span class="lp-money">R$ 1.133,00</span> para a meta de <span class="lp-money">R$ 3.800,00</span>. São 6 dias, então dá <span class="lp-money">R$ 188,83</span> por dia.</p>
+                  <p>O bolo de pote caiu de 18 para 1 unidade nesta semana, mesmo deixando <span class="lp-money">R$ 7,65</span> por pote. Uma promoção curta dele ajuda a fechar a conta.</p>
+                </div>
+                <div class="lp-chat__insight">
+                  <span class="lp-chat__insight-title">Insight do painel</span>
+                  <span class="lp-chat__insight-text">Bolo de pote: vendas caindo</span>
+                  <span class="lp-action__do">Criar promoção</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="lp-chapter mp-split" aria-labelledby="mpAskAsk">
+            <div class="mp-split__copy">
+              <h2 class="lp-h2" id="mpAskAsk">Perguntas que o assistente responde</h2>
+              <p class="lp-body">As conversas ficam salvas. Dá para voltar a uma pergunta da semana passada e continuar.</p>
+            </div>
+            <ul class="mp-questions" data-ui>
+              <li>Quanto eu lucrei este mês?</li>
+              <li>Qual produto dá mais lucro por unidade?</li>
+              <li>Vendi mais ou menos que no mês passado?</li>
+              <li>Quanto tenho para receber no PIX?</li>
+              <li>Qual foi o meu melhor dia de vendas?</li>
+              <li>O que eu devo divulgar esta semana?</li>
+            </ul>
+          </section>
+
+          <section class="lp-chapter mp-features" aria-labelledby="mpAskRules">
+            <h2 class="lp-h2" id="mpAskRules">O sistema calcula. A IA explica.</h2>
+            <ul class="mp-features__grid">
+              <li class="mp-feature"><span class="material-symbols-rounded" aria-hidden="true">calculate</span><strong>Contas feitas antes</strong><span>A IA recebe os números prontos e é proibida de refazer conta.</span></li>
+              <li class="mp-feature"><span class="material-symbols-rounded" aria-hidden="true">translate</span><strong>Sem jargão</strong><span>Nada de "fluxo de caixa" ou "ticket médio". Começa pela resposta e termina com um próximo passo.</span></li>
+              <li class="mp-feature"><span class="material-symbols-rounded" aria-hidden="true">shield_person</span><strong>Seus clientes protegidos</strong><span>CPF, e-mail e celular dos clientes nunca vão para a IA. Só o nome de quem tem PIX pendente.</span></li>
+              <li class="mp-feature"><span class="material-symbols-rounded" aria-hidden="true">gavel</span><strong>Honesta sobre limites</strong><span>Imposto e declaração? Ela orienta a procurar um contador.</span></li>
+            </ul>
+          </section>
+
+          <section class="lp-chapter mp-split mp-split--top" aria-labelledby="daDentro">
+            <div class="lp-head">
+              <p class="lp-kicker">Por dentro de uma resposta</p>
+              <h2 class="lp-h2" id="daDentro">O que acontece quando você pergunta</h2>
+              <p class="lp-body">O assistente não adivinha. Antes de cada resposta, a WageUp junta os números do seu negócio e entrega prontos para a IA.</p>
+            </div>
+            <ol class="mp-flow">
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">1</span>
+                <div class="mp-flow__body">
+                  <strong>A WageUp junta os números</strong>
+                  <p>Faturamento e lucro dos últimos meses, meta, vendas por produto, melhor dia, PIX pendentes, últimas movimentações e produtos com vendas caindo.</p>
+                </div>
+              </li>
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">2</span>
+                <div class="mp-flow__body">
+                  <strong>Envia só o necessário</strong>
+                  <p>Dos seus clientes, vai só o nome de quem tem PIX pendente. CPF, e-mail e celular nunca saem da WageUp.</p>
+                </div>
+              </li>
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">3</span>
+                <div class="mp-flow__body">
+                  <strong>A IA responde curto</strong>
+                  <p>Começa pela resposta, usa poucas frases, sem jargão, e termina com um próximo passo concreto.</p>
+                </div>
+              </li>
+              <li class="mp-flow__step">
+                <span class="mp-flow__num" aria-hidden="true">4</span>
+                <div class="mp-flow__body">
+                  <strong>A conversa fica salva</strong>
+                  <p>Volte amanhã e continue de onde parou. As conversas ficam guardadas na sua conta.</p>
+                </div>
+              </li>
+            </ol>
+          </section>
+          <section class="lp-chapter mp-split" aria-labelledby="daExemplo">
+            <div class="lp-head">
+              <p class="lp-kicker">Na prática</p>
+              <h2 class="lp-h2" id="daExemplo">Uma conversa de verdade da conta demo</h2>
+              <p class="lp-body">As respostas usam os números da Doces da Ana. Nenhum valor é inventado: se a informação não existe na plataforma, o assistente diz que não sabe.</p>
+            </div>
+            <div class="lp-chat mp-convo" data-ui aria-label="Exemplo de conversa com o assistente">
+              <p class="lp-chat__q">Qual produto me dá mais lucro?</p>
+              <div class="lp-chat__a"><p>O brigadeiro gourmet: foram 277 unidades em novembro e <span class="lp-money">R$ 592,78</span> de lucro. Por unidade, quem deixa mais é o bolo de aniversário, <span class="lp-money">R$ 78,80</span> por encomenda.</p></div>
+              <p class="lp-chat__q">E quanto ainda tenho para receber no PIX?</p>
+              <div class="lp-chat__a"><p>Tem <span class="lp-money">R$ 180,00</span> em uma cobrança pendente. Vale mandar um lembrete hoje: esse valor já cobre quase um dia da meta.</p></div>
+            </div>
+          </section>
+          <section class="lp-chapter lp-faq lp-faq--module" aria-labelledby="faqTa">
+            <div class="lp-head">
+              <p class="lp-kicker">Dúvidas</p>
+              <h2 class="lp-h2" id="faqTa">Sobre o assistente</h2>
+            </div>
+            <div class="lp-faq__list" data-faq>
+              <div class="lp-faq__item">
+                <h3 class="lp-faq__q">
+                  <button class="lp-faq__btn" type="button" id="faqQa1" aria-expanded="false" aria-controls="faqAa1">
+                    <span>A IA pode inventar números?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                  </button>
+                </h3>
+                <div class="lp-faq__a" id="faqAa1" role="region" aria-labelledby="faqQa1" hidden>
+                  <p>As contas são feitas pela WageUp e chegam prontas. A IA é instruída a usar só esses números, não refazer contas e dizer com franqueza quando não tem a informação.</p>
+                </div>
+              </div>
+              <div class="lp-faq__item">
+                <h3 class="lp-faq__q">
+                  <button class="lp-faq__btn" type="button" id="faqQa2" aria-expanded="false" aria-controls="faqAa2">
+                    <span>Ele responde sobre imposto e declaração do MEI?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                  </button>
+                </h3>
+                <div class="lp-faq__a" id="faqAa2" role="region" aria-labelledby="faqQa2" hidden>
+                  <p>Ele orienta, mas indica procurar um contador quando o assunto é imposto, nota fiscal ou declaração.</p>
+                </div>
+              </div>
+              <div class="lp-faq__item">
+                <h3 class="lp-faq__q">
+                  <button class="lp-faq__btn" type="button" id="faqQa3" aria-expanded="false" aria-controls="faqAa3">
+                    <span>Qual IA a WageUp usa?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                  </button>
+                </h3>
+                <div class="lp-faq__a" id="faqAa3" role="region" aria-labelledby="faqQa3" hidden>
+                  <p>A DeepSeek responde primeiro, com o Claude, da Anthropic, como alternativa. Se as duas falharem, a WageUp responde com as próprias regras, avisando.</p>
+                </div>
+              </div>
+              <div class="lp-faq__item">
+                <h3 class="lp-faq__q">
+                  <button class="lp-faq__btn" type="button" id="faqQa4" aria-expanded="false" aria-controls="faqAa4">
+                    <span>Tem limite de perguntas?</span><span class="material-symbols-rounded lp-faq__icon" aria-hidden="true">add</span>
+                  </button>
+                </h3>
+                <div class="lp-faq__a" id="faqAa4" role="region" aria-labelledby="faqQa4" hidden>
+                  <p>Sim, 60 perguntas por hora por conta. É folga para o uso normal e protege a plataforma contra abuso.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section class="lp-chapter mp-next">
+            <a class="mp-next__card" href="/vendas" data-route>
+              <span class="mp-next__label">Recomeçar pelo básico</span>
+              <strong class="mp-next__title">Vendas e produtos: quanto sobra de cada venda</strong>
+              <span class="material-symbols-rounded mp-next__arrow" aria-hidden="true">arrow_forward</span>
+            </a>
+          </section>
+        </div>
       </main>
 
-      <footer class="lp-footer">
-        <div class="lp-footer__brand">
-          <div class="lp-logo lp-logo--footer">
-            <span class="lp-logo__text">wage<span class="lp-logo__up">up</span></span><span class="lp-logo__tick" aria-hidden="true"></span>
+      <!-- FECHAMENTO: o mesmo em todas as páginas -->
+      <footer class="lp-close" data-nav="dark">
+        <div class="lp-close__inner">
+          <div class="lp-close__top">
+            <div class="lp-close__call">
+              <h2 class="lp-close__title">Faça a conta da próxima venda.</h2>
+              <p class="lp-close__text">Crie a conta, cadastre um produto e veja quanto sobra dele. Leva poucos minutos.</p>
+              <div class="lp-top__actions">
+                <button class="lp-btn lp-btn--primary lp-btn--lg" type="button" data-open-app="register">Criar conta grátis <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></button>
+                <button class="lp-btn lp-btn--outline lp-btn--lg" type="button" data-open-app="login">Entrar</button>
+              </div>
+            </div>
+
+            <nav class="lp-close__cols" aria-label="Rodapé">
+              <div class="lp-close__col">
+                <p class="lp-close__heading">Plataforma</p>
+                <ul>
+                  <li><a href="/vendas" data-route>Vendas e produtos</a></li>
+                  <li><a href="/financeiro" data-route>Financeiro</a></li>
+                  <li><a href="/pix" data-route>PIX</a></li>
+                  <li><a href="/marketing" data-route>Marketing com IA</a></li>
+                  <li><a href="/assistente" data-route>Assistente financeiro</a></li>
+                </ul>
+              </div>
+              <div class="lp-close__col">
+                <p class="lp-close__heading">WageUp</p>
+                <ul>
+                  <li><a href="/para-quem" data-route>Para quem é</a></li>
+                  <li><a href="/#conta" data-route>A conta de uma venda</a></li>
+                  <li><a href="/acessibilidade" data-route>Acessibilidade</a></li>
+                  <li><a href="/perguntas" data-route>Perguntas</a></li>
+                </ul>
+              </div>
+            </nav>
           </div>
-          <p>Plataforma para microempreendedores brasileiros.</p>
+
+          <p class="lp-close__mark" aria-hidden="true">wage<span>up</span><i class="lp-close__tick"></i></p>
+
+          <div class="lp-close__base">
+            <p>© 2026 WageUp · Trabalho de Conclusão de Curso, Etec Jornalista Roberto Marinho</p>
+            <p>Cobranças PIX processadas pela Abacate Pay</p>
+          </div>
         </div>
-        <nav class="lp-footer__links" aria-label="Rodapé">
-          <a href="#recursos">Recursos</a>
-          <a href="#como-funciona">Como funciona</a>
-          <button class="lp-footer__cta" data-open-app>Acessar plataforma</button>
-        </nav>
-        <small class="lp-footer__legal">2026 © WageUp</small>
       </footer>
     </div>
 
-    <!-- PÁGINAS DE MÓDULO -->
-    <section class="module-detail is-hidden" id="page-plataforma" aria-label="Plataforma — visão geral">
-      <div class="module-detail-inner">
-        <button class="ghost-button module-detail-back" data-close-module>← Voltar</button>
-        <header class="module-detail-hero">
-          <p class="eyebrow">Plataforma</p>
-          <h1>Tudo que o seu negócio precisa, organizado em um só lugar.</h1>
-          <p class="module-detail-lead">A maioria dos microempreendedores usa um aplicativo para vender, uma planilha para o financeiro, papel para anotar pedidos e o celular para criar posts. A Wage Up junta essas quatro frentes — produtos, financeiro, PIX e marketing com IA — num painel só, que conversa entre si.</p>
-          <div class="hero-actions">
-            <button class="primary-button" data-open-app>Conhecer o painel</button>
-          </div>
-        </header>
-
-        <section class="module-detail-steps">
-          <p class="eyebrow">Como tudo se conecta</p>
-          <h2>Quatro módulos, um único fluxo de trabalho.</h2>
-          <ol>
-            <li>
-              <span class="step-index">01</span>
-              <div>
-                <strong>Produtos</strong>
-                <p>Você cadastra o catálogo com custo, preço e estoque — e a margem de cada item é calculada automaticamente.</p>
-                <a class="text-link" href="#" data-open-module="produtos">Ver módulo de Produtos →</a>
-              </div>
-            </li>
-            <li>
-              <span class="step-index">02</span>
-              <div>
-                <strong>Financeiro</strong>
-                <p>Cada entrada e saída registrada vira um retrato real do seu negócio: lucro, despesas e tendência do mês.</p>
-                <a class="text-link" href="#" data-open-module="financeiro">Ver módulo Financeiro →</a>
-              </div>
-            </li>
-            <li>
-              <span class="step-index">03</span>
-              <div>
-                <strong>PIX</strong>
-                <p>Cobranças com QR Code são geradas em segundos e conciliadas automaticamente com o financeiro, sem digitar nada de novo.</p>
-                <a class="text-link" href="#" data-open-module="pix">Ver módulo PIX →</a>
-              </div>
-            </li>
-            <li>
-              <span class="step-index">04</span>
-              <div>
-                <strong>Marketing com IA</strong>
-                <p>A IA usa os produtos que você já cadastrou para sugerir campanhas prontas para Instagram, WhatsApp e outros canais.</p>
-                <a class="text-link" href="#" data-open-module="marketing">Ver módulo de Marketing →</a>
-              </div>
-            </li>
-          </ol>
-        </section>
-
-        <section class="module-detail-benefit">
-          <p class="eyebrow">Por que isso importa</p>
-          <h2>Menos tempo trocando de aplicativo, mais tempo cuidando do negócio.</h2>
-          <div class="benefit-grid">
-            <article>
-              <span class="benefit-mark">↻</span>
-              <strong>Os dados se conectam sozinhos</strong>
-              <p>Um produto cadastrado já pode virar uma campanha de marketing ou uma cobrança PIX — sem retrabalho.</p>
-            </article>
-            <article>
-              <span class="benefit-mark">◔</span>
-              <strong>Decisões com base na realidade</strong>
-              <p>O painel mostra o que está vendendo, o que está sobrando em estoque e quanto sobra no caixa — em tempo real.</p>
-            </article>
-            <article>
-              <span class="benefit-mark">⚲</span>
-              <strong>Pensado para o dia a dia do MEI</strong>
-              <p>Sem jargões financeiros nem telas complicadas: cada módulo resolve um problema concreto de quem vende todos os dias.</p>
-            </article>
-          </div>
-        </section>
-
-        <section class="module-detail-cta">
-          <h2>Pronto para ver tudo funcionando junto?</h2>
-          <p>Crie sua conta gratuita e configure seu negócio em poucos minutos.</p>
-          <button class="primary-button" data-open-app>Começar agora</button>
-        </section>
-      </div>
-    </section>
-
-    <section class="module-detail is-hidden" id="page-produtos" aria-label="Produtos — como funciona">
-      <div class="module-detail-inner">
-        <button class="ghost-button module-detail-back" data-close-module>← Voltar</button>
-        <header class="module-detail-hero">
-          <p class="eyebrow">Produtos</p>
-          <h1>Seu catálogo, com a margem calculada para você.</h1>
-          <p class="module-detail-lead">Chega de planilha para saber se está vendendo no lucro ou no prejuízo. Cadastre cada produto com custo e preço, e a Wage Up calcula a margem na hora — além de avisar quando o estoque está acabando.</p>
-          <div class="hero-actions">
-            <button class="primary-button" data-open-app>Cadastrar meu primeiro produto</button>
-          </div>
-        </header>
-
-        <section class="module-detail-steps">
-          <p class="eyebrow">Como funciona</p>
-          <h2>Do cadastro à reposição, em três passos.</h2>
-          <ol>
-            <li>
-              <span class="step-index">01</span>
-              <div>
-                <strong>Cadastre nome, categoria, custo e preço</strong>
-                <p>Leva menos de um minuto por item. Você também informa a quantidade em estoque.</p>
-              </div>
-            </li>
-            <li>
-              <span class="step-index">02</span>
-              <div>
-                <strong>Veja a margem calculada na hora</strong>
-                <p>A diferença entre custo e preço — em reais e em porcentagem — aparece automaticamente em cada cartão do produto.</p>
-              </div>
-            </li>
-            <li>
-              <span class="step-index">03</span>
-              <div>
-                <strong>Use o catálogo no resto da plataforma</strong>
-                <p>Os mesmos produtos alimentam as campanhas de marketing com IA e aparecem nos relatórios financeiros.</p>
-              </div>
-            </li>
-          </ol>
-        </section>
-
-        <section class="module-detail-benefit">
-          <p class="eyebrow">O que isso muda para o seu negócio</p>
-          <h2>Você para de adivinhar e passa a saber.</h2>
-          <div class="benefit-grid">
-            <article>
-              <span class="benefit-mark">%</span>
-              <strong>Nunca mais vender no prejuízo sem perceber</strong>
-              <p>Com a margem visível em cada produto, fica fácil identificar itens que estão custando caro demais para o que rendem.</p>
-            </article>
-            <article>
-              <span class="benefit-mark">▤</span>
-              <strong>Saiba o que repor antes de faltar</strong>
-              <p>Acompanhe o estoque de cada item e evite perder vendas por falta de produto — ou capital parado em excesso de estoque.</p>
-            </article>
-            <article>
-              <span class="benefit-mark">↗</span>
-              <strong>Catálogo organizado vira oportunidade</strong>
-              <p>Um catálogo completo é a base para campanhas de marketing melhores e para entender quais produtos merecem mais atenção.</p>
-            </article>
-          </div>
-        </section>
-
-        <section class="module-detail-cta">
-          <h2>Pronto para organizar seu catálogo?</h2>
-          <p>Cadastre seus produtos e veja a margem de cada um calculada automaticamente.</p>
-          <button class="primary-button" data-open-app>Começar agora</button>
-        </section>
-      </div>
-    </section>
-
-    <section class="module-detail is-hidden" id="page-marketing" aria-label="Marketing com IA — como funciona">
-      <div class="module-detail-inner">
-        <button class="ghost-button module-detail-back" data-close-module>← Voltar</button>
-        <header class="module-detail-hero">
-          <p class="eyebrow">Marketing com IA</p>
-          <h1>Campanhas prontas em segundos, baseadas no seu próprio catálogo.</h1>
-          <p class="module-detail-lead">Você não precisa contratar agência nem passar a noite pensando em legenda. Escolha um produto, diga o objetivo e o canal — a IA da Wage Up gera o texto da campanha na hora, pronto para publicar.</p>
-          <div class="hero-actions">
-            <button class="primary-button" data-open-app>Gerar minha primeira campanha</button>
-          </div>
-        </header>
-
-        <section class="module-detail-steps">
-          <p class="eyebrow">Como funciona</p>
-          <h2>Da ideia ao post pronto, em uma conversa.</h2>
-          <ol>
-            <li>
-              <span class="step-index">01</span>
-              <div>
-                <strong>Escolha o produto e o objetivo</strong>
-                <p>Promoção, lançamento ou relacionamento — você escolhe o que precisa vender e por quê.</p>
-              </div>
-            </li>
-            <li>
-              <span class="step-index">02</span>
-              <div>
-                <strong>Selecione o canal e descreva o contexto</strong>
-                <p>Instagram, WhatsApp ou TikTok — e uma frase sobre o momento ("vender mais no fim de semana", por exemplo).</p>
-              </div>
-            </li>
-            <li>
-              <span class="step-index">03</span>
-              <div>
-                <strong>Receba o texto pronto da campanha</strong>
-                <p>A IA (Claude, da Anthropic) gera legendas, mensagens e ideias de imagem com base no produto, preço e margem reais do seu catálogo.</p>
-              </div>
-            </li>
-          </ol>
-        </section>
-
-        <section class="module-detail-benefit">
-          <p class="eyebrow">O que isso muda para o seu negócio</p>
-          <h2>Presença constante nas redes, sem virar um segundo trabalho.</h2>
-          <div class="benefit-grid">
-            <article>
-              <span class="benefit-mark">⏱</span>
-              <strong>Economize tempo todos os dias</strong>
-              <p>O que levaria uma hora pensando em frases e formatos sai pronto em segundos — você só ajusta e publica.</p>
-            </article>
-            <article>
-              <span class="benefit-mark">⌬</span>
-              <strong>Campanhas conectadas ao que você vende de verdade</strong>
-              <p>Como a IA conhece seu catálogo, as sugestões falam do produto certo, com o preço e o diferencial certos — não de algo genérico.</p>
-            </article>
-            <article>
-              <span class="benefit-mark">▥</span>
-              <strong>Histórico de campanhas sempre à mão</strong>
-              <p>Toda campanha gerada fica salva e organizada por produto, para você reaproveitar ideias que já funcionaram.</p>
-            </article>
-          </div>
-        </section>
-
-        <section class="module-detail-cta">
-          <h2>Pronto para nunca mais travar na hora de postar?</h2>
-          <p>Gere sua primeira campanha com base no seu catálogo em menos de um minuto.</p>
-          <button class="primary-button" data-open-app>Começar agora</button>
-        </section>
-      </div>
-    </section>
-
-    <section class="module-detail is-hidden" id="page-financeiro" aria-label="Financeiro — como funciona">
-      <div class="module-detail-inner">
-        <button class="ghost-button module-detail-back" data-close-module>← Voltar</button>
-        <header class="module-detail-hero">
-          <p class="eyebrow">Financeiro</p>
-          <h1>Entradas, saídas e lucro — sem depender de planilha ou caderno.</h1>
-          <p class="module-detail-lead">Registrar uma venda ou uma despesa leva poucos segundos. Em troca, você ganha um retrato sempre atualizado do seu negócio: quanto entrou, quanto saiu e quanto sobrou de verdade no fim do mês.</p>
-          <div class="hero-actions">
-            <button class="primary-button" data-open-app>Organizar meu financeiro</button>
-          </div>
-        </header>
-
-        <section class="module-detail-steps">
-          <p class="eyebrow">Como funciona</p>
-          <h2>Cada lançamento alimenta o seu painel.</h2>
-          <ol>
-            <li>
-              <span class="step-index">01</span>
-              <div>
-                <strong>Registre entradas e saídas</strong>
-                <p>Uma venda, uma compra de insumo, uma conta paga — descreva, escolha o tipo e informe o valor.</p>
-              </div>
-            </li>
-            <li>
-              <span class="step-index">02</span>
-              <div>
-                <strong>Acompanhe o resumo em tempo real</strong>
-                <p>Receita, despesas e lucro estimado aparecem atualizados no painel, com gráfico da evolução do período.</p>
-              </div>
-            </li>
-            <li>
-              <span class="step-index">03</span>
-              <div>
-                <strong>Tome decisões com base no que está acontecendo agora</strong>
-                <p>Veja para onde o dinheiro está indo e ajuste preços, compras ou prioridades antes que o mês termine.</p>
-              </div>
-            </li>
-          </ol>
-        </section>
-
-        <section class="module-detail-benefit">
-          <p class="eyebrow">O que isso muda para o seu negócio</p>
-          <h2>Saber, ao certo, quanto sobra no fim do mês.</h2>
-          <div class="benefit-grid">
-            <article>
-              <span class="benefit-mark">＋</span>
-              <strong>Enxergue o lucro real, não a sensação de lucro</strong>
-              <p>Vender bastante não é o mesmo que lucrar. O painel mostra a diferença entre entradas e saídas com clareza.</p>
-            </article>
-            <article>
-              <span class="benefit-mark">▽</span>
-              <strong>Identifique despesas que pesam mais do que parecem</strong>
-              <p>Pequenos custos recorrentes somam rápido. Veja exatamente onde o dinheiro está saindo todo mês.</p>
-            </article>
-            <article>
-              <span class="benefit-mark">◰</span>
-              <strong>Reconciliação automática com o PIX</strong>
-              <p>Pagamentos recebidos por PIX entram direto no seu financeiro — sem precisar lançar tudo de novo na mão.</p>
-            </article>
-          </div>
-        </section>
-
-        <section class="module-detail-cta">
-          <h2>Pronto para enxergar seu negócio com clareza?</h2>
-          <p>Registre sua primeira movimentação e veja o painel ganhar vida.</p>
-          <button class="primary-button" data-open-app>Começar agora</button>
-        </section>
-      </div>
-    </section>
-
-    <section class="module-detail is-hidden" id="page-pix" aria-label="PIX — como funciona">
-      <div class="module-detail-inner">
-        <button class="ghost-button module-detail-back" data-close-module>← Voltar</button>
-        <header class="module-detail-hero">
-          <p class="eyebrow">PIX</p>
-          <h1>Receba na hora, com QR Code pronto para o seu cliente pagar.</h1>
-          <p class="module-detail-lead">Gere uma cobrança com valor, descrição e dados do cliente — a Wage Up cria o QR Code e o código "copia e cola" na hora, através da Abacate Pay. Quando o cliente paga, o status atualiza sozinho.</p>
-          <div class="hero-actions">
-            <button class="primary-button" data-open-app>Gerar minha primeira cobrança</button>
-          </div>
-        </header>
-
-        <section class="module-detail-steps">
-          <p class="eyebrow">Como funciona</p>
-          <h2>Da cobrança ao recebimento, sem passos extras.</h2>
-          <ol>
-            <li>
-              <span class="step-index">01</span>
-              <div>
-                <strong>Preencha valor e descrição da cobrança</strong>
-                <p>Se quiser, inclua nome, e-mail e CPF/CNPJ do cliente — útil para emissão e organização dos recebimentos.</p>
-              </div>
-            </li>
-            <li>
-              <span class="step-index">02</span>
-              <div>
-                <strong>Compartilhe o QR Code ou o código copia e cola</strong>
-                <p>O cliente paga direto pelo aplicativo do banco — sem maquininha, sem taxas escondidas, sem demora.</p>
-              </div>
-            </li>
-            <li>
-              <span class="step-index">03</span>
-              <div>
-                <strong>Veja o status mudar sozinho</strong>
-                <p>Um aviso automático da Abacate Pay confirma o pagamento e atualiza o registro — e o financeiro — sem você precisar conferir nada manualmente.</p>
-              </div>
-            </li>
-          </ol>
-        </section>
-
-        <section class="module-detail-benefit">
-          <p class="eyebrow">O que isso muda para o seu negócio</p>
-          <h2>Menos tempo cobrando, mais tempo vendendo.</h2>
-          <div class="benefit-grid">
-            <article>
-              <span class="benefit-mark">⚡</span>
-              <strong>Recebimento na hora</strong>
-              <p>PIX cai na conta em segundos — sem esperar compensação de boleto ou prazo de cartão.</p>
-            </article>
-            <article>
-              <span class="benefit-mark">✓</span>
-              <strong>Conciliação automática</strong>
-              <p>Cada cobrança paga é registrada e cruzada com o financeiro sozinha — acabou o trabalho de comparar extrato com pedidos.</p>
-            </article>
-            <article>
-              <span class="benefit-mark">▢</span>
-              <strong>Mais profissionalismo para o seu cliente</strong>
-              <p>QR Code, recibo e confirmação automática transmitem a mesma seriedade de uma loja estruturada — mesmo sendo um negócio pequeno.</p>
-            </article>
-          </div>
-        </section>
-
-        <section class="module-detail-cta">
-          <h2>Pronto para receber sem complicação?</h2>
-          <p>Gere sua primeira cobrança PIX e veja o QR Code na tela em segundos.</p>
-          <button class="primary-button" data-open-app>Começar agora</button>
-        </section>
-      </div>
-    </section>
-
-    <!-- AUTH -->
-    <section class="auth-shell is-hidden" id="auth" aria-label="Entrar na Wage Up">
-      <div class="auth-panel">
-        <button class="auth-back" data-close-auth aria-label="Voltar">← Voltar</button>
-        <div class="auth-copy">
-          <a class="lp-logo auth-brand" href="#"><span class="lp-logo__text">wage<span class="lp-logo__up">up</span></span><span class="lp-logo__tick" aria-hidden="true"></span></a>
-          <h2>Organize seu negócio em poucos minutos.</h2>
-          <p>Cadastre produtos, acompanhe o financeiro e crie campanhas com IA.</p>
+    <!-- AUTH: painel da marca à esquerda, formulário à direita. data-tab
+         (setAuthTab, em app.js) escolhe o título e move o indicador das abas. -->
+    <section class="auth-shell is-hidden" id="auth" aria-label="Entrar na WageUp" data-tab="login">
+      <div class="auth-main">
+        <div class="auth-main__top">
+          <span class="lp-logo auth-brand"><span class="lp-logo__text">wage<span class="lp-logo__up">up</span></span><span class="lp-logo__tick" aria-hidden="true"></span></span>
+          <button class="auth-back" type="button" data-close-auth><span class="material-symbols-rounded" aria-hidden="true">arrow_back</span>Voltar ao site</button>
         </div>
         <div class="auth-card">
+          <div class="auth-head">
+            <h2 class="auth-head__title auth-head__title--login">Acessar sua conta</h2>
+            <h2 class="auth-head__title auth-head__title--register">Criar sua conta</h2>
+            <p class="auth-head__lead auth-head__lead--login">Entre com seu e-mail e senha para ver como está o seu negócio.</p>
+            <p class="auth-head__lead auth-head__lead--register">Leva um minuto. Sem mensalidade e sem cartão de crédito.</p>
+          </div>
+
           <div class="auth-tabs" role="tablist" aria-label="Autenticação">
             <button class="active" type="button" role="tab" id="tab-login" aria-selected="true" aria-controls="loginForm" data-auth-tab="login">Entrar</button>
             <button type="button" role="tab" id="tab-register" aria-selected="false" aria-controls="registerForm" tabindex="-1" data-auth-tab="register">Criar conta</button>
@@ -650,16 +1873,16 @@
           <div class="auth-divider"><span>ou</span></div>
 
           <form class="auth-form active" id="loginForm" role="tabpanel" aria-labelledby="tab-login">
-            <input name="email" type="email" placeholder="E-mail" required autocomplete="email" aria-label="E-mail" />
-            <input name="password" type="password" placeholder="Senha" required autocomplete="current-password" aria-label="Senha" />
+            <label class="auth-field"><span>E-mail</span><input name="email" type="email" placeholder="voce@exemplo.com" required autocomplete="email" /></label>
+            <label class="auth-field"><span>Senha</span><input name="password" type="password" placeholder="Sua senha" required autocomplete="current-password" /></label>
             <button class="primary-button" type="submit">Entrar</button>
             <button class="auth-link" type="button" data-auth-goto="forgot">Esqueci minha senha</button>
           </form>
           <form class="auth-form" id="registerForm" role="tabpanel" aria-labelledby="tab-register">
-            <input name="name" placeholder="Seu nome" required autocomplete="name" aria-label="Seu nome" />
-            <input name="business_name" placeholder="Nome do negócio" required aria-label="Nome do negócio" />
-            <input name="email" type="email" placeholder="E-mail" required autocomplete="email" aria-label="E-mail" />
-            <input name="password" type="password" minlength="8" placeholder="Senha com 8+ caracteres" required autocomplete="new-password" aria-label="Senha (mínimo 8 caracteres)" />
+            <label class="auth-field"><span>Seu nome</span><input name="name" placeholder="Ana Souza" required autocomplete="name" /></label>
+            <label class="auth-field"><span>Nome do negócio</span><input name="business_name" placeholder="Doces da Ana" required /></label>
+            <label class="auth-field"><span>E-mail</span><input name="email" type="email" placeholder="voce@exemplo.com" required autocomplete="email" /></label>
+            <label class="auth-field"><span>Senha</span><input name="password" type="password" minlength="8" placeholder="Pelo menos 8 caracteres" required autocomplete="new-password" /></label>
             <button class="primary-button" type="submit">Criar conta</button>
           </form>
 
@@ -667,7 +1890,7 @@
           <form class="auth-form" id="forgotForm" aria-label="Recuperar senha">
             <h3 class="auth-form__title">Recuperar senha</h3>
             <p class="auth-form__hint">Informe o e-mail da sua conta. Se ela existir, enviamos um link para você criar uma senha nova.</p>
-            <input name="email" type="email" placeholder="E-mail" required autocomplete="email" aria-label="E-mail da conta" />
+            <label class="auth-field"><span>E-mail da conta</span><input name="email" type="email" placeholder="voce@exemplo.com" required autocomplete="email" /></label>
             <button class="primary-button" type="submit">Enviar link</button>
             <button class="auth-link" type="button" data-auth-goto="login">← Voltar para o login</button>
           </form>
@@ -675,9 +1898,9 @@
           <!-- Recuperação de senha: nova senha (aberta pelo link do e-mail) -->
           <form class="auth-form" id="resetForm" aria-label="Definir nova senha">
             <h3 class="auth-form__title">Nova senha</h3>
-            <p class="auth-form__hint">Escolha a senha que você vai usar para entrar na Wage Up.</p>
-            <input name="password" type="password" minlength="8" placeholder="Senha com 8+ caracteres" required autocomplete="new-password" aria-label="Nova senha (mínimo 8 caracteres)" />
-            <input name="password_confirm" type="password" minlength="8" placeholder="Repita a senha" required autocomplete="new-password" aria-label="Repita a nova senha" />
+            <p class="auth-form__hint">Escolha a senha que você vai usar para entrar na WageUp.</p>
+            <label class="auth-field"><span>Nova senha</span><input name="password" type="password" minlength="8" placeholder="Pelo menos 8 caracteres" required autocomplete="new-password" /></label>
+            <label class="auth-field"><span>Repita a nova senha</span><input name="password_confirm" type="password" minlength="8" placeholder="A mesma senha" required autocomplete="new-password" /></label>
             <button class="primary-button" type="submit">Salvar senha</button>
             <button class="auth-link" type="button" data-auth-goto="login">← Voltar para o login</button>
           </form>
@@ -685,7 +1908,34 @@
           <p class="auth-error" id="authError" role="alert"></p>
           <p class="auth-success" id="authSuccess" role="status"></p>
         </div>
+        <p class="auth-main__foot"><span class="material-symbols-rounded" aria-hidden="true">lock</span>Seus dados ficam só no seu negócio.</p>
       </div>
+
+      <aside class="auth-side" aria-hidden="true">
+        <div class="auth-side__copy">
+          <span class="auth-side__mark"><span class="lp-logo__tick"></span></span>
+          <p class="auth-side__title">O lucro real do seu negócio, todo dia.</p>
+          <p class="auth-side__lead">Vendas, PIX, financeiro e marketing com IA num lugar só.</p>
+        </div>
+        <div class="auth-side__preview">
+          <p class="auth-side__preview-head"><span>Doces da Ana</span><span>hoje</span></p>
+          <div class="auth-side__row">
+            <span class="auth-side__icon auth-side__icon--ok"><span class="material-symbols-rounded">check</span></span>
+            <span><small>PIX recebido</small>Bolo de pote × 3</span>
+            <span class="lp-money lp-money--positive">+ R$ 45,00</span>
+          </div>
+          <div class="auth-side__row">
+            <span class="auth-side__icon"><span class="material-symbols-rounded">trending_up</span></span>
+            <span><small>Lucro do mês</small>Meta em 70%</span>
+            <span class="lp-money">R$ 894,00</span>
+          </div>
+          <div class="auth-side__row">
+            <span class="auth-side__icon"><span class="material-symbols-rounded">campaign</span></span>
+            <span><small>Campanha pronta</small>Promoção no Instagram</span>
+            <span class="auth-side__tag">Ver</span>
+          </div>
+        </div>
+      </aside>
     </section>
 
     <!-- ONBOARDING -->
@@ -1812,7 +3062,7 @@
     <button class="a11y-trigger" id="a11yTrigger" type="button" aria-expanded="false" aria-controls="a11yPanel" aria-label="Acessibilidade (Alt + A)" title="Acessibilidade (Alt + A)">
       <span class="material-symbols-rounded" aria-hidden="true">accessibility_new</span>
     </button>
-    <div class="a11y-panel" id="a11yPanel" role="dialog" aria-labelledby="a11yTitle" aria-describedby="a11yHint" hidden>
+    <div class="a11y-panel" id="a11yPanel" data-lenis-prevent role="dialog" aria-labelledby="a11yTitle" aria-describedby="a11yHint" hidden>
       <header class="a11y-panel__head">
         <h2 class="a11y-panel__title" id="a11yTitle">Acessibilidade</h2>
         <button class="icon-btn" type="button" data-a11y-close aria-label="Fechar acessibilidade" title="Fechar">
@@ -1874,274 +3124,8 @@
     <div class="sr-only" id="a11yAnnouncer" aria-live="polite" aria-atomic="true"></div>
 
     <script src="app.js"></script>
-    <script>
-      // ─── Landing page: animações e interações ───────────────────────────
-      // Escopo: só a página inicial (.site-shell). Respeita o design system:
-      // opacity + transform, sem cor nova, sem gradiente. Com movimento
-      // reduzido, as interações continuam funcionando e só a animação
-      // decorativa é que desliga.
-      (function () {
-        const shell = document.querySelector(".site-shell");
-        if (!shell) return;
-
-        // Sem o GSAP (CDN fora do ar, rede que bloqueia, bloqueador de
-        // anúncio), a página segue como no movimento reduzido: a calculadora
-        // e a demo de PIX não podem depender de uma biblioteca de efeito.
-        const hasGsap = typeof gsap !== "undefined" && typeof ScrollTrigger !== "undefined";
-        // data-reduce-motion vem do sistema ou do painel de acessibilidade (a11y.js).
-        const prefersReduced = !hasGsap || document.documentElement.hasAttribute("data-reduce-motion");
-        if (!prefersReduced) gsap.registerPlugin(ScrollTrigger);
-
-        const $ = (sel, root) => (root || document).querySelector(sel);
-        const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
-        const fmt = (v, dec) =>
-          v.toLocaleString("pt-BR", { minimumFractionDigits: dec, maximumFractionDigits: dec });
-
-        // ── Animações decorativas ────────────────────────────────────────
-        if (prefersReduced) {
-          const big = $("#lpPanelValue");
-          if (big) big.textContent = "12.480,00";
-          $$(".lp-stat__value").forEach((el) => {
-            el.textContent =
-              (el.dataset.prefix || "") +
-              fmt(Number(el.dataset.count) || 0, Number(el.dataset.decimals || 0)) +
-              (el.dataset.suffix || "");
-          });
-        } else {
-          // Entrada do topo, escalonada.
-          gsap.timeline({ defaults: { ease: "power3.out" } })
-            .from(".lp-nav", { y: -16, opacity: 0, duration: 0.55, ease: "power2.out" })
-            .from(".lp-hero__copy .lp-eyebrow", { y: 22, opacity: 0, duration: 0.5 }, "-=0.3")
-            .from(".lp-hero__title", { y: 28, opacity: 0, duration: 0.65 }, "-=0.3")
-            .from(".lp-hero__sub", { y: 22, opacity: 0, duration: 0.5 }, "-=0.35")
-            .from(".lp-hero__actions", { y: 18, opacity: 0, duration: 0.5 }, "-=0.3")
-            .from(".lp-panel", { y: 30, opacity: 0, scale: 0.97, duration: 0.7 }, "-=0.55");
-
-          // Contador do valor em destaque no painel.
-          const big = $("#lpPanelValue");
-          if (big) {
-            const contador = { v: 0 };
-            gsap.to(contador, {
-              v: 12480, duration: 1.6, ease: "power2.out", delay: 0.6,
-              onUpdate: () => { big.textContent = fmt(contador.v, 2); }
-            });
-          }
-
-          // Revela cada cabeçalho de seção ao entrar na tela.
-          $$(".lp-section__head").forEach((head) => {
-            gsap.from(head, {
-              y: 26, opacity: 0, duration: 0.7, ease: "power3.out",
-              scrollTrigger: { trigger: head, start: "top 85%", once: true }
-            });
-          });
-
-          // Cartões de recursos, em cascata.
-          gsap.from(".lp-features .lp-feature", {
-            y: 32, opacity: 0, duration: 0.6, ease: "power3.out", stagger: 0.1,
-            scrollTrigger: { trigger: ".lp-features", start: "top 80%", once: true }
-          });
-
-          // Passos do "Como funciona", em cascata.
-          gsap.from(".lp-steps .lp-step", {
-            y: 26, opacity: 0, duration: 0.6, ease: "power3.out", stagger: 0.15,
-            scrollTrigger: { trigger: ".lp-steps", start: "top 82%", once: true }
-          });
-
-          // Calculadora de margem.
-          gsap.from(".lp-calc__form, .lp-calc__result", {
-            y: 30, opacity: 0, duration: 0.7, ease: "power3.out", stagger: 0.12,
-            scrollTrigger: { trigger: ".lp-calc", start: "top 80%", once: true }
-          });
-
-          // Itens do FAQ, um a um.
-          $$(".lp-faq__item").forEach((item, i) => {
-            gsap.from(item, {
-              y: 22, opacity: 0, duration: 0.55, ease: "power3.out",
-              scrollTrigger: { trigger: item, start: "top 88%", once: true }
-            });
-          });
-
-          // Chamada final.
-          gsap.from(".lp-cta > *", {
-            y: 22, opacity: 0, duration: 0.6, ease: "power3.out", stagger: 0.1,
-            scrollTrigger: { trigger: ".lp-cta", start: "top 85%", once: true }
-          });
-
-          // Rodapé, discreto.
-          gsap.from(".lp-footer", {
-            y: 18, opacity: 0, duration: 0.6, ease: "power2.out",
-            scrollTrigger: { trigger: ".lp-footer", start: "top 92%", once: true }
-          });
-
-          // Números da faixa de estatísticas, contando ao entrar na tela.
-          $$(".lp-stat__value").forEach((el) => {
-            const alvo = Number(el.dataset.count) || 0;
-            const prefix = el.dataset.prefix || "";
-            const suffix = el.dataset.suffix || "";
-            const dec = Number(el.dataset.decimals || 0);
-            const proxy = { v: 0 };
-            el.textContent = prefix + fmt(0, dec) + suffix;
-            gsap.to(proxy, {
-              v: alvo, duration: 1.4, ease: "power2.out",
-              scrollTrigger: { trigger: el, start: "top 88%", once: true },
-              onUpdate: () => { el.textContent = prefix + fmt(proxy.v, dec) + suffix; }
-            });
-          });
-        }
-
-        // ── Demo interativa: cobrança PIX ────────────────────────────────
-        (function () {
-          const wrap = $("#lpQrWrap"), qr = $("#lpQr"), statusEl = $("#lpPixStatus"),
-                statusText = $("#lpPixStatusText"), check = $("#lpPixCheck"), btn = $("#lpSimulate");
-          if (!wrap || !btn || !qr) return;
-
-          const state = { recebido: 8200, pendente: 4280, ativas: 3 };
-          const VALOR = 350;
-          let running = false;
-
-          const setText = (sel, txt) => { const el = $(sel); if (el) el.textContent = txt; };
-          const render = () => {
-            setText("#lpPanelValue", fmt(state.recebido + state.pendente, 2));
-            setText("#lpRecebido", "R$ " + fmt(state.recebido, 2));
-            setText("#lpPendente", "R$ " + fmt(state.pendente, 2));
-            setText("#lpAtivas", String(Math.round(state.ativas)));
-          };
-
-          // Desenha um QR Code ilustrativo (não escaneável) com os tokens.
-          (function drawQr() {
-            const size = 25;
-            let seed = 20260908;
-            const rand = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
-            const grid = Array.from({ length: size }, () => Array(size).fill(0));
-            const finder = (r0, c0) => {
-              for (let r = 0; r < 7; r++) for (let c = 0; c < 7; c++) {
-                const border = r === 0 || r === 6 || c === 0 || c === 6;
-                const core = r >= 2 && r <= 4 && c >= 2 && c <= 4;
-                grid[r0 + r][c0 + c] = border || core ? 1 : 0;
-              }
-            };
-            finder(0, 0); finder(0, size - 7); finder(size - 7, 0);
-            for (let i = 8; i < size - 8; i++) {
-              grid[6][i] = i % 2 === 0 ? 1 : 0;
-              grid[i][6] = i % 2 === 0 ? 1 : 0;
-            }
-            for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
-              if (r < 9 && c < 9) continue;
-              if (r < 9 && c >= size - 8) continue;
-              if (r >= size - 8 && c < 9) continue;
-              if (r === 6 || c === 6) continue;
-              grid[r][c] = rand() > 0.5 ? 1 : 0;
-            }
-            let rects = "";
-            for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
-              if (grid[r][c]) rects += `<rect x="${c}" y="${r}" width="1" height="1"/>`;
-            }
-            qr.innerHTML = rects;
-          })();
-
-          btn.addEventListener("click", () => {
-            if (running) return;
-            running = true;
-            btn.disabled = true;
-            btn.textContent = "Gerando cobrança…";
-
-            // Fase 1: cria a cobrança (pendente e ativas sobem).
-            state.pendente += VALOR;
-            state.ativas += 1;
-            render();
-            wrap.hidden = false;
-            wrap.classList.remove("is-paid");
-            check.hidden = true;
-            statusEl.hidden = false;
-            statusEl.classList.remove("is-paid");
-            statusText.textContent = "Aguardando pagamento…";
-            if (!prefersReduced) {
-              gsap.fromTo(wrap, { scale: 0.85, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "back.out(1.6)" });
-              gsap.fromTo(statusEl, { opacity: 0 }, { opacity: 1, duration: 0.4, delay: 0.2 });
-            }
-
-            // Fase 2: pagamento confirmado.
-            window.setTimeout(() => {
-              const target = {
-                pendente: state.pendente - VALOR,
-                recebido: state.recebido + VALOR,
-                ativas: state.ativas - 1
-              };
-              statusText.textContent = "Pagamento confirmado ✓";
-              statusEl.classList.add("is-paid");
-              wrap.classList.add("is-paid");
-              const showCheck = () => {
-                check.hidden = false;
-                if (!prefersReduced) {
-                  gsap.fromTo(check, { scale: 0.5, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(2)" });
-                }
-              };
-              if (prefersReduced) {
-                Object.assign(state, target);
-                render();
-                showCheck();
-              } else {
-                gsap.to(state, { ...target, duration: 0.7, ease: "power3.out", onUpdate: render, onComplete: showCheck });
-              }
-              btn.textContent = "Simular outra cobrança";
-              btn.disabled = false;
-              running = false;
-            }, 2200);
-          });
-        })();
-
-        // ── Calculadora de margem ─────────────────────────────────────────
-        (function () {
-          const cost = $("#lpCost"), price = $("#lpPrice"), fee = $("#lpFee");
-          const marginValue = $("#lpMarginValue"), marginPct = $("#lpMarginPct"), markupPct = $("#lpMarkupPct");
-          if (!cost || !price) return;
-
-          const parseMoney = (el) => {
-            const raw = (el.value || "").replace(/\s/g, "").replace(/\./g, "").replace(",", ".");
-            const n = parseFloat(raw);
-            return isFinite(n) ? n : 0;
-          };
-          const parseFee = (el) => {
-            const n = parseFloat((el.value || "").trim().replace(",", "."));
-            return isFinite(n) ? n : 0;
-          };
-
-          const update = () => {
-            const c = parseMoney(cost), p = parseMoney(price), f = parseFee(fee);
-            const taxas = (p * f) / 100;
-            const margem = p - c - taxas;
-            const margemP = p ? (margem / p) * 100 : 0;
-            const markupP = c ? ((p - c) / c) * 100 : 0;
-
-            marginValue.textContent = "R$ " + fmt(margem, 2);
-            marginValue.classList.toggle("is-negative", margem < 0);
-            marginPct.textContent = fmt(margemP, 1) + "%";
-            markupPct.textContent = fmt(markupP, 0) + "%";
-          };
-
-          [cost, price, fee].forEach((el) => el.addEventListener("input", update));
-          update();
-        })();
-
-        // ── FAQ ───────────────────────────────────────────────────────────
-        $$(".lp-faq__item").forEach((item) => {
-          const q = item.querySelector(".lp-faq__q");
-          if (!q) return;
-          q.addEventListener("click", () => {
-            const open = item.classList.toggle("is-open");
-            q.setAttribute("aria-expanded", String(open));
-          });
-        });
-
-        // A landing some (vira app) e volta (logout). Ao voltar, o layout
-        // retorna ao normal e os triggers precisam recalcular suas posições.
-        if (!prefersReduced) {
-          new MutationObserver(() => {
-            if (!shell.classList.contains("is-hidden")) ScrollTrigger.refresh();
-          }).observe(shell, { attributes: true, attributeFilter: ["class"] });
-        }
-      })();
-    </script>
+    <!-- Site público: páginas por endereço, demos e movimento. -->
+    <script src="site.js"></script>
     <!-- VLibras (Governo Federal): cria o próprio botão de Libras na lateral direita. -->
     <script src="https://vlibras.gov.br/app/vlibras-plugin.js" async></script>
   </body>

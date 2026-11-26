@@ -83,8 +83,9 @@ não texto:
 | Texto, link ou ícone verde sobre fundo claro | `--color-brand-ink` | 4.8 a 5.4:1 |
 | Texto claro | só sobre `brand-dark` (hover do botão primário, faixas escuras) | 15:1 |
 
-Exceção aceita pela WCAG: o "up" do logotipo. O modo alto contraste (seção 11) escurece
-ainda mais texto e bordas.
+Exceções aceitas pela WCAG: o "up" do logotipo e o `brand-mid` sobre o floresta do
+fechamento da landing (6.3:1). O modo alto contraste (seção 11) escurece ainda mais texto e
+bordas.
 
 ---
 
@@ -519,10 +520,37 @@ rótulo.
 
 ## 9. Módulos e Páginas — Guia Visual
 
-### Landing Page
-- Background: `--color-bg`
-- Hero com demo interativa de PIX, calculadora de margem, faixa de números e FAQ
-- Nav: fundo `--color-bg`, sem sombra, border-bottom sutil
+### Site público (home e páginas de módulo)
+- Navegação e topos em floresta (`--lp-ink`), com o "▲" do logotipo grande ao fundo; o resto em
+  `--color-bg`. Superfícies escuras derivadas dos tokens por `color-mix` (`--lp-ink-raised`,
+  `--lp-ink-line`, `--lp-ink-muted`), sem cor nova
+- Home: manchete "Receba. Entenda. Decida. Cresça." com foto de MEI e trechos da interface
+  flutuando; depois para quem é, os cinco módulos em grade, o caminho do número à ação, a
+  calculadora de margem, números do MEI com fonte, acessibilidade, perguntas e fechamento
+- Cada módulo tem página própria: topo escuro com a demo, "Como funciona", detalhes em
+  texto + interface, regras e o link para o próximo módulo
+- O cabeçalho acompanha a seção que passa por baixo dele: floresta sobre as faixas marcadas
+  com `data-nav="dark"`, `--color-bg` sobre o resto. Topos terminam em curva e as faixas do meio
+  (caminho, números) são recuadas e arredondadas por `--lp-round`
+- Perguntas em sanfona: só a pergunta aparece; o hover (ou clique/Enter) abre a resposta, frase
+  por frase. A altura muda de uma vez e a rolagem é compensada, para a pergunta não fugir do mouse
+- Sem fotos de pessoas nem depoimentos. O topo parte da dor do MEI e mostra a plataforma num
+  computador e num celular (`.lp-devices`): desenho em HTML com os números da conta de
+  demonstração, não print. O tamanho da letra segue a largura do bloco (`cqi`), então o aparelho
+  encolhe inteiro no celular. O PIX do celular passa de "Aguardando" para "Pago" na entrada
+- Cabeçalho: ao rolar, o nome da página ou da seção (`data-lockup`) desliza para junto do logo
+  ("wageup▲pix"); entre seções, o nome rola para cima. Se não couber antes do primeiro link, não
+  aparece (`is-lockup-tight`). Linha de progresso de leitura embaixo
+- Login e cadastro: formulário à esquerda, alinhado ao logo, com "Voltar ao site" no alto; painel
+  floresta à direita só no desktop, com um único cartão do dia do negócio
+- Rolagem suave (Lenis) só no site público; desliga no app, nos painéis (`data-lenis-prevent`) e
+  com "menos movimento"
+- Páginas de módulo com profundidade: "por dentro" em linha do tempo (`.mp-flow`), contas em
+  recibo (`.mp-receipt`), definições com exemplo (`.mp-defs`), regras (`.mp-rules`) e dúvidas
+  do módulo na mesma sanfona (`.lp-faq--module`)
+- Login e cadastro seguem o site: painel floresta com o título da aba aberta e o formulário claro
+  com rótulos visíveis; o indicador das abas desliza (`#auth[data-tab]`, definido em `setAuthTab`)
+- Movimento do `site.js`: entrada até 400ms, rolagem ligada (scrub) e mouse; nada em loop
 
 ### Dashboard (app)
 - Background geral: `--color-bg`; sidebar `--color-surface-muted`, em trilha de ícones

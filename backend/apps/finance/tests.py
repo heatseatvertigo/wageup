@@ -371,6 +371,8 @@ class JaLancadoNaPlataformaTests(TestCase):
         self.assertEqual(self._preview()["possible_matches"], 0)
 
 
+# Sem DeepSeek: a suite nao pode depender da chave do .env nem bater na rede.
+@override_settings(DEEPSEEK_API_KEY="")
 class InsightsTests(TestCase):
     """Os insights do dashboard leem a margem do modelo e sao so de admin."""
 
@@ -670,3 +672,67 @@ class ComparacaoDoMesTests(TestCase):
         )
 
         self.assertEqual(gather_metrics(self.business)["low_stock_count"], 0)
+
+
+class OrdemDosProvedoresTests(TestCase):
+    """Insights e recomendacoes tentam DeepSeek, depois Anthropic, depois regras locais."""
+
+    RESPOSTA = '[{"title": "Divulgue o bolo", "text": "Rende bem.", "product_name": "Bolo"}]'
+
+    def setUp(self):
+        from apps.products.models import Product
+
+        User = get_user_model()
+        self.admin = User.objects.create_user(username="p@w.local", email="p@w.local", password="x")
+        UserProfile.objects.create(user=self.admin, role="admin")
+        self.business = Business.objects.create(owner=self.admin, name="Negocio")
+        Product.objects.create(business=self.business, name="Bolo", price=Decimal("60"), cost=Decimal("20"), stock=30)
+        self.client = APIClient()
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {Token.objects.create(user=self.admin).key}")
+
+    @override_settings(DEEPSEEK_API_KEY="chave-deepseek", ANTHROPIC_API_KEY="chave-anthropic")
+    def test_deepseek_vem_primeiro(self):
+        from unittest.mock import patch
+
+        with patch("apps.finance.assistant._call_deepseek", return_value=self.RESPOSTA) as deepseek, \
+                patch("apps.finance.insights._call_claude") as claude:
+            dados = self.client.get("/api/finance/insights/").data
+
+        deepseek.assert_called_once()
+        claude.assert_not_called()
+        self.assertEqual(dados["provider"], "deepseek")
+        self.assertEqual(dados["insights"][0]["action"]["product_name"], "Bolo")
+
+    @override_settings(DEEPSEEK_API_KEY="chave-deepseek", ANTHROPIC_API_KEY="chave-anthropic")
+    def test_deepseek_fora_do_ar_cai_para_anthropic(self):
+        from unittest.mock import patch
+
+        with patch("apps.finance.assistant._call_deepseek", side_effect=Exception("timeout")), \
+                patch("apps.finance.insights._call_claude", return_value=self.RESPOSTA):
+            dados = self.client.get("/api/finance/insights/").data
+
+        self.assertEqual(dados["provider"], "anthropic")
+
+    @override_settings(DEEPSEEK_API_KEY="chave-deepseek", ANTHROPIC_API_KEY="")
+    def test_resposta_ilegivel_usa_regras_locais(self):
+        from unittest.mock import patch
+
+        with patch("apps.finance.assistant._call_deepseek", return_value="nao e json"):
+            dados = self.client.get("/api/finance/insights/").data
+
+        self.assertEqual(dados["provider"], "local-demo")
+        self.assertTrue(dados["insights"])
+
+    @override_settings(DEEPSEEK_API_KEY="chave-deepseek", ANTHROPIC_API_KEY="")
+    def test_recomendacoes_usam_deepseek(self):
+        from unittest.mock import patch
+
+        resposta = (
+            '[{"title": "Divulgue o bolo", "text": "Margem boa.", "product_name": "Bolo", '
+            '"channel": "Instagram", "goal": "lancamento"}]'
+        )
+        with patch("apps.finance.assistant._call_deepseek", return_value=resposta):
+            dados = self.client.get("/api/marketing/recommendations/").data
+
+        self.assertEqual(dados["provider"], "deepseek")
+        self.assertEqual(dados["recommendations"][0]["product_name"], "Bolo")
