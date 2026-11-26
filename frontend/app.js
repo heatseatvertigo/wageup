@@ -197,6 +197,46 @@ document.querySelectorAll("[data-view]").forEach((button) => {
   });
 });
 
+// ─── Barra lateral aberta ou recolhida ──────────────────────────────────────
+// Quem decide é quem usa, pelo botão no alto da barra, e o navegador lembra.
+// Antes ela abria ao passar o mouse e empurrava a tela inteira a cada
+// passagem. Sem escolha salva, telas estreitas começam com a barra recolhida.
+const SIDEBAR_KEY = "wageup:sidebar";
+const railToggle = document.querySelector("[data-rail-toggle]");
+
+function lerBarraSalva() {
+  try { return localStorage.getItem(SIDEBAR_KEY); } catch { return null; }
+}
+
+function aplicarBarra(recolhida, { animar = false } = {}) {
+  const trocar = () => {
+    appShell.classList.toggle("is-rail", recolhida);
+    const rotulo = recolhida ? "Abrir menu" : "Recolher menu";
+    railToggle?.setAttribute("aria-pressed", String(recolhida));
+    railToggle?.setAttribute("aria-label", rotulo);
+    railToggle?.setAttribute("title", rotulo);
+    const icone = railToggle?.querySelector(".material-symbols-rounded");
+    if (icone) icone.textContent = recolhida ? "left_panel_open" : "left_panel_close";
+  };
+  const semMovimento = document.documentElement.hasAttribute("data-reduce-motion");
+  // A transição de visão troca as duas fotos da tela suavemente: nada pula.
+  if (animar && document.startViewTransition && !semMovimento && !document.hidden) {
+    // Se o navegador cancelar a transição, a troca acontece do mesmo jeito.
+    document.startViewTransition(trocar).ready.catch(() => {});
+  } else {
+    trocar();
+  }
+}
+
+const barraSalva = lerBarraSalva();
+aplicarBarra(barraSalva ? barraSalva === "rail" : window.innerWidth < 1100);
+
+railToggle?.addEventListener("click", () => {
+  const recolhida = !appShell.classList.contains("is-rail");
+  try { localStorage.setItem(SIDEBAR_KEY, recolhida ? "rail" : "full"); } catch { /* sem armazenamento: vale só nesta visita */ }
+  aplicarBarra(recolhida, { animar: true });
+});
+
 // ─── Grupo "Financeiro" na navegação lateral ────────────────────────────────
 // O item não abre view nenhuma: passar o mouse revela os módulos financeiros
 // em cascata e o clique apenas abre/recolhe essa cascata.
@@ -1116,6 +1156,7 @@ function applyUserPermissions() {
   document.querySelector("#accountInitial").textContent = name.charAt(0).toUpperCase();
   document.querySelector("#accountName").textContent = name;
   document.querySelector("#accountRole").textContent = canAccessFinance() ? "Admin" : "Membro";
+  document.querySelector("#appBusiness").textContent = currentUser?.business_name || "WageUp";
 
   document.querySelectorAll("[data-admin-only]").forEach((item) => {
     item.classList.toggle("is-hidden", !canAccessFinance());
@@ -1156,9 +1197,6 @@ function setView(viewName) {
   // tela comum, com título e rolagem.
   const emChat = CHAT_VIEWS.includes(viewName) && !(viewName === "app-marketing" && marketingTab === "actions");
   document.querySelector(".dashboard")?.classList.toggle("is-chat", emChat);
-  // A navegação fica recolhida em trilha de ícones em toda a plataforma e se
-  // abre ao passar o mouse ou receber foco pelo teclado.
-  appShell.classList.add("is-rail");
   if (viewName === "overview") {
     renderSummary(); renderCalendar(); renderSemesterChart();
     loadProfitTable();

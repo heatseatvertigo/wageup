@@ -180,7 +180,7 @@ uma linha.
 - **Gap entre cards no grid:** `--space-4` (16px)
 - **Gap entre blocos de uma tela:** `--space-8` (32px), que também é o padding da tela
 - **Padding de seção da landing (vertical):** mínimo `--space-16` (64px)
-- **Sidebar:** 240px aberta, 4.25rem (68px) em trilha de ícones
+- **Sidebar:** 16.5rem aberta, 5.5rem em trilha de ícones, recuada `--space-3` da borda
 - Prefira `gap` a `margin` entre filhos de flex e grid
 
 ---
@@ -446,19 +446,23 @@ Peças só do Marketing:
 
 ```css
 .sidebar {
-  width: 240px;
-  background: var(--color-surface-muted);
-  border-right: 1px solid var(--color-border);
-  padding: var(--space-6) var(--space-4);
-  /* NÃO usar background escuro — manter tom claro */
+  background: var(--lp-ink);          /* o floresta dos topos do site */
+  color: var(--color-text-inverse);
+  margin: var(--space-3) 0 var(--space-3) var(--space-3);
+  border-radius: calc(var(--radius-xl) * 1.5);
 }
 ```
 
-- Item ativo: fundo `brand-subtle`, texto `brand-ink`. Grupo com submenu (Financeiro) abre e
-  fecha com chevron.
-- **Trilha de ícones** (`.app-shell.is-rail`, desktop): a barra fica recolhida em 4.25rem só
-  com ícones e volta inteira, sobreposta ao conteúdo, no hover ou com foco do teclado.
-- No celular a barra sai da tela e abre pelo botão ☰ do cabeçalho.
+- Mesmo floresta do site, recuada e arredondada como os blocos escuros da landing: o app e o
+  site se reconhecem. Logo `wageup▲` no alto, conta no pé.
+- Itens em `--lp-ink-muted`; hover e ativo em `--lp-ink-raised`. O ativo tem ícone em
+  `brand-mid` e um fio de 3px à esquerda. Grupo com submenu (Financeiro) abre com chevron.
+- **Aberta ou recolhida é escolha de quem usa** (botão no alto, `data-rail-toggle`), lembrada em
+  `localStorage` `wageup:sidebar`. Sem escolha salva, telas abaixo de 1100px começam recolhidas.
+  A barra **não** abre no hover: abrir no hover empurrava a tela a cada passagem do mouse.
+- A troca passa pela View Transitions API (`app-sidebar` e `app-main`), sem animar largura;
+  com "menos movimento" ela é instantânea.
+- No celular a barra é uma gaveta escura que abre pelo botão de menu do cabeçalho.
 
 ### 7.11 Valores Monetários
 ```css
@@ -553,9 +557,13 @@ rótulo.
 - Movimento do `site.js`: entrada até 400ms, rolagem ligada (scrub) e mouse; nada em loop
 
 ### Dashboard (app)
-- Background geral: `--color-bg`; sidebar `--color-surface-muted`, em trilha de ícones
+- Background geral: `--color-bg`; sidebar no floresta do site (ver 7.10)
 - Cada tela (`.view`) é uma coluna de `.summary-grid` e `.work-panel`, com `gap: --space-8`
-- Header do dashboard: simples, sem background próprio — funde com o bg
+- Header do dashboard: sem background próprio. Em cima, o nome do negócio com o fio verde do
+  site; embaixo, o título em semibold com tracking apertado, como os títulos da landing
+- Rótulos de cartão sem caixa alta; títulos de painel na fonte de títulos
+- Telas de chat (assistente e marketing) no desktop: bloco recuado `--space-3` e arredondado
+  como a barra lateral, em vez de ir de ponta a ponta
 
 ### Módulo Financeiro
 - Métricas em destaque: valor em DM Mono grande, label pequeno em caps acima
