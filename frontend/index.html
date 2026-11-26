@@ -1961,12 +1961,9 @@
     <!-- APP -->
     <section class="app-shell is-hidden" id="app" aria-label="Aplicativo Wage Up">
       <aside class="sidebar" id="appSidebar" aria-label="Navegação">
-        <div class="account-chip">
-          <span id="accountInitial">C</span>
-          <div>
-            <strong id="accountName">Conta</strong>
-            <small id="accountRole">MEI ativo</small>
-          </div>
+        <div class="sidebar__top">
+          <span class="lp-logo sidebar__brand"><span class="lp-logo__text">wage<span class="lp-logo__up">up</span></span><span class="lp-logo__tick" aria-hidden="true"></span></span>
+          <button class="sidebar__toggle" type="button" data-rail-toggle aria-pressed="false" aria-label="Recolher menu" title="Recolher menu"><span class="material-symbols-rounded" aria-hidden="true">left_panel_close</span></button>
         </div>
         <nav class="side-nav" aria-label="Módulos da plataforma">
           <button class="active" data-view="overview" title="Visão geral"><span class="material-symbols-rounded" aria-hidden="true">home</span>Visão geral</button>
@@ -1989,16 +1986,48 @@
           <button data-view="app-marketing" title="Marketing"><span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>Marketing</button>
         </nav>
         <div class="side-footer">
+          <button data-view="settings" title="Configurações"><span class="material-symbols-rounded" aria-hidden="true">settings</span>Configurações</button>
           <button data-view="help" title="Ajuda"><span class="material-symbols-rounded" aria-hidden="true">help</span>Ajuda</button>
           <button data-logout title="Sair"><span class="material-symbols-rounded" aria-hidden="true">logout</span>Sair</button>
         </div>
+        <button class="account-chip" type="button" id="accountButton" aria-haspopup="dialog" aria-expanded="false" aria-controls="profilePop" title="Sua conta">
+          <span class="account-chip__avatar" id="accountInitial">C</span>
+          <span class="account-chip__text">
+            <strong id="accountName">Conta</strong>
+            <small id="accountRole">MEI ativo</small>
+          </span>
+          <span class="material-symbols-rounded account-chip__more" aria-hidden="true">unfold_more</span>
+        </button>
       </aside>
+
+      <!-- Cartão da conta: abre pelo botão do pé da barra lateral. Fica fora da
+           barra porque ela rola e cortaria o cartão. -->
+      <div class="profile-pop" id="profilePop" role="dialog" aria-labelledby="popName" hidden>
+        <div class="profile-pop__head">
+          <span class="profile-pop__avatar" id="popInitial" aria-hidden="true">C</span>
+          <span class="profile-pop__who"><strong id="popName">Conta</strong><small id="popEmail"></small></span>
+        </div>
+        <div class="profile-pop__biz">
+          <span class="material-symbols-rounded" aria-hidden="true">storefront</span>
+          <span><strong id="popBusiness">Seu negócio</strong><small id="popBusinessMeta"></small></span>
+        </div>
+        <dl class="profile-pop__stats">
+          <div><dt>Vendido no mês</dt><dd class="value-currency" id="popRevenue">—</dd></div>
+          <div><dt>Lucro no mês</dt><dd class="value-currency" id="popProfit">—</dd></div>
+          <div><dt>Produtos</dt><dd class="value-currency" id="popProducts">—</dd></div>
+        </dl>
+        <div class="profile-pop__actions">
+          <button type="button" data-pop-view="profile"><span class="material-symbols-rounded" aria-hidden="true">badge</span>Perfil do negócio</button>
+          <button type="button" data-pop-view="settings"><span class="material-symbols-rounded" aria-hidden="true">settings</span>Configurações</button>
+          <button type="button" data-pop-logout><span class="material-symbols-rounded" aria-hidden="true">logout</span>Sair</button>
+        </div>
+      </div>
 
       <main class="dashboard" id="appMain" tabindex="-1">
         <header class="dashboard-header">
-          <button class="menu-button" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="appSidebar"><span aria-hidden="true">☰</span></button>
+          <button class="menu-button" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="appSidebar"><span class="material-symbols-rounded" aria-hidden="true">menu</span></button>
           <div>
-            <p class="eyebrow">Wage Up</p>
+            <p class="eyebrow" id="appBusiness">WageUp</p>
             <h2 id="view-title">Bem-vindo de volta.</h2>
           </div>
         </header>
@@ -3039,6 +3068,192 @@
               </div>
             </div>
 
+          </div>
+        </section>
+
+        <!-- PERFIL DO NEGÓCIO: resumo do negócio, números do mês e produtos -->
+        <section class="view" id="profile">
+          <div class="profile-hero">
+            <div class="profile-hero__id">
+              <span class="profile-hero__avatar" id="pfInitial" aria-hidden="true">N</span>
+              <div class="profile-hero__text">
+                <p class="profile-hero__kicker" id="pfKicker"></p>
+                <h3 class="profile-hero__name" id="pfBusiness">Seu negócio</h3>
+                <p class="profile-hero__meta" id="pfMeta"></p>
+              </div>
+            </div>
+            <dl class="profile-hero__facts" id="pfFacts"></dl>
+            <div class="profile-hero__actions">
+              <button class="lp-btn lp-btn--primary" type="button" data-open-settings="business"><span class="material-symbols-rounded" aria-hidden="true">edit</span>Editar perfil</button>
+              <button class="lp-btn profile-hero__ghost" type="button" data-open-settings="money">Taxas e imposto</button>
+            </div>
+          </div>
+
+          <div class="summary-grid summary-grid--quad" id="pfStats" aria-live="polite"></div>
+
+          <div class="profile-grid">
+            <section class="work-panel" aria-labelledby="pfProductsTitle">
+              <div class="panel-heading">
+                <h3 id="pfProductsTitle">Produtos que mais rendem</h3>
+                <button class="ghost-button" type="button" data-goto-view="products"><span class="material-symbols-rounded" aria-hidden="true">inventory_2</span>Ver catálogo</button>
+              </div>
+              <ul class="pf-products" id="pfProducts"></ul>
+            </section>
+
+            <section class="work-panel" id="pfMonthPanel" aria-labelledby="pfMonthTitle" data-admin-only>
+              <div class="panel-heading"><h3 id="pfMonthTitle">Este mês</h3></div>
+              <div class="pf-month" id="pfMonth"></div>
+            </section>
+          </div>
+        </section>
+
+        <!-- CONFIGURAÇÕES -->
+        <section class="view" id="settings">
+          <div class="settings">
+            <div class="settings__nav" role="tablist" aria-label="Seções das configurações" aria-orientation="vertical">
+              <button type="button" role="tab" id="setTabAccount" aria-controls="setAccount" aria-selected="true" data-settings-tab="account"><span class="material-symbols-rounded" aria-hidden="true">person</span>Conta</button>
+              <button type="button" role="tab" id="setTabBusiness" aria-controls="setBusiness" aria-selected="false" tabindex="-1" data-settings-tab="business"><span class="material-symbols-rounded" aria-hidden="true">storefront</span>Negócio</button>
+              <button type="button" role="tab" id="setTabMoney" aria-controls="setMoney" aria-selected="false" tabindex="-1" data-settings-tab="money"><span class="material-symbols-rounded" aria-hidden="true">payments</span>Dinheiro</button>
+              <button type="button" role="tab" id="setTabConnections" aria-controls="setConnections" aria-selected="false" tabindex="-1" data-settings-tab="connections"><span class="material-symbols-rounded" aria-hidden="true">hub</span>Conexões</button>
+              <button type="button" role="tab" id="setTabPrivacy" aria-controls="setPrivacy" aria-selected="false" tabindex="-1" data-settings-tab="privacy"><span class="material-symbols-rounded" aria-hidden="true">shield_lock</span>Privacidade e dados</button>
+            </div>
+
+            <div class="settings__panels">
+              <!-- Conta -->
+              <section class="work-panel settings__panel" id="setAccount" role="tabpanel" aria-labelledby="setTabAccount" data-settings-panel="account">
+                <div class="panel-heading"><h3>Conta</h3><span>Seu nome, o e-mail de acesso e a senha</span></div>
+                <form class="settings-form" id="accountForm" novalidate>
+                  <div class="field-grid settings-form__grid">
+                    <label class="field"><span class="field__label">Seu nome</span><input name="name" autocomplete="name" required /></label>
+                    <label class="field"><span class="field__label">E-mail de acesso</span><input name="email" type="email" autocomplete="email" required /></label>
+                    <label class="field field--wide" id="accountPasswordField" hidden>
+                      <span class="field__label">Senha atual</span>
+                      <input name="current_password" type="password" autocomplete="current-password" />
+                      <small class="field__hint">O e-mail é o seu login. Para trocar, confirme a senha.</small>
+                    </label>
+                  </div>
+                  <div class="settings-form__foot"><p class="settings-form__status" role="status"></p><button class="primary-button" type="submit">Salvar conta</button></div>
+                </form>
+
+                <form class="settings-form settings-form--split" id="passwordForm" novalidate>
+                  <div class="settings-form__intro">
+                    <h4>Trocar senha</h4>
+                    <p>Ao trocar, os outros aparelhos conectados saem da conta. Entrou com o Google e não tem senha? Use "Esqueci minha senha" na tela de entrada.</p>
+                  </div>
+                  <div class="field-grid settings-form__grid">
+                    <label class="field field--wide"><span class="field__label">Senha atual</span><input name="current_password" type="password" autocomplete="current-password" required /></label>
+                    <label class="field"><span class="field__label">Nova senha</span><input name="new_password" type="password" minlength="8" autocomplete="new-password" required /></label>
+                    <label class="field"><span class="field__label">Repita a nova senha</span><input name="new_password_confirm" type="password" minlength="8" autocomplete="new-password" required /></label>
+                  </div>
+                  <div class="settings-form__foot"><p class="settings-form__status" role="status"></p><button class="primary-button" type="submit">Trocar senha</button></div>
+                </form>
+              </section>
+
+              <!-- Negócio -->
+              <section class="work-panel settings__panel" id="setBusiness" role="tabpanel" aria-labelledby="setTabBusiness" data-settings-panel="business" hidden>
+                <div class="panel-heading"><h3>Negócio</h3><span>Aparece no seu perfil e no topo de cada tela</span></div>
+                <form class="settings-form" id="businessForm" novalidate>
+                  <div class="field-grid settings-form__grid">
+                    <label class="field field--wide"><span class="field__label">Nome do negócio</span><input name="name" required maxlength="160" /></label>
+                    <label class="field">
+                      <span class="field__label">Segmento</span>
+                      <select name="segment">
+                        <option value="">Escolha</option>
+                        <option>Alimentação</option>
+                        <option>Beleza e estética</option>
+                        <option>Moda e acessórios</option>
+                        <option>Artesanato</option>
+                        <option>Revenda</option>
+                        <option>Serviços</option>
+                        <option>Aulas e cursos</option>
+                        <option>Outro</option>
+                      </select>
+                    </label>
+                    <label class="field"><span class="field__label">Cidade</span><input name="city" maxlength="120" autocomplete="address-level2" placeholder="São Paulo, SP" /></label>
+                    <label class="field">
+                      <span class="field__label">CNPJ <small>opcional</small></span>
+                      <input name="cnpj" maxlength="18" placeholder="00.000.000/0000-00" autocapitalize="characters" />
+                      <small class="field__hint">Aceita também o CNPJ com letras, emitido desde julho de 2026.</small>
+                    </label>
+                    <label class="field"><span class="field__label">WhatsApp <small>opcional</small></span><input name="phone" type="tel" maxlength="20" autocomplete="tel" placeholder="(11) 91234-5678" /></label>
+                  </div>
+                  <div class="settings-form__foot"><p class="settings-form__status" role="status"></p><button class="primary-button" type="submit">Salvar negócio</button></div>
+                </form>
+              </section>
+
+              <!-- Dinheiro -->
+              <section class="work-panel settings__panel" id="setMoney" role="tabpanel" aria-labelledby="setTabMoney" data-settings-panel="money" hidden>
+                <div class="panel-heading"><h3>Dinheiro</h3><span>O que sai de cada venda antes de virar lucro</span></div>
+                <form class="settings-form" id="moneyForm" novalidate>
+                  <p class="settings-form__lead">Todo produto novo já vem com estes percentuais. Cada produto continua podendo ter os dele: o padrão só poupa digitar o mesmo número em todo cadastro.</p>
+                  <div class="field-grid settings-form__grid">
+                    <label class="field">
+                      <span class="field__label">Taxa da maquininha ou do PIX</span>
+                      <span class="input-suffix"><input name="default_fee_percent" type="number" min="0" max="100" step="0.01" inputmode="decimal" placeholder="0" /><span aria-hidden="true">%</span></span>
+                      <small class="field__hint">Sobre o preço de venda. Confira no app da maquininha: débito e crédito costumam ter taxas diferentes.</small>
+                    </label>
+                    <label class="field">
+                      <span class="field__label">Imposto por venda</span>
+                      <span class="input-suffix"><input name="default_tax_percent" type="number" min="0" max="100" step="0.01" inputmode="decimal" placeholder="0" /><span aria-hidden="true">%</span></span>
+                      <small class="field__hint">O MEI paga o DAS, um valor fixo por mês: deixe 0 e lance o DAS como despesa. Use este campo se o seu imposto for por venda.</small>
+                    </label>
+                    <label class="field field--check">
+                      <input name="apply_to_products" type="checkbox" />
+                      <span class="field__label">Aplicar também aos produtos já cadastrados</span>
+                    </label>
+                  </div>
+                  <div class="settings-form__foot"><p class="settings-form__status" role="status"></p><button class="primary-button" type="submit">Salvar padrões</button></div>
+                </form>
+
+                <div class="settings-links" data-admin-only>
+                  <button class="settings-link" type="button" data-goto-view="overview">
+                    <span class="material-symbols-rounded" aria-hidden="true">flag</span>
+                    <span><strong>Meta do mês</strong><small>Defina e acompanhe na Visão geral</small></span>
+                    <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                  </button>
+                  <button class="settings-link" type="button" data-goto-view="payments">
+                    <span class="material-symbols-rounded" aria-hidden="true">qr_code_2</span>
+                    <span><strong>Cobranças PIX</strong><small>No TCC, todo PIX cai numa conta única de teste da Abacate Pay</small></span>
+                    <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                  </button>
+                  <button class="settings-link" type="button" data-goto-view="finance">
+                    <span class="material-symbols-rounded" aria-hidden="true">upload_file</span>
+                    <span><strong>Extrato do banco</strong><small>Importe o arquivo OFX em Movimentações</small></span>
+                    <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                  </button>
+                </div>
+              </section>
+
+              <!-- Conexões -->
+              <section class="work-panel settings__panel" id="setConnections" role="tabpanel" aria-labelledby="setTabConnections" data-settings-panel="connections" hidden>
+                <div class="panel-heading"><h3>Conexões</h3><span>O que está ligado à sua conta</span></div>
+                <ul class="connections" id="connectionsList" aria-live="polite"></ul>
+              </section>
+
+              <!-- Privacidade e dados -->
+              <section class="work-panel settings__panel" id="setPrivacy" role="tabpanel" aria-labelledby="setTabPrivacy" data-settings-panel="privacy" hidden>
+                <div class="panel-heading"><h3>Privacidade e dados</h3><span>Seus direitos pela LGPD</span></div>
+                <div class="settings-block">
+                  <div class="settings-form__intro">
+                    <h4>Baixar meus dados</h4>
+                    <p>Um arquivo com tudo o que a conta guarda: perfil, produtos, vendas e, para o admin, lançamentos, cobranças PIX e metas. O extrato bancário não está lá porque nunca é guardado.</p>
+                  </div>
+                  <button class="ghost-button" type="button" id="exportButton"><span class="material-symbols-rounded" aria-hidden="true">download</span>Baixar arquivo</button>
+                </div>
+
+                <form class="settings-block settings-block--danger" id="deleteAccountForm" novalidate>
+                  <div class="settings-form__intro">
+                    <h4>Excluir conta</h4>
+                    <p>Apaga a conta e tudo do negócio: produtos, vendas, financeiro, cobranças e campanhas. Não dá para desfazer. Se quiser guardar algo, baixe seus dados antes.</p>
+                  </div>
+                  <div class="field-grid settings-form__grid">
+                    <label class="field"><span class="field__label">Sua senha</span><input name="password" type="password" autocomplete="current-password" required /></label>
+                    <label class="field"><span class="field__label">Digite EXCLUIR para confirmar</span><input name="confirm" autocomplete="off" required /></label>
+                  </div>
+                  <div class="settings-form__foot"><p class="settings-form__status" role="status"></p><button class="ghost-button ghost-button--danger" type="submit">Excluir conta</button></div>
+                </form>
+              </section>
+            </div>
           </div>
         </section>
 
