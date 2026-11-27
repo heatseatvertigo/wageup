@@ -13,7 +13,6 @@
     <script src="a11y.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body>
@@ -29,7 +28,7 @@
             <span class="lp-lockup" aria-hidden="true"><span class="lp-lockup__text"></span></span>
           </a>
 
-          <nav class="lp-nav__links" id="lpNavLinks" aria-label="Site" data-lenis-prevent>
+          <nav class="lp-nav__links" id="lpNavLinks" aria-label="Site">
             <div class="lp-menu">
               <button class="lp-menu__trigger" type="button" aria-expanded="false" aria-controls="lpMenuPanel">
                 Plataforma <span class="material-symbols-rounded" aria-hidden="true">expand_more</span>
@@ -3277,7 +3276,7 @@
     <button class="a11y-trigger" id="a11yTrigger" type="button" aria-expanded="false" aria-controls="a11yPanel" aria-label="Acessibilidade (Alt + A)" title="Acessibilidade (Alt + A)">
       <span class="material-symbols-rounded" aria-hidden="true">accessibility_new</span>
     </button>
-    <div class="a11y-panel" id="a11yPanel" data-lenis-prevent role="dialog" aria-labelledby="a11yTitle" aria-describedby="a11yHint" hidden>
+    <div class="a11y-panel" id="a11yPanel" role="dialog" aria-labelledby="a11yTitle" aria-describedby="a11yHint" hidden>
       <header class="a11y-panel__head">
         <h2 class="a11y-panel__title" id="a11yTitle">Acessibilidade</h2>
         <button class="icon-btn" type="button" data-a11y-close aria-label="Fechar acessibilidade" title="Fechar">

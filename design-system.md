@@ -547,8 +547,12 @@ rótulo.
   aparece (`is-lockup-tight`). Linha de progresso de leitura embaixo
 - Login e cadastro: formulário à esquerda, alinhado ao logo, com "Voltar ao site" no alto; painel
   floresta à direita só no desktop, com um único cartão do dia do negócio
-- Rolagem suave (Lenis) só no site público; desliga no app, nos painéis (`data-lenis-prevent`) e
-  com "menos movimento"
+- Rolagem nativa do navegador, sem biblioteca de rolagem suave: a Lenis segurava a página
+  e soltava aos poucos, o que no trackpad parecia travado
+- Nada que dependa da rolagem pode mexer em variável CSS herdada (ela recalcula o estilo de
+  todos os filhos a cada quadro) nem medir o layout a cada evento: meça uma vez, ao abrir a
+  página e ao redimensionar, e na rolagem só compare números (`medirPagina` no `site.js`).
+  Com o app aberto, os gatilhos de rolagem do site ficam desligados
 - Páginas de módulo com profundidade: "por dentro" em linha do tempo (`.mp-flow`), contas em
   recibo (`.mp-receipt`), definições com exemplo (`.mp-defs`), regras (`.mp-rules`) e dúvidas
   do módulo na mesma sanfona (`.lp-faq--module`)

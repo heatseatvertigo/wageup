@@ -1088,12 +1088,18 @@ async function submitAuthForm(path, formElement) {
 }
 
 async function logout() {
+  // A tela troca na hora; o servidor é avisado em segundo plano. Esperar a
+  // resposta deixava o "Sair" parado por segundos quando o servidor do Render
+  // demorava a responder. keepalive garante que o aviso sai mesmo se a página
+  // for fechada logo em seguida.
   if (authToken) {
-    try {
-      await apiRequest("/auth/logout/", { method: "POST" });
-    } catch {
-      // Token already invalid, local cleanup is enough.
-    }
+    fetch(`${apiBaseUrl}/auth/logout/`, {
+      method: "POST",
+      headers: { Authorization: `Token ${authToken}` },
+      keepalive: true
+    }).catch(() => {
+      // Token já inválido ou sem rede: a limpeza local basta.
+    });
   }
   authToken = null;
   currentUser = null;
