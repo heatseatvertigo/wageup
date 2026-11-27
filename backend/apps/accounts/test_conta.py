@@ -251,3 +251,40 @@ class ValidacaoTests(TestCase):
         self.assertEqual(normalizar_telefone("1133334444"), "(11) 3333-4444")
         with self.assertRaises(ValueError):
             normalizar_telefone("1234")
+
+
+class SenhaGuardadaTests(TestCase):
+    """Senha nova sai em Argon2; a antiga em PBKDF2 continua entrando e é
+    regravada em Argon2 no primeiro login."""
+
+    def setUp(self):
+        cache.clear()
+
+    def test_cadastro_grava_em_argon2(self):
+        r = APIClient().post("/api/auth/register/", {
+            "name": "Ana", "email": "nova@wageup.local", "password": SENHA, "business_name": "Doces",
+        }, format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertTrue(User.objects.get(email="nova@wageup.local").password.startswith("argon2$"))
+
+    def test_senha_antiga_em_pbkdf2_entra_e_e_atualizada(self):
+        from django.contrib.auth.hashers import make_password
+
+        user = User.objects.create(
+            username="antiga@wageup.local", email="antiga@wageup.local",
+            password=make_password(SENHA, hasher="pbkdf2_sha256"),
+        )
+        UserProfile.objects.create(user=user, role="member")
+        Business.objects.create(owner=user, name="Antigo")
+        self.assertTrue(user.password.startswith("pbkdf2_sha256$"))
+
+        r = APIClient().post("/api/auth/login/", {"email": "antiga@wageup.local", "password": SENHA}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        user.refresh_from_db()
+        self.assertTrue(user.password.startswith("argon2$"))
+
+    def test_parametros_da_owasp(self):
+        from .hashers import Argon2OWASPPasswordHasher
+
+        guardada = Argon2OWASPPasswordHasher().encode(SENHA, "saltsaltsaltsalt")
+        self.assertIn("m=19456,t=2,p=1", guardada)

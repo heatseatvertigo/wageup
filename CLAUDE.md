@@ -261,6 +261,8 @@ GET             /api/health/                 # Health check (aberto, sem throttl
 
 31. **O servidor não pode ficar preso esperando a IA**: o gunicorn padrão (1 processo síncrono) atendia uma requisição por vez, e os insights esperando a IA seguravam login, sair, os arquivos do site e o health check. `gunicorn.conf.py` sobe com threads (`gthread`), então quem espera rede libera o processo. `consultar_ia` guarda a resposta por 30 minutos, com chave no hash do prompt: os mesmos números não perguntam de novo, e número novo muda a chave. Só resposta boa é guardada. Os testes que simulam a IA limpam o cache no `setUp`. Os arquivos CSS e JS com `?v=` saem com `Cache-Control: immutable` (`frontend_asset` em `config/views.py`): o navegador não os baixa de novo a cada visita.
 
+32. **Senha em Argon2, não no PBKDF2 padrão** (`apps/accounts/hashers.py`, `PASSWORD_HASHERS` no settings): o PBKDF2 do Django 6 (1,2 milhão de iterações) protege gastando CPU e levava ~3 s por login no décimo de CPU do Render free, quase todo o tempo de entrar. O Argon2, recomendado em primeiro lugar pela OWASP, protege gastando memória; aqui com a configuração mínima dela (19 MiB, t=2, p=1), 35 ms contra 228 ms localmente. O padrão do Argon2 no Django usa 100 MiB por login, pesado para 512 MB com logins simultâneos. Senha antiga em PBKDF2 continua valendo e é regravada em Argon2 no primeiro login certo, que ainda leva os ~3 s uma vez.
+
 ---
 
 ## Deploy no Render + Neon
@@ -300,6 +302,7 @@ Para domínio próprio: configurar `CUSTOM_DOMAIN=seudominio.com` nas variáveis
 - [backend/apps/finance/statements/](backend/apps/finance/statements/) — leitura de extrato bancário, um módulo por formato
 - [backend/apps/finance/tests.py](backend/apps/finance/tests.py) — testes da leitura de OFX e da importação
 - [backend/apps/accounts/throttles.py](backend/apps/accounts/throttles.py) — limites de requisição por rota
+- [backend/apps/accounts/hashers.py](backend/apps/accounts/hashers.py) — Argon2 com a configuração mínima da OWASP
 - [backend/apps/businesses/management/commands/seed_demo.py](backend/apps/businesses/management/commands/seed_demo.py) — conta de demonstração com dados realistas
 - [frontend/app.js](frontend/app.js) — toda a lógica do SPA
 - [frontend/a11y.js](frontend/a11y.js) — painel de acessibilidade, foco nos diálogos e VLibras

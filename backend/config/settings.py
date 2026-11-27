@@ -154,6 +154,15 @@ if DATABASES["default"]["ENGINE"] == "django.db.backends.postgresql":
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
+# Argon2 primeiro: o PBKDF2 padrao levava ~3 s por login no plano free do
+# Render (ver apps/accounts/hashers.py). O PBKDF2 fica na lista para as senhas
+# ja gravadas com ele, que passam para o Argon2 no primeiro login.
+PASSWORD_HASHERS = [
+    "apps.accounts.hashers.Argon2OWASPPasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+]
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
