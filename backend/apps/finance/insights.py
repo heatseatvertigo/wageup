@@ -11,12 +11,14 @@ Um insight que cita um produto traz `action`: o botão leva à ação no marketi
 (RF12 do escopo). A ação sai da situação do produto (`tipo_de_acao`), nunca do
 texto da IA, como nas recomendações do marketing.
 """
+import hashlib
 import json
 import logging
 import re
 from datetime import timedelta
 
 from django.conf import settings
+from django.core.cache import cache
 from django.db.models import Sum
 from django.utils import timezone
 
@@ -147,6 +149,9 @@ def build_insights(business):
     return provider, insights
 
 
+IA_CACHE_SEGUNDOS = 30 * 60
+
+
 def consultar_ia(system_prompt, user_message, max_tokens, ler, claude):
     """Pede a resposta à DeepSeek e, se falhar ou vier ilegível, à Anthropic.
 
@@ -155,6 +160,18 @@ def consultar_ia(system_prompt, user_message, max_tokens, ler, claude):
     (None, None) quando não há chave ou todos falharam: quem chama usa as
     regras locais. Usada também pelas recomendações do marketing.
     """
+    # A mesma pergunta com os mesmos números tem a mesma resposta: guarda por
+    # meia hora. Sem isto, cada visita à Visão geral esperava a IA de novo, e
+    # no servidor de um processo só a espera prendia todas as outras
+    # requisições. Número novo (uma venda, uma despesa) muda o prompt e,
+    # com ele, a chave.
+    chave = "ia:" + hashlib.sha256(
+        f"{max_tokens}\x00{system_prompt}\x00{user_message}".encode()
+    ).hexdigest()
+    guardado = cache.get(chave)
+    if guardado:
+        return guardado
+
     provedores = []
     if settings.DEEPSEEK_API_KEY:
         provedores.append(("deepseek", _texto_deepseek))
@@ -167,6 +184,7 @@ def consultar_ia(system_prompt, user_message, max_tokens, ler, claude):
             logger.exception("Falha ao consultar %s. Tentando a próxima opção.", nome)
             continue
         if resultado:
+            cache.set(chave, (nome, resultado), IA_CACHE_SEGUNDOS)
             return nome, resultado
     return None, None
 

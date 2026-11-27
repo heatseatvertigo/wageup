@@ -572,6 +572,10 @@ class InsightsDoMesTests(TestCase):
     """Os insights falam do mes, como os cards ao lado, e trazem botao de acao."""
 
     def setUp(self):
+        from django.core.cache import cache
+
+        # A resposta da IA fica guardada por prompt: cada caso começa do zero.
+        cache.clear()
         User = get_user_model()
         self.admin = User.objects.create_user(
             username="admin@wageup.local", email="admin@wageup.local", password="x"
@@ -680,7 +684,12 @@ class OrdemDosProvedoresTests(TestCase):
     RESPOSTA = '[{"title": "Divulgue o bolo", "text": "Rende bem.", "product_name": "Bolo"}]'
 
     def setUp(self):
+        from django.core.cache import cache
+
         from apps.products.models import Product
+
+        # A resposta da IA fica guardada por prompt: cada caso começa do zero.
+        cache.clear()
 
         User = get_user_model()
         self.admin = User.objects.create_user(username="p@w.local", email="p@w.local", password="x")
@@ -736,3 +745,39 @@ class OrdemDosProvedoresTests(TestCase):
 
         self.assertEqual(dados["provider"], "deepseek")
         self.assertEqual(dados["recommendations"][0]["product_name"], "Bolo")
+
+
+@override_settings(DEEPSEEK_API_KEY="chave-deepseek", ANTHROPIC_API_KEY="")
+class CacheDaIATests(TestCase):
+    """A mesma pergunta com os mesmos números não chama a IA de novo."""
+
+    def setUp(self):
+        from django.core.cache import cache
+
+        cache.clear()
+
+    def test_mesmo_prompt_usa_a_resposta_guardada(self):
+        from unittest.mock import patch
+
+        from .insights import consultar_ia
+
+        with patch("apps.finance.assistant._call_deepseek", return_value="[1]") as deepseek:
+            primeira = consultar_ia("sistema", "numeros: 10", 100, lambda t: t, None)
+            segunda = consultar_ia("sistema", "numeros: 10", 100, lambda t: t, None)
+            outra = consultar_ia("sistema", "numeros: 11", 100, lambda t: t, None)
+
+        self.assertEqual(primeira, ("deepseek", "[1]"))
+        self.assertEqual(segunda, primeira)
+        self.assertEqual(outra, ("deepseek", "[1]"))
+        self.assertEqual(deepseek.call_count, 2)  # o número novo pergunta de novo
+
+    def test_falha_nao_fica_guardada(self):
+        from unittest.mock import patch
+
+        from .insights import consultar_ia
+
+        with patch("apps.finance.assistant._call_deepseek", side_effect=Exception("fora do ar")):
+            self.assertEqual(consultar_ia("s", "u", 100, lambda t: t, None), (None, None))
+        with patch("apps.finance.assistant._call_deepseek", return_value="ok") as deepseek:
+            self.assertEqual(consultar_ia("s", "u", 100, lambda t: t, None), ("deepseek", "ok"))
+        deepseek.assert_called_once()

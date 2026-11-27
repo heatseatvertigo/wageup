@@ -329,6 +329,10 @@ class RecomendacoesTests(TestCase):
     """As recomendacoes saem dos numeros do catalogo, com ou sem IA."""
 
     def setUp(self):
+        from django.core.cache import cache
+
+        # A resposta da IA fica guardada por prompt: cada caso começa do zero.
+        cache.clear()
         User = get_user_model()
         self.user = User.objects.create_user(
             username="mei@wageup.local", email="mei@wageup.local", password="x"

@@ -259,6 +259,8 @@ GET             /api/health/                 # Health check (aberto, sem throttl
 
 30. **Perfil e configurações moram na conta** (`apps/accounts/conta.py`): o botão da conta, no pé da barra lateral, abre um cartão com o resumo do negócio e leva ao Perfil do negócio e às Configurações (Conta, Negócio, Dinheiro, Conexões, Privacidade e dados). Os números do perfil vêm das vendas, que admin e membro veem; meta e PIX pendente só vão para o admin. Trocar e-mail, trocar senha e apagar a conta pedem a senha atual e usam `PasswordCheckRateThrottle` (o `LoginRateThrottle` é de visitante e não conta quem já está logado). Trocar a senha troca o token, derrubando os outros aparelhos. O CNPJ digitado vai em `Business.cnpj`, validado também no formato alfanumérico de 2026; `Business.document` continua sendo o marcador do `seed_demo`. Taxa e imposto padrão (`Business.default_fee_percent`/`default_tax_percent`) só preenchem o produto novo, e "aplicar aos produtos já cadastrados" é opcional. Conexões mostram o estado de cada integração sem expor chave. Exportar dados devolve um JSON (o membro não recebe o financeiro) e excluir a conta apaga o negócio inteiro.
 
+31. **O servidor não pode ficar preso esperando a IA**: o gunicorn padrão (1 processo síncrono) atendia uma requisição por vez, e os insights esperando a IA seguravam login, sair, os arquivos do site e o health check. `gunicorn.conf.py` sobe com threads (`gthread`), então quem espera rede libera o processo. `consultar_ia` guarda a resposta por 30 minutos, com chave no hash do prompt: os mesmos números não perguntam de novo, e número novo muda a chave. Só resposta boa é guardada. Os testes que simulam a IA limpam o cache no `setUp`. Os arquivos CSS e JS com `?v=` saem com `Cache-Control: immutable` (`frontend_asset` em `config/views.py`): o navegador não os baixa de novo a cada visita.
+
 ---
 
 ## Deploy no Render + Neon
@@ -266,7 +268,8 @@ GET             /api/health/                 # Health check (aberto, sem throttl
 O `render.yaml` já está configurado:
 - `buildCommand`: instala deps e roda `collectstatic`
 - `preDeployCommand`: roda `migrate` automaticamente
-- `startCommand`: gunicorn servindo `config.wsgi:application` do diretório `backend/`
+- `startCommand`: gunicorn servindo `config.wsgi:application` do diretório `backend/`, com a configuração de `gunicorn.conf.py` (raiz do projeto, lida sozinha): 2 processos com 8 threads cada (`gthread`), timeout de 120 s
+- O plano free desliga o servidor depois de 15 minutos sem acesso, e a primeira visita seguinte leva cerca de 50 s. Antes de uma apresentação, abra o site alguns minutos antes ou use um serviço externo de ping (UptimeRobot, cron-job.org) no `/api/health/` a cada 10 minutos. Pelo GitHub Actions não compensa: o repositório é privado e o ping gastaria mais que os minutos gratuitos
 
 Banco PostgreSQL no Neon (não expira; backups automáticos). Passo a passo completo em [DEPLOY-RENDER.md](DEPLOY-RENDER.md).
 
