@@ -3827,8 +3827,12 @@ async function initializeApp() {
 }
 
 async function loadRemoteState() {
-  const products = await apiRequest("/products/");
-  const transactions = canAccessFinance() ? await apiRequest("/transactions/") : [];
+  // Em paralelo: um não depende do outro, e em fila a entrada no app somava
+  // o tempo das duas respostas.
+  const [products, transactions] = await Promise.all([
+    apiRequest("/products/"),
+    canAccessFinance() ? apiRequest("/transactions/") : Promise.resolve([])
+  ]);
   return { products, transactions };
 }
 

@@ -17,8 +17,6 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path, re_path
 from django.views.generic import RedirectView
-from django.views.static import serve
-from django.conf import settings
 
 from apps.finance.views import (
     assistant_conversation_detail,
@@ -27,7 +25,7 @@ from apps.finance.views import (
     finance_assistant,
     finance_goal,
 )
-from .views import frontend_index, health_check
+from .views import frontend_asset, frontend_index, health_check
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -43,7 +41,7 @@ urlpatterns = [
     path('api/payments/', include('apps.payments.urls')),
     path('api/marketing/', include('apps.marketing.urls')),
     path('api/sales/', include('apps.sales.urls')),
-    re_path(r'^(?P<path>app\.js|a11y\.js|site\.js|styles\.css)$', serve, {'document_root': settings.ROOT_DIR / 'frontend'}),
+    re_path(r'^(?P<path>app\.js|a11y\.js|site\.js|styles\.css)$', frontend_asset),
     path('', frontend_index, name='frontend-index'),
     # Paginas do site publico: o mesmo HTML, e o site.js abre a pagina pelo
     # endereco. Com barra no fim, redireciona: os assets sao relativos a raiz.

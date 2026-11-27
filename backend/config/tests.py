@@ -31,3 +31,14 @@ class PaginasDoSiteTests(SimpleTestCase):
     def test_site_js_e_servido(self):
         resposta = self.client.get("/site.js")
         self.assertEqual(resposta.status_code, 200)
+
+    def test_asset_versionado_fica_no_cache_do_navegador(self):
+        # Com ?v= o arquivo nunca muda sob a mesma URL: o navegador guarda.
+        resposta = self.client.get("/app.js?v=123")
+        self.assertEqual(resposta.status_code, 200)
+        self.assertIn("immutable", resposta["Cache-Control"])
+
+    def test_asset_sem_versao_nao_fica_guardado_para_sempre(self):
+        resposta = self.client.get("/app.js")
+        self.assertEqual(resposta.status_code, 200)
+        self.assertNotIn("immutable", resposta.get("Cache-Control", ""))

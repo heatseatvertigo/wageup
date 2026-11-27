@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.http import HttpResponse
+from django.views.static import serve
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -23,6 +24,17 @@ def _asset_version(path):
         return str(int(path.stat().st_mtime))
     except OSError:
         return "0"
+
+
+def frontend_asset(request, path):
+    """CSS e JS do frontend. Com ?v= na URL (o index sempre manda), o navegador
+    guarda por um ano: o arquivo nunca muda sob a mesma versao, porque a versao
+    vem da data de modificacao. Sem isto, cada visita baixava os quatro
+    arquivos de novo pelo servidor, que no plano free atende devagar."""
+    resposta = serve(request, path, document_root=settings.ROOT_DIR / "frontend")
+    if request.GET.get("v") and resposta.status_code == 200:
+        resposta["Cache-Control"] = "public, max-age=31536000, immutable"
+    return resposta
 
 
 def frontend_index(request):
